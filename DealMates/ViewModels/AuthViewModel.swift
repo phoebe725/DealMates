@@ -18,6 +18,7 @@ final class AuthViewModel: ObservableObject {
     var displayName: String  { currentUser?.displayName ?? "Guest" }
     var email: String        { currentUser?.email ?? "" }
     var bio: String          { currentUser?.bio ?? "" }
+    var avatarURL: String?   { currentUser?.avatarURL }
     var isSignedIn: Bool     { currentUser != nil && !currentUser!.isAnonymous }
 
     // MARK: - Bootstrap
@@ -73,15 +74,28 @@ final class AuthViewModel: ObservableObject {
         }
     }
 
-    func updateProfile(displayName: String, bio: String) async {
+    func updateProfile(displayName: String, bio: String, avatarURL: String? = nil) async {
         errorMessage = nil
+        let finalAvatar = avatarURL ?? currentUser?.avatarURL
         do {
-            try await service.updateProfile(uid: uid, displayName: displayName, bio: bio)
+            try await service.updateProfile(uid: uid, displayName: displayName, bio: bio, avatarURL: finalAvatar)
             currentUser?.displayName = displayName
             currentUser?.bio = bio
+            currentUser?.avatarURL = finalAvatar
             currentUser?.updatedAt = Date()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Uploads new avatar JPEG data and returns the public URL (with cache-buster).
+    /// Caller is responsible for then calling `updateProfile` to persist the URL on the row.
+    func uploadAvatar(jpegData: Data) async -> String? {
+        do {
+            return try await service.uploadAvatar(uid: uid, jpegData: jpegData)
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
         }
     }
 

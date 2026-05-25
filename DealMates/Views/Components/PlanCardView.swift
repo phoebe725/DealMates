@@ -14,7 +14,12 @@ struct PlanCardView: View {
 
             // MARK: Organiser row — avatar + name + time + purpose tag
             HStack(spacing: 10) {
-                OrganiserAvatar(name: plan.creatorName)
+                AvatarImage(
+                    urlString: plan.creatorAvatarURL,
+                    name: plan.creatorName,
+                    size: 36,
+                    fontSize: 16
+                )
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(plan.creatorName)
@@ -111,28 +116,6 @@ struct PlanCardView: View {
                 .fill(Color(.secondarySystemGroupedBackground))
         )
         .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
-    }
-}
-
-// MARK: - OrganiserAvatar
-
-struct OrganiserAvatar: View {
-    let name: String
-
-    private var initial: String {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "?" : String(trimmed.prefix(1)).uppercased()
-    }
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(Color.orange.opacity(0.15))
-                .frame(width: 36, height: 36)
-            Text(initial)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundColor(.orange)
-        }
     }
 }
 

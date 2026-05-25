@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 // MARK: - ProfileView
 
@@ -12,14 +13,12 @@ struct ProfileView: View {
                 // Avatar + name
                 Section {
                     HStack(spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.orange.opacity(0.15))
-                                .frame(width: 64, height: 64)
-                            Text(String(authViewModel.displayName.prefix(1)))
-                                .font(.system(size: 28, weight: .bold, design: .rounded))
-                                .foregroundColor(.orange)
-                        }
+                        AvatarImage(
+                            urlString: authViewModel.avatarURL,
+                            name: authViewModel.displayName,
+                            size: 64,
+                            fontSize: 28
+                        )
                         VStack(alignment: .leading, spacing: 2) {
                             Text(authViewModel.displayName)
                                 .font(.title3.bold())
@@ -121,10 +120,39 @@ struct ProfileEditView: View {
     @State private var displayName: String = ""
     @State private var bio: String = ""
     @State private var isSaving = false
+    @State private var pickedItem: PhotosPickerItem?
+    @State private var pendingAvatarData: Data?
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("Photo") {
+                    HStack(spacing: 16) {
+                        // Live preview: newly picked > existing remote > initial
+                        Group {
+                            if let data = pendingAvatarData, let img = UIImage(data: data) {
+                                Image(uiImage: img)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 64, height: 64)
+                                    .clipShape(Circle())
+                            } else {
+                                AvatarImage(
+                                    urlString: authViewModel.avatarURL,
+                                    name: displayName.isEmpty ? authViewModel.displayName : displayName,
+                                    size: 64,
+                                    fontSize: 28
+                                )
+                            }
+                        }
+
+                        PhotosPicker(selection: $pickedItem, matching: .images, photoLibrary: .shared()) {
+                            Label("Choose Photo", systemImage: "photo.on.rectangle")
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
                 Section("Display Name") {
                     TextField("Enter your name", text: $displayName)
                 }
@@ -158,12 +186,7 @@ struct ProfileEditView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
-                        Task {
-                            isSaving = true
-                            await authViewModel.updateProfile(displayName: displayName, bio: bio)
-                            isSaving = false
-                            isPresented = false
-                        }
+                        Task { await save() }
                     } label: {
                         if isSaving {
                             ProgressView()
@@ -178,6 +201,30 @@ struct ProfileEditView: View {
                 displayName = authViewModel.displayName
                 bio = authViewModel.bio
             }
+            .onChange(of: pickedItem) { _, newItem in
+                Task {
+                    guard let newItem else { return }
+                    if let raw = try? await newItem.loadTransferable(type: Data.self) {
+                        pendingAvatarData = AvatarImage.compressedJPEG(from: raw)
+                    }
+                }
+            }
+        }
+    }
+
+    private func save() async {
+        isSaving = true
+        defer { isSaving = false }
+
+        var newURL: String? = nil
+        if let data = pendingAvatarData {
+            newURL = await authViewModel.uploadAvatar(jpegData: data)
+            // If upload failed, errorMessage is set — bail without persisting.
+            if newURL == nil { return }
+        }
+        await authViewModel.updateProfile(displayName: displayName, bio: bio, avatarURL: newURL)
+        if authViewModel.errorMessage == nil {
+            isPresented = false
         }
     }
 }

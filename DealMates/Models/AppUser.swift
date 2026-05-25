@@ -5,6 +5,7 @@ struct AppUser: Codable, Identifiable {
     var email: String
     var displayName: String
     var bio: String
+    var avatarURL: String?
     var isAnonymous: Bool
     var blockedUsers: [String]
     var reportedPlans: [String]
@@ -16,6 +17,7 @@ struct AppUser: Codable, Identifiable {
         self.email          = email
         self.displayName    = displayName
         self.bio            = ""
+        self.avatarURL      = nil
         self.isAnonymous    = email.isEmpty
         self.blockedUsers   = []
         self.reportedPlans  = []
@@ -30,6 +32,7 @@ extension AppUser {
         case email
         case displayName = "display_name"
         case bio
+        case avatarURL = "avatar_url"
         case isAnonymous = "is_anonymous"
         case blockedUsers = "blocked_users"
         case reportedPlans = "reported_plans"

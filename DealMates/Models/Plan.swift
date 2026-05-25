@@ -32,6 +32,7 @@ struct Plan: Identifiable, Codable {
     var restaurantName: String
     var creatorId: String
     var creatorName: String
+    var creatorAvatarURL: String?
     var isAsap: Bool
     var scheduledAt: Date
     var neededPeople: Int
@@ -65,6 +66,7 @@ extension Plan {
         case restaurantName = "restaurant_name"
         case creatorId = "creator_id"
         case creatorName = "creator_name"
+        case creatorAvatarURL = "creator_avatar_url"
         case isAsap = "is_asap"
         case scheduledAt = "scheduled_at"
         case neededPeople = "needed_people"

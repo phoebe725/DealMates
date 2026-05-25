@@ -42,21 +42,39 @@ final class AuthService {
         return try? await ensureUserProfileExists(uid: uid, email: email)
     }
 
-    func updateProfile(uid: String, displayName: String, bio: String) async throws {
+    func updateProfile(uid: String, displayName: String, bio: String, avatarURL: String?) async throws {
         struct Patch: Encodable {
             let displayName: String
             let bio: String
+            let avatarURL: String?
             let updatedAt: Date
             enum CodingKeys: String, CodingKey {
                 case displayName = "display_name"
                 case bio
+                case avatarURL = "avatar_url"
                 case updatedAt = "updated_at"
             }
         }
         try await client.from("users")
-            .update(Patch(displayName: displayName, bio: bio, updatedAt: Date()))
+            .update(Patch(displayName: displayName, bio: bio, avatarURL: avatarURL, updatedAt: Date()))
             .eq("id", value: uid)
             .execute()
+    }
+
+    /// Uploads JPEG data to the `avatars` Storage bucket under `{uid}.jpg`
+    /// and returns the public URL with a cache-busting query param.
+    func uploadAvatar(uid: String, jpegData: Data) async throws -> String {
+        let path = "\(uid).jpg"
+        _ = try await client.storage
+            .from("avatars")
+            .upload(
+                path,
+                data: jpegData,
+                options: FileOptions(contentType: "image/jpeg", upsert: true)
+            )
+        let publicURL = try client.storage.from("avatars").getPublicURL(path: path)
+        // Cache-buster so AsyncImage refetches after re-upload (Storage URL is stable on upsert)
+        return "\(publicURL.absoluteString)?t=\(Int(Date().timeIntervalSince1970))"
     }
 
     func blockUser(blockerUID: String, targetUID: String) async throws {

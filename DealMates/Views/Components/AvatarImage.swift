@@ -1,0 +1,63 @@
+import SwiftUI
+import UIKit
+
+/// Circular avatar that renders the remote image when `urlString` is set,
+/// otherwise falls back to a coloured circle with the user's initial.
+struct AvatarImage: View {
+    let urlString: String?
+    let name: String
+    let size: CGFloat
+    let fontSize: CGFloat
+
+    private var initial: String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "?" : String(trimmed.prefix(1)).uppercased()
+    }
+
+    var body: some View {
+        if let urlString, let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: size, height: size)
+                        .clipShape(Circle())
+                case .failure:
+                    initialBubble
+                case .empty:
+                    initialBubble
+                        .overlay(ProgressView())
+                @unknown default:
+                    initialBubble
+                }
+            }
+        } else {
+            initialBubble
+        }
+    }
+
+    private var initialBubble: some View {
+        ZStack {
+            Circle()
+                .fill(Color.orange.opacity(0.15))
+                .frame(width: size, height: size)
+            Text(initial)
+                .font(.system(size: fontSize, weight: .bold, design: .rounded))
+                .foregroundColor(.orange)
+        }
+    }
+
+    /// Downscale (longest side ≤ 512px) and JPEG-compress at 0.8 for upload.
+    static func compressedJPEG(from data: Data, maxDimension: CGFloat = 512) -> Data? {
+        guard let image = UIImage(data: data) else { return nil }
+        let scale = min(1, maxDimension / max(image.size.width, image.size.height))
+        let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let resized = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        return resized.jpegData(compressionQuality: 0.8)
+    }
+}

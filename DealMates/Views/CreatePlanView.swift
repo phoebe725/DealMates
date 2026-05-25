@@ -130,6 +130,7 @@ struct CreatePlanView: View {
             restaurantName: restaurant.name,
             creatorId:     uid,
             creatorName:   name,
+            creatorAvatarURL: authViewModel.avatarURL,
             isAsap:        isASAP,
             scheduledAt:   schedDate,
             neededPeople:  neededPeople,
