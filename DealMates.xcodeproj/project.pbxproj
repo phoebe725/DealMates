@@ -6,6 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		DD9E54412FBCDB9200820F7A /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = DD9E54402FBCDB9200820F7A /* Supabase */; };
+		DD9E544E2FBF787000820F7A /* GoogleMaps in Frameworks */ = {isa = PBXBuildFile; productRef = DD9E544D2FBF787000820F7A /* GoogleMaps */; };
+		DD9E54512FBF788B00820F7A /* GooglePlaces in Frameworks */ = {isa = PBXBuildFile; productRef = DD9E54502FBF788B00820F7A /* GooglePlaces */; };
+		DD9E54532FBF788B00820F7A /* GooglePlacesSwift in Frameworks */ = {isa = PBXBuildFile; productRef = DD9E54522FBF788B00820F7A /* GooglePlacesSwift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		DD9E53FB2FBCD21700820F7A /* DealMates.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DealMates.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +30,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DD9E54512FBF788B00820F7A /* GooglePlaces in Frameworks */,
+				DD9E544E2FBF787000820F7A /* GoogleMaps in Frameworks */,
+				DD9E54412FBCDB9200820F7A /* Supabase in Frameworks */,
+				DD9E54532FBF788B00820F7A /* GooglePlacesSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -33,6 +44,7 @@
 			isa = PBXGroup;
 			children = (
 				DD9E53FD2FBCD21700820F7A /* DealMates */,
+				DD9E543F2FBCDB9200820F7A /* Frameworks */,
 				DD9E53FC2FBCD21700820F7A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -43,6 +55,13 @@
 				DD9E53FB2FBCD21700820F7A /* DealMates.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		DD9E543F2FBCDB9200820F7A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -65,6 +84,10 @@
 			);
 			name = DealMates;
 			packageProductDependencies = (
+				DD9E54402FBCDB9200820F7A /* Supabase */,
+				DD9E544D2FBF787000820F7A /* GoogleMaps */,
+				DD9E54502FBF788B00820F7A /* GooglePlaces */,
+				DD9E54522FBF788B00820F7A /* GooglePlacesSwift */,
 			);
 			productName = DealMates;
 			productReference = DD9E53FB2FBCD21700820F7A /* DealMates.app */;
@@ -94,6 +117,11 @@
 			);
 			mainGroup = DD9E53F22FBCD21700820F7A;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				DD9E543E2FBCDA9600820F7A /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				DD9E544C2FBF787000820F7A /* XCRemoteSwiftPackageReference "ios-maps-sdk" */,
+				DD9E544F2FBF788B00820F7A /* XCRemoteSwiftPackageReference "ios-places-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = DD9E53FC2FBCD21700820F7A /* Products */;
 			projectDirPath = "";
@@ -332,6 +360,56 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		DD9E543E2FBCDA9600820F7A /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+		DD9E544C2FBF787000820F7A /* XCRemoteSwiftPackageReference "ios-maps-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googlemaps/ios-maps-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 10.13.0;
+			};
+		};
+		DD9E544F2FBF788B00820F7A /* XCRemoteSwiftPackageReference "ios-places-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googlemaps/ios-places-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 10.13.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		DD9E54402FBCDB9200820F7A /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DD9E543E2FBCDA9600820F7A /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+		DD9E544D2FBF787000820F7A /* GoogleMaps */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DD9E544C2FBF787000820F7A /* XCRemoteSwiftPackageReference "ios-maps-sdk" */;
+			productName = GoogleMaps;
+		};
+		DD9E54502FBF788B00820F7A /* GooglePlaces */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DD9E544F2FBF788B00820F7A /* XCRemoteSwiftPackageReference "ios-places-sdk" */;
+			productName = GooglePlaces;
+		};
+		DD9E54522FBF788B00820F7A /* GooglePlacesSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DD9E544F2FBF788B00820F7A /* XCRemoteSwiftPackageReference "ios-places-sdk" */;
+			productName = GooglePlacesSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = DD9E53F32FBCD21700820F7A /* Project object */;
 }

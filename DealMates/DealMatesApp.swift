@@ -1,17 +1,20 @@
-//
-//  DealMatesApp.swift
-//  DealMates
-//
-//  Created by EleaneJao on 19/05/2026.
-//
-
 import SwiftUI
 
 @main
 struct DealMatesApp: App {
+    @StateObject private var authViewModel = AuthViewModel()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if authViewModel.isLoading {
+                SplashView()
+            } else if !authViewModel.isSignedIn {
+                LoginView()
+                    .environmentObject(authViewModel)
+            } else {
+                ContentView()
+                    .environmentObject(authViewModel)
+            }
         }
     }
 }
