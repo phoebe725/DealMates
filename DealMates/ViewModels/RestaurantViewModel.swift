@@ -8,8 +8,16 @@ final class RestaurantViewModel: ObservableObject {
     @Published var searchText = "" {
         didSet { applyFilter() }
     }
+    @Published var cuisineFilter: String? = nil {
+        didSet { applyFilter() }
+    }
     @Published var isLoading = false
     @Published var errorMessage: String?
+
+    /// Sorted, unique cuisine list from loaded restaurants.
+    var availableCuisines: [String] {
+        Array(Set(restaurants.map(\.cuisine))).sorted()
+    }
 
     private let service = DatabaseService.shared
 
@@ -40,14 +48,17 @@ final class RestaurantViewModel: ObservableObject {
     // MARK: - Private
 
     private func applyFilter() {
-        guard !searchText.isEmpty else {
-            filteredRestaurants = restaurants
-            return
+        var result = restaurants
+        if let cuisine = cuisineFilter, !cuisine.isEmpty {
+            result = result.filter { $0.cuisine == cuisine }
         }
-        let q = searchText.lowercased()
-        filteredRestaurants = restaurants.filter {
-            $0.name.lowercased().contains(q) ||
-            $0.cuisine.lowercased().contains(q)
+        if !searchText.isEmpty {
+            let q = searchText.lowercased()
+            result = result.filter {
+                $0.name.lowercased().contains(q) ||
+                $0.cuisine.lowercased().contains(q)
+            }
         }
+        filteredRestaurants = result
     }
 }

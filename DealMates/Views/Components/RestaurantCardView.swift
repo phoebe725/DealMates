@@ -5,20 +5,15 @@ struct RestaurantCardView: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            // Icon / placeholder image
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(cuisineGradient)
-                    .frame(width: 56, height: 56)
-                Text(cuisineEmoji)
-                    .font(.title2)
-            }
+            thumbnail
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(restaurant.name)
+                Text(restaurant.displayName)
                     .font(.headline)
                     .foregroundColor(.primary)
-                Text(restaurant.cuisine)
+                Text(restaurant.displayCuisine)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 Text(restaurant.address)
@@ -38,6 +33,33 @@ struct RestaurantCardView: View {
     }
 
     // MARK: - Helpers
+
+    @ViewBuilder
+    private var thumbnail: some View {
+        if let urlString = restaurant.imageUrl, let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                case .failure, .empty:
+                    placeholderBubble
+                @unknown default:
+                    placeholderBubble
+                }
+            }
+        } else {
+            placeholderBubble
+        }
+    }
+
+    private var placeholderBubble: some View {
+        ZStack {
+            Rectangle().fill(cuisineGradient)
+            Text(cuisineEmoji).font(.title2)
+        }
+    }
 
     private var cuisineEmoji: String {
         switch restaurant.cuisine.lowercased() {

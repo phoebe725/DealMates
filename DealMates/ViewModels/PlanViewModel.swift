@@ -38,15 +38,45 @@ final class PlanViewModel: ObservableObject {
 
     func createPlan(_ plan: Plan) async throws {
         try await service.createPlan(plan)
+        await fetchPlans()
+        successMessage = "Plan created!"
+    }
+
+    func updatePlan(_ plan: Plan) async throws {
+        try await service.updatePlan(plan)
+        await fetchPlans()
+        successMessage = "Plan updated"
+    }
+
+    func refresh() async {
+        await fetchPlans()
+    }
+
+    func removeMember(plan: Plan, targetUid: String, targetName: String, removerName: String) async {
+        do {
+            try await service.removeMember(plan, targetUid: targetUid, targetName: targetName, removerName: removerName)
+            await fetchPlans()
+            successMessage = "Removed \(targetName)"
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func cancelPlan(_ plan: Plan) async {
+        do {
+            try await service.deletePlan(planId: plan.id)
+            plans.removeAll { $0.id == plan.id }
+            successMessage = "Plan cancelled"
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func join(plan: Plan, userId: String, userName: String) async {
         do {
             try await service.joinPlan(plan, userId: userId, userName: userName)
-            successMessage = "✅ You joined the plan!"
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                self.successMessage = nil
-            }
+            await fetchPlans()
+            successMessage = "You joined the plan!"
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -55,10 +85,8 @@ final class PlanViewModel: ObservableObject {
     func leave(plan: Plan, userId: String, userName: String) async {
         do {
             try await service.leavePlan(plan, userId: userId, userName: userName)
-            successMessage = "✅ You left the plan"
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                self.successMessage = nil
-            }
+            await fetchPlans()
+            successMessage = "You left the plan"
         } catch {
             errorMessage = error.localizedDescription
         }

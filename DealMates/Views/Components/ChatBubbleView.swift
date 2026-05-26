@@ -35,7 +35,16 @@ struct ChatBubbleView: View {
 
     private var userBubble: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            if isCurrentUser { Spacer(minLength: 60) }
+            if isCurrentUser {
+                Spacer(minLength: 60)
+            } else {
+                AvatarImage(
+                    urlString: message.senderAvatarURL,
+                    name: message.senderName,
+                    size: 28,
+                    fontSize: 12
+                )
+            }
 
             VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 2) {
                 if !isCurrentUser {
@@ -53,10 +62,6 @@ struct ChatBubbleView: View {
                     .clipShape(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
                     )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(Color.clear)
-                    )
 
                 Text(message.timestamp, style: .time)
                     .font(.caption2)
@@ -64,7 +69,16 @@ struct ChatBubbleView: View {
                     .padding(.horizontal, 4)
             }
 
-            if !isCurrentUser { Spacer(minLength: 60) }
+            if isCurrentUser {
+                AvatarImage(
+                    urlString: message.senderAvatarURL,
+                    name: message.senderName,
+                    size: 28,
+                    fontSize: 12
+                )
+            } else {
+                Spacer(minLength: 60)
+            }
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 2)

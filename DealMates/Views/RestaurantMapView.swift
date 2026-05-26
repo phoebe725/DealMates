@@ -5,99 +5,147 @@ import CoreLocation
 struct RestaurantMapView: View {
     @EnvironmentObject var restaurantVM: RestaurantViewModel
     @EnvironmentObject var authViewModel: AuthViewModel
-    @State private var region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
-        span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var cameraPosition: MapCameraPosition = .region(
+        MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 51.5074, longitude: -0.1278),
+            span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)
+        )
     )
+    @State private var currentRegion: MKCoordinateRegion?
     @State private var annotations: [RestaurantAnnotation] = []
     @State private var selected: Restaurant?
-    @State private var isShowingCreate = false
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Map(coordinateRegion: $region, annotationItems: annotations) { ann in
-                    MapAnnotation(coordinate: ann.coordinate) {
-                        Button {
-                            selected = ann.restaurant
-                            isShowingCreate = true
-                        } label: {
-                            VStack(spacing: 4) {
+            ZStack(alignment: .topTrailing) {
+                Map(position: $cameraPosition) {
+                    ForEach(annotations) { ann in
+                        Annotation(ann.restaurant.name, coordinate: ann.coordinate) {
+                            Button {
+                                selected = ann.restaurant
+                            } label: {
                                 Image(systemName: "mappin.circle.fill")
-                                    .font(.title2)
-                                    .foregroundColor(.orange)
-                                Text(ann.restaurant.name)
-                                    .font(.caption2)
-                                    .fixedSize()
+                                    .font(.title)
+                                    .foregroundStyle(.white, .orange)
+                                    .background(Circle().fill(.white))
+                                    .shadow(radius: 2)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
+                .mapControls {
+                    MapPitchToggle()
+                    MapCompass()
+                }
+                .onMapCameraChange(frequency: .onEnd) { context in
+                    currentRegion = context.region
+                }
                 .ignoresSafeArea(edges: .bottom)
+
+                controlsOverlay
 
                 if restaurantVM.isLoading {
                     ProgressView()
                         .padding()
                         .background(.ultraThinMaterial)
                         .cornerRadius(8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .navigationTitle("Map")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: centerOnUser) {
-                        Image(systemName: "location.fill")
-                    }
-                }
+            .navigationDestination(item: $selected) { restaurant in
+                RestaurantBoardView(restaurant: restaurant)
+                    .environmentObject(authViewModel)
             }
-            .task {
-                await loadAnnotations()
-            }
-            .sheet(isPresented: $isShowingCreate, onDismiss: { selected = nil }) {
-                if let r = selected {
-                    CreatePlanView(restaurant: r, planVM: PlanViewModel(restaurantId: r.id))
-                        .environmentObject(authViewModel)
-                }
-            }
+            .task { await loadAnnotations() }
         }
     }
 
-    private func centerOnUser() {
-        // No-op placeholder — could request user location
+    // MARK: - Controls overlay (zoom in / out / close)
+
+    private var controlsOverlay: some View {
+        VStack(spacing: 10) {
+            mapButton(systemName: "xmark") { dismiss() }
+            mapButton(systemName: "plus.magnifyingglass") { zoom(by: 0.5) }
+            mapButton(systemName: "minus.magnifyingglass") { zoom(by: 2.0) }
+        }
+        .padding(.top, 12)
+        .padding(.trailing, 12)
+    }
+
+    private func mapButton(systemName: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.title3)
+                .foregroundColor(.primary)
+                .frame(width: 44, height: 44)
+                .background(.ultraThinMaterial)
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.15), radius: 3, x: 0, y: 1)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func zoom(by factor: Double) {
+        let baseRegion = currentRegion ?? defaultRegion()
+        let newSpan = MKCoordinateSpan(
+            latitudeDelta: clamp(baseRegion.span.latitudeDelta * factor, min: 0.001, max: 180),
+            longitudeDelta: clamp(baseRegion.span.longitudeDelta * factor, min: 0.001, max: 360)
+        )
+        let newRegion = MKCoordinateRegion(center: baseRegion.center, span: newSpan)
+        cameraPosition = .region(newRegion)
+        currentRegion = newRegion
+    }
+
+    private func clamp(_ value: Double, min lo: Double, max hi: Double) -> Double {
+        max(lo, min(hi, value))
+    }
+
+    private func defaultRegion() -> MKCoordinateRegion {
+        MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 51.5074, longitude: -0.1278),
+            span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)
+        )
     }
 
     private func loadAnnotations() async {
-        // Use stored latitude/longitude when available, otherwise geocode address.
         var anns: [RestaurantAnnotation] = []
         let geocoder = CLGeocoder()
         for rest in restaurantVM.restaurants {
-            if let existing = anns.first(where: { $0.restaurant.id == rest.id }) { continue }
+            if anns.contains(where: { $0.restaurant.id == rest.id }) { continue }
 
-            // Prefer explicit coordinates from DB
             if let lat = rest.latitude, let lon = rest.longitude {
-                let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-                anns.append(RestaurantAnnotation(restaurant: rest, coordinate: coord))
+                anns.append(RestaurantAnnotation(restaurant: rest, coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)))
                 continue
             }
 
-            // Fallback to geocoding address
-            var coord: CLLocationCoordinate2D? = nil
-            do {
-                let res = try await geocoder.geocodeAddressString(rest.address)
-                if let loc = res.first?.location { coord = loc.coordinate }
-            } catch {
-                coord = nil
-            }
-            if let c = coord {
-                anns.append(RestaurantAnnotation(restaurant: rest, coordinate: c))
+            if let loc = try? await geocoder.geocodeAddressString(rest.address).first?.location {
+                anns.append(RestaurantAnnotation(restaurant: rest, coordinate: loc.coordinate))
             }
         }
 
-        if let first = anns.first {
-            region.center = first.coordinate
-        }
         annotations = anns
+
+        if let first = anns.first {
+            let lats = anns.map(\.coordinate.latitude)
+            let lons = anns.map(\.coordinate.longitude)
+            let minLat = lats.min() ?? first.coordinate.latitude
+            let maxLat = lats.max() ?? first.coordinate.latitude
+            let minLon = lons.min() ?? first.coordinate.longitude
+            let maxLon = lons.max() ?? first.coordinate.longitude
+            let center = CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLon + maxLon) / 2)
+            let span = MKCoordinateSpan(
+                latitudeDelta: max(0.05, (maxLat - minLat) * 1.5),
+                longitudeDelta: max(0.05, (maxLon - minLon) * 1.5)
+            )
+            let region = MKCoordinateRegion(center: center, span: span)
+            cameraPosition = .region(region)
+            currentRegion = region
+        }
     }
 }
 
@@ -105,10 +153,4 @@ private struct RestaurantAnnotation: Identifiable {
     let id = UUID()
     let restaurant: Restaurant
     let coordinate: CLLocationCoordinate2D
-}
-
-#Preview {
-    RestaurantMapView()
-        .environmentObject(RestaurantViewModel())
-        .environmentObject(AuthViewModel())
 }

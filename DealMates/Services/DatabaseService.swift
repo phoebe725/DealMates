@@ -61,6 +61,14 @@ final class DatabaseService {
         try await client.from("plans").insert(plan).execute()
     }
 
+    func updatePlan(_ plan: Plan) async throws {
+        try await client.from("plans").update(plan).eq("id", value: plan.id).execute()
+    }
+
+    func deletePlan(planId: String) async throws {
+        try await client.from("plans").delete().eq("id", value: planId).execute()
+    }
+
     func joinPlan(_ plan: Plan, userId: String, userName: String) async throws {
         guard !plan.memberIds.contains(userId) else { return }
         let newIds    = plan.memberIds + [userId]
@@ -84,6 +92,39 @@ final class DatabaseService {
         guard plan.memberIds.contains(userId) else { return }
         let newIds   = plan.memberIds.filter { $0 != userId }
         let newCount = max(1, plan.currentPeople - 1)
+
+        // Organiser succession: if the leaver is the creator and other members remain,
+        // promote the next-earliest member (first in the trimmed list).
+        if plan.creatorId == userId, let nextUid = newIds.first,
+           let nextUser = try? await fetchUser(id: nextUid) {
+            struct Patch: Encodable {
+                let memberIds: [String]
+                let currentPeople: Int
+                let creatorId: String
+                let creatorName: String
+                let creatorAvatarURL: String?
+                enum CodingKeys: String, CodingKey {
+                    case memberIds = "member_ids"
+                    case currentPeople = "current_people"
+                    case creatorId = "creator_id"
+                    case creatorName = "creator_name"
+                    case creatorAvatarURL = "creator_avatar_url"
+                }
+            }
+            try await client.from("plans")
+                .update(Patch(
+                    memberIds: newIds,
+                    currentPeople: newCount,
+                    creatorId: nextUser.id,
+                    creatorName: nextUser.displayName,
+                    creatorAvatarURL: nextUser.avatarURL
+                ))
+                .eq("id", value: plan.id)
+                .execute()
+            try await postSystemMessage(planId: plan.id, text: "\(userName) left. \(nextUser.displayName) is now the organiser.")
+            return
+        }
+
         struct Patch: Encodable {
             let memberIds: [String]
             let currentPeople: Int
@@ -99,6 +140,104 @@ final class DatabaseService {
         try await postSystemMessage(planId: plan.id, text: "\(userName) left the plan")
     }
 
+    func removeMember(_ plan: Plan, targetUid: String, targetName: String, removerName: String) async throws {
+        guard plan.memberIds.contains(targetUid), plan.creatorId != targetUid else { return }
+        let newIds = plan.memberIds.filter { $0 != targetUid }
+        let newCount = max(1, plan.currentPeople - 1)
+        struct Patch: Encodable {
+            let memberIds: [String]
+            let currentPeople: Int
+            enum CodingKeys: String, CodingKey {
+                case memberIds = "member_ids"
+                case currentPeople = "current_people"
+            }
+        }
+        try await client.from("plans")
+            .update(Patch(memberIds: newIds, currentPeople: newCount))
+            .eq("id", value: plan.id)
+            .execute()
+        try await postSystemMessage(planId: plan.id, text: "\(removerName) removed \(targetName) from the plan.")
+    }
+
+    func fetchUser(id: String) async throws -> AppUser {
+        try await client.from("users").select().eq("id", value: id).single().execute().value
+    }
+
+    func fetchUsers(ids: [String]) async throws -> [AppUser] {
+        guard !ids.isEmpty else { return [] }
+        return try await client.from("users").select().in("id", values: ids).execute().value
+    }
+
+    // MARK: - Direct Messages
+
+    func sendDirectMessage(_ message: DirectMessage) async throws {
+        try await client.from("direct_messages").insert(message).execute()
+    }
+
+    func fetchDirectMessages(currentUid: String, otherUid: String) async throws -> [DirectMessage] {
+        let orFilter = "and(sender_id.eq.\(currentUid),recipient_id.eq.\(otherUid)),and(sender_id.eq.\(otherUid),recipient_id.eq.\(currentUid))"
+        return try await client.from("direct_messages")
+            .select()
+            .or(orFilter)
+            .order("timestamp", ascending: true)
+            .execute()
+            .value
+    }
+
+    func fetchConversations(currentUid: String) async throws -> [DMConversation] {
+        let messages: [DirectMessage] = try await client.from("direct_messages")
+            .select()
+            .or("sender_id.eq.\(currentUid),recipient_id.eq.\(currentUid)")
+            .order("timestamp", ascending: false)
+            .execute()
+            .value
+
+        var conversations: [String: DMConversation] = [:]
+        for msg in messages {
+            let isOutgoing = msg.senderId == currentUid
+            let otherId = isOutgoing ? msg.recipientId : msg.senderId
+            let otherName = isOutgoing ? msg.recipientName : msg.senderName
+            let otherAvatar = isOutgoing ? msg.recipientAvatarURL : msg.senderAvatarURL
+            if conversations[otherId] == nil {
+                conversations[otherId] = DMConversation(
+                    otherUserId: otherId,
+                    otherUserName: otherName,
+                    otherUserAvatarURL: otherAvatar,
+                    lastMessage: msg.text,
+                    lastTimestamp: msg.timestamp,
+                    lastSenderId: msg.senderId
+                )
+            }
+        }
+        return conversations.values.sorted { $0.lastTimestamp > $1.lastTimestamp }
+    }
+
+    func listenToDirectMessages(
+        currentUid: String,
+        otherUid: String,
+        onInsert: @escaping (DirectMessage) -> Void
+    ) -> Task<Void, Never> {
+        Task {
+            let channel = client.realtimeV2
+                .channel("dm-\(min(currentUid, otherUid))-\(max(currentUid, otherUid))-\(UUID().uuidString)")
+            let inserts = await channel.postgresChange(
+                InsertAction.self,
+                schema: "public",
+                table:  "direct_messages"
+            )
+            await channel.subscribe()
+            for await action in inserts {
+                if Task.isCancelled { break }
+                guard let msg = try? action.decodeRecord(as: DirectMessage.self, decoder: SupabaseManager.shared.decoder) else { continue }
+                let involvesPair = (msg.senderId == currentUid && msg.recipientId == otherUid) ||
+                                   (msg.senderId == otherUid && msg.recipientId == currentUid)
+                if involvesPair {
+                    await MainActor.run { onInsert(msg) }
+                }
+            }
+        }
+    }
+
     // MARK: - Messages
 
     func fetchMessages(planId: String) async throws -> [ChatMessage] {
@@ -108,6 +247,22 @@ final class DatabaseService {
             .order("timestamp", ascending: true)
             .execute()
             .value
+    }
+
+    /// Latest message per plan for the given plan IDs.
+    func fetchLatestMessages(planIds: [String]) async throws -> [String: ChatMessage] {
+        guard !planIds.isEmpty else { return [:] }
+        let messages: [ChatMessage] = try await client.from("messages")
+            .select()
+            .in("plan_id", values: planIds)
+            .order("timestamp", ascending: false)
+            .execute()
+            .value
+        var latest: [String: ChatMessage] = [:]
+        for msg in messages where latest[msg.planId] == nil {
+            latest[msg.planId] = msg
+        }
+        return latest
     }
 
     func sendMessage(_ message: ChatMessage) async throws {
@@ -124,7 +279,7 @@ final class DatabaseService {
     ) -> Task<Void, Never> {
         Task {
             let channel = client.realtimeV2
-                .channel("plans-\(restaurantId)")
+                .channel("plans-\(restaurantId)-\(UUID().uuidString)")
             let changes = await channel.postgresChange(
                 AnyAction.self,
                 schema: "public",
@@ -146,7 +301,7 @@ final class DatabaseService {
     ) -> Task<Void, Never> {
         Task {
             let channel = client.realtimeV2
-                .channel("messages-\(planId)")
+                .channel("messages-\(planId)-\(UUID().uuidString)")
             let inserts = await channel.postgresChange(
                 InsertAction.self,
                 schema: "public",

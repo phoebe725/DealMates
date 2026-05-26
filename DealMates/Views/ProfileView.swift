@@ -10,7 +10,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             List {
-                // Avatar + name
+                // Avatar + name + edit
                 Section {
                     HStack(spacing: 16) {
                         AvatarImage(
@@ -35,18 +35,7 @@ struct ProfileView: View {
                         Spacer()
                     }
                     .padding(.vertical, 8)
-                }
 
-                // Account status
-                Section("Account Status") {
-                    LabeledContent("Mode", value: authViewModel.isSignedIn ? "Registered" : "Guest (Anonymous)")
-                    if authViewModel.isSignedIn {
-                        LabeledContent("Email", value: authViewModel.email)
-                    }
-                }
-
-                // Actions
-                Section {
                     if authViewModel.isSignedIn {
                         Button {
                             showEditSheet = true
@@ -57,17 +46,6 @@ struct ProfileView: View {
                             }
                             .foregroundColor(.orange)
                         }
-
-                        Button(role: .destructive) {
-                            Task {
-                                await authViewModel.signOut()
-                            }
-                        } label: {
-                            HStack {
-                                Image(systemName: "arrow.left.circle.fill")
-                                Text("Sign Out")
-                            }
-                        }
                     } else {
                         NavigationLink(destination: LoginView()) {
                             HStack {
@@ -75,6 +53,24 @@ struct ProfileView: View {
                                 Text("Sign In or Create Account")
                             }
                             .foregroundColor(.orange)
+                        }
+                    }
+                }
+
+                // Account status
+                Section("Account Status") {
+                    LabeledContent("Mode", value: authViewModel.isSignedIn ? "Registered" : "Guest (Anonymous)")
+                    if authViewModel.isSignedIn {
+                        LabeledContent("Email", value: authViewModel.email)
+                    }
+                }
+
+                // Settings entry (Sign Out, Language, Region live here)
+                Section {
+                    NavigationLink(destination: SettingsView().environmentObject(authViewModel)) {
+                        HStack {
+                            Image(systemName: "gearshape.fill")
+                            Text("Settings")
                         }
                     }
                 }

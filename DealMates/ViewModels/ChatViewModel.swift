@@ -36,12 +36,19 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Actions
 
-    func send(senderId: String, senderName: String) {
+    func refresh() async {
+        await fetchHistory()
+    }
+
+    func send(senderId: String, senderName: String, senderAvatarURL: String? = nil) {
         let text = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         draftText = ""
         let msg = ChatMessage(planId: planId, senderId: senderId,
-                              senderName: senderName, text: text)
+                              senderName: senderName, senderAvatarURL: senderAvatarURL, text: text)
+        if !messages.contains(where: { $0.id == msg.id }) {
+            messages.append(msg)
+        }
         Task { try? await service.sendMessage(msg) }
     }
 

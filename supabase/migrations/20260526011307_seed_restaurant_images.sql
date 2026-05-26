@@ -1,0 +1,12 @@
+update public.restaurants set image_url = 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=800' where id = 'fa0e7619-0c96-44ec-b61f-02ffe33d8b2b';
+update public.restaurants set image_url = 'https://d30v2pzvrfyzpo.cloudfront.net/uk/images/restaurants/18690.gif' where id = '0f3be145-a1c4-4b54-84dc-ef6716f24d9b';
+update public.restaurants set image_url = 'https://images.squarespace-cdn.com/content/v1/6947460511c4ac2493917a0a/7de4e62b-2ad1-4512-91cc-6d463d884258/%E7%81%AB%E7%81%AB%E7%81%AB%E7%81%AB%E5%8F%8D%E7%99%BD.png' where id = '52a665e1-fdf3-49c1-81ba-c3434d43835a';
+update public.restaurants set image_url = 'https://static2.menufyy.com/eat-house-albums-1.jpg' where id = '46d28fc2-d0ed-4176-b789-e78a3d26b276';
+update public.restaurants set image_url = 'https://ermei.co.uk/wp-content/uploads/2023/07/2logo-removebg-preview-300x137.png' where id = '7540f6f8-4f57-4f71-94ce-103950805921';
+update public.restaurants set image_url = 'https://upload.wikimedia.org/wikipedia/commons/5/50/A_picture_of_Hai_Di_Lao_Hot_Pot_in_London.jpg' where id = 'fe3c6f9d-3504-4b30-ac40-087e7819031e';
+update public.restaurants set image_url = 'https://upload.wikimedia.org/wikipedia/commons/5/50/A_picture_of_Hai_Di_Lao_Hot_Pot_in_London.jpg' where id = '7ffaadc0-1c28-4305-a43f-8a7b57b90249';
+update public.restaurants set image_url = 'https://www.mrcharcoaluk.com/assets/img/3.jpg' where id = '28b60ce5-9af5-40dd-ac1d-41d30da73368';
+update public.restaurants set image_url = 'https://www.muyangren.co.uk/assets/images/logo-2.png' where id = '098dcf82-89a5-4c0e-9671-a58f2d413efb';
+update public.restaurants set image_url = 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800' where id = '8833e03a-f43a-4974-88de-9f18ac04cb6a';
+update public.restaurants set image_url = 'https://images.unsplash.com/photo-1582450871972-ab5ca641643d?w=800' where id = '105b7fbd-e54c-4ca7-bfb6-5acb52e36ee2';
+update public.restaurants set image_url = 'https://sumiya.co.uk/wp-content/uploads/2025/09/IMG_4041-1-1024x182.jpg' where id = '75ce5b67-52c1-4492-8dcd-367295d99fdb';

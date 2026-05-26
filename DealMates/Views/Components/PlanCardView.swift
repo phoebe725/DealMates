@@ -3,16 +3,18 @@ import SwiftUI
 struct PlanCardView: View {
     let plan: Plan
     let currentUID: String
-    let onJoin:  () -> Void
-    let onLeave: () -> Void
-    let onOpen:  () -> Void
+    let onJoin:    () -> Void
+    let onLeave:   () -> Void
+    let onOpen:    () -> Void
+    let onMessage: () -> Void
 
     private var isMember: Bool { plan.isMember(uid: currentUID) }
+    private var isOrganiser: Bool { plan.creatorId == currentUID }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
 
-            // MARK: Organiser row — avatar + name + time + purpose tag
+            // MARK: Organiser row — avatar + name + time
             HStack(spacing: 10) {
                 AvatarImage(
                     urlString: plan.creatorAvatarURL,
@@ -22,18 +24,25 @@ struct PlanCardView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(plan.creatorName)
-                        .font(.subheadline.bold())
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(plan.creatorName)
+                            .font(.subheadline.bold())
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                        Text("Organiser")
+                            .font(.caption2.bold())
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.15))
+                            .foregroundColor(.orange)
+                            .clipShape(Capsule())
+                    }
                     Label(plan.timeDisplay, systemImage: "clock")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
 
                 Spacer()
-
-                PurposeTag(purpose: plan.purpose)
             }
 
             // MARK: Organiser's comment
@@ -79,34 +88,51 @@ struct PlanCardView: View {
             Divider()
 
             // MARK: Action buttons
-            HStack(spacing: 10) {
-                // Open button
+            HStack(spacing: 6) {
                 Button(action: onOpen) {
-                    Label("Open", systemImage: "arrow.up.right.square")
-                        .font(.subheadline.bold())
+                    Text("Open")
+                        .font(.caption.bold())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .tint(.blue)
 
-                // Join / Leave button
                 if isMember {
                     Button(action: onLeave) {
-                        Label("Leave", systemImage: "arrow.uturn.left")
-                            .font(.subheadline.bold())
+                        Text("Leave")
+                            .font(.caption.bold())
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                     .tint(.red)
                 } else {
                     Button(action: onJoin) {
-                        Label("Join", systemImage: "plus.circle.fill")
-                            .font(.subheadline.bold())
+                        Text("Join")
+                            .font(.caption.bold())
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.orange)
                     .disabled(plan.needsMorePeople == 0)
+                }
+
+                if !isOrganiser {
+                    Button(action: onMessage) {
+                        Text("Message Organiser")
+                            .font(.caption.bold())
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                            .minimumScaleFactor(0.7)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.purple)
                 }
             }
         }
@@ -116,29 +142,5 @@ struct PlanCardView: View {
                 .fill(Color(.secondarySystemGroupedBackground))
         )
         .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
-    }
-}
-
-// MARK: - PurposeTag
-
-struct PurposeTag: View {
-    let purpose: PlanPurpose
-
-    private var color: Color {
-        switch purpose {
-        case .discount: return .green
-        case .company:  return .blue
-        case .either:   return .orange
-        }
-    }
-
-    var body: some View {
-        Label(purpose.label, systemImage: purpose.icon)
-            .font(.caption.bold())
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(color.opacity(0.15))
-            .foregroundColor(color)
-            .clipShape(Capsule())
     }
 }

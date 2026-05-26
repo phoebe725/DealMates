@@ -2,25 +2,53 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @ObservedObject private var unread = UnreadManager.shared
+    @State private var selectedTab: Int = 0
+    @AppStorage("preferredLanguageCode") private var languageCode: String = Locale.current.language.languageCode?.identifier ?? "en"
+    @AppStorage("preferredRegionCode") private var regionCode: String = "GB"
+
+    private var locale: Locale { Locale(identifier: "\(languageCode)_\(regionCode)") }
+
+    private func wrap<V: View>(_ view: V) -> AnyView {
+        AnyView(view.environmentObject(authViewModel).environment(\.locale, locale))
+    }
 
     var body: some View {
-        TabView {
-            DiscoverView()
-                .tabItem {
-                    Label("Discover", systemImage: "fork.knife")
-                }
-
-            MyPlansView()
-                .tabItem {
-                    Label("My Plans", systemImage: "calendar")
-                }
-
-            ProfileView()
-                .tabItem {
-                    Label("Profile", systemImage: "person.fill")
-                }
+        NoAnimationTabBar(
+            selectedIndex: $selectedTab,
+            tabs: [
+                .init(
+                    view: wrap(DiscoverView()),
+                    title: NSLocalizedString("Discover", comment: ""),
+                    systemImage: "fork.knife",
+                    badge: nil
+                ),
+                .init(
+                    view: wrap(MyPlansView()),
+                    title: NSLocalizedString("My Plans", comment: ""),
+                    systemImage: "calendar",
+                    badge: nil
+                ),
+                .init(
+                    view: wrap(MessagesView()),
+                    title: NSLocalizedString("Messages", comment: ""),
+                    systemImage: "bubble.left.and.bubble.right.fill",
+                    badge: unread.totalUnread > 0 ? "\(unread.totalUnread)" : nil
+                ),
+                .init(
+                    view: wrap(ProfileView()),
+                    title: NSLocalizedString("Profile", comment: ""),
+                    systemImage: "person.fill",
+                    badge: nil
+                )
+            ],
+            tintColor: .systemOrange
+        )
+        .ignoresSafeArea()
+        .task { await unread.refresh(currentUid: authViewModel.uid) }
+        .onChange(of: authViewModel.uid) { _, newUid in
+            Task { await unread.refresh(currentUid: newUid) }
         }
-        .tint(.orange)
     }
 }
 
