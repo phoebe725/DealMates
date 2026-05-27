@@ -6,6 +6,7 @@ struct LoginView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var displayName = ""
+    @State private var gender: Gender = .female
     @State private var isLoading = false
 
     var body: some View {
@@ -29,7 +30,7 @@ struct LoginView: View {
                 // Form
                 ScrollView {
                     VStack(spacing: 16) {
-                        // Display name (sign up only)
+                        // Display name + gender (sign up only)
                         if isSignUpMode {
                             VStack(alignment: .leading, spacing: 6) {
                                 Label("Display Name", systemImage: "person.fill")
@@ -37,6 +38,16 @@ struct LoginView: View {
                                     .foregroundColor(.orange)
                                 TextField("e.g., Alex", text: $displayName)
                                     .textFieldStyle(.roundedBorder)
+                            }
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label("Gender", systemImage: "person.crop.circle")
+                                    .font(.subheadline.bold())
+                                    .foregroundColor(.orange)
+                                Picker("Gender", selection: $gender) {
+                                    Text("Female").tag(Gender.female)
+                                    Text("Male").tag(Gender.male)
+                                }
+                                .pickerStyle(.segmented)
                             }
                         }
 
@@ -82,7 +93,7 @@ struct LoginView: View {
                             Task {
                                 isLoading = true
                                 if isSignUpMode {
-                                    await authViewModel.signUp(email: email, password: password, displayName: displayName)
+                                    await authViewModel.signUp(email: email, password: password, displayName: displayName, gender: gender)
                                 } else {
                                     await authViewModel.signIn(email: email, password: password)
                                 }

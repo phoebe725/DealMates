@@ -45,8 +45,9 @@ final class UnreadManager: ObservableObject {
         var count = 0
         for plan in plans {
             guard let msg = latestByPlan[plan.id] else { continue }
-            // Don't count your own messages as unread.
+            // Don't count your own messages or system messages (joins/leaves/etc.) as unread.
             if msg.senderId == currentUid { continue }
+            if msg.isSystem { continue }
             if msg.timestamp > lastSeen(for: "plan-\(plan.id)") {
                 count += 1
             }

@@ -14,6 +14,7 @@ struct MyPlansView: View {
     @State private var cuisineFilter: String? = nil
     @State private var statusFilter: PlanStatusFilter = .all
     @State private var sortMode: PlanSortMode = .timeAsc
+    @State private var profileTarget: UserProfileSheetTarget?
 
     var body: some View {
         NavigationStack {
@@ -35,6 +36,9 @@ struct MyPlansView: View {
             }
             .onAppear { Task { await load() } }
             .refreshable { await load() }
+            .sheet(item: $profileTarget) { target in
+                UserProfileView(userId: target.id)
+            }
         }
     }
 
@@ -94,7 +98,7 @@ struct MyPlansView: View {
                     Button {
                         statusFilter = s
                     } label: {
-                        Label(s.rawValue, systemImage: statusFilter == s ? "checkmark" : "")
+                        Label(LocalizedStringKey(s.rawValue), systemImage: statusFilter == s ? "checkmark" : "")
                     }
                 }
             }
@@ -103,7 +107,7 @@ struct MyPlansView: View {
                     Button {
                         sortMode = mode
                     } label: {
-                        Label(mode.rawValue, systemImage: sortMode == mode ? "checkmark" : "")
+                        Label(LocalizedStringKey(mode.rawValue), systemImage: sortMode == mode ? "checkmark" : "")
                     }
                 }
             }
@@ -147,14 +151,21 @@ struct MyPlansView: View {
                 .font(.headline)
 
             HStack(spacing: 8) {
-                AvatarImage(
-                    urlString: plan.creatorAvatarURL,
-                    name: plan.creatorName,
-                    size: 22,
-                    fontSize: 11
-                )
-                Text(plan.creatorName)
-                    .font(.subheadline)
+                Button {
+                    profileTarget = UserProfileSheetTarget(id: plan.creatorId)
+                } label: {
+                    HStack(spacing: 8) {
+                        AvatarImage(
+                            urlString: plan.creatorAvatarURL,
+                            name: plan.creatorName,
+                            size: 22,
+                            fontSize: 11
+                        )
+                        Text(plan.creatorName)
+                            .font(.subheadline)
+                    }
+                }
+                .buttonStyle(.plain)
                 Text(plan.creatorId == authViewModel.uid ? "You (Organiser)" : "Organiser")
                     .font(.caption2.bold())
                     .padding(.horizontal, 6)

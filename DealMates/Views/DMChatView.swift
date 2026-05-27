@@ -3,6 +3,7 @@ import SwiftUI
 struct DMChatView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var vm: DMChatViewModel
+    @State private var profileTarget: UserProfileSheetTarget?
 
     init(currentUid: String, otherUid: String, otherName: String, otherAvatarURL: String?) {
         _vm = StateObject(wrappedValue: DMChatViewModel(
@@ -27,6 +28,9 @@ struct DMChatView: View {
         .onDisappear {
             vm.stopListening()
             Task { await UnreadManager.shared.refresh(currentUid: authViewModel.uid) }
+        }
+        .sheet(item: $profileTarget) { target in
+            UserProfileView(userId: target.id)
         }
     }
 
@@ -57,12 +61,17 @@ struct DMChatView: View {
             if isMine {
                 Spacer(minLength: 60)
             } else {
-                AvatarImage(
-                    urlString: msg.senderAvatarURL,
-                    name: msg.senderName,
-                    size: 28,
-                    fontSize: 12
-                )
+                Button {
+                    profileTarget = UserProfileSheetTarget(id: msg.senderId)
+                } label: {
+                    AvatarImage(
+                        urlString: msg.senderAvatarURL,
+                        name: msg.senderName,
+                        size: 28,
+                        fontSize: 12
+                    )
+                }
+                .buttonStyle(.plain)
             }
 
             VStack(alignment: isMine ? .trailing : .leading, spacing: 2) {

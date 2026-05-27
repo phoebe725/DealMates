@@ -3,6 +3,7 @@ import SwiftUI
 struct ChatBubbleView: View {
     let message: ChatMessage
     let isCurrentUser: Bool
+    var onAvatarTap: ((String) -> Void)? = nil
 
     private var isSystem: Bool { message.isSystem }
 
@@ -38,12 +39,18 @@ struct ChatBubbleView: View {
             if isCurrentUser {
                 Spacer(minLength: 60)
             } else {
-                AvatarImage(
-                    urlString: message.senderAvatarURL,
-                    name: message.senderName,
-                    size: 28,
-                    fontSize: 12
-                )
+                Button {
+                    onAvatarTap?(message.senderId)
+                } label: {
+                    AvatarImage(
+                        urlString: message.senderAvatarURL,
+                        name: message.senderName,
+                        size: 28,
+                        fontSize: 12
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(onAvatarTap == nil || message.senderId == "system")
             }
 
             VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 2) {

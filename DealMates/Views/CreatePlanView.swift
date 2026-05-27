@@ -8,10 +8,13 @@ struct CreatePlanView: View {
     @Environment(\.dismiss) private var dismiss
 
     // Form state
-    @State private var isASAP = false
+    @State private var timeType: PlanTimeType = .asap
     @State private var scheduledAt = Date().addingTimeInterval(3600)
+    @State private var flexDay: FlexDay = .weekday
+    @State private var flexMeal: FlexMeal = .lunch
     @State private var neededPeople = 3
     @State private var currentPeople = 1
+    @State private var genderPreference: GenderPreference = .any
     @State private var notes = ""
     @State private var isSubmitting = false
     @State private var errorMessage: String?
@@ -32,13 +35,34 @@ struct CreatePlanView: View {
             Form {
                 // Time section
                 Section(header: Label("Time", systemImage: "clock")) {
-                    Toggle("ASAP", isOn: $isASAP.animation())
-                    if !isASAP {
+                    Picker("Type", selection: $timeType) {
+                        Text("ASAP").tag(PlanTimeType.asap)
+                        Text("Specific").tag(PlanTimeType.scheduled)
+                        Text("Flexible").tag(PlanTimeType.flexible)
+                    }
+                    .pickerStyle(.segmented)
+
+                    switch timeType {
+                    case .asap:
+                        EmptyView()
+                    case .scheduled:
                         DatePicker("Pick a time",
                                    selection: $scheduledAt,
                                    in: Date()...,
                                    displayedComponents: [.date, .hourAndMinute])
                         .datePickerStyle(.compact)
+                    case .flexible:
+                        Picker("Day", selection: $flexDay) {
+                            Text("Weekday").tag(FlexDay.weekday)
+                            Text("Weekend").tag(FlexDay.weekend)
+                        }
+                        .pickerStyle(.segmented)
+
+                        Picker("Meal", selection: $flexMeal) {
+                            Text("Lunch").tag(FlexMeal.lunch)
+                            Text("Dinner").tag(FlexMeal.dinner)
+                        }
+                        .pickerStyle(.segmented)
                     }
                 }
 
@@ -67,6 +91,16 @@ struct CreatePlanView: View {
                     Text("You + \(currentPeople - 1) more already joined")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                }
+
+                // Gender preference section
+                Section(header: Label("Preference", systemImage: "person.crop.circle")) {
+                    Picker("Gender preference", selection: $genderPreference) {
+                        Text("Open to any").tag(GenderPreference.any)
+                        Text("Female only").tag(GenderPreference.female)
+                        Text("Male only").tag(GenderPreference.male)
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 // Notes section
@@ -105,11 +139,14 @@ struct CreatePlanView: View {
 
     private func prefillIfEditing() {
         guard let p = existingPlan else { return }
-        isASAP = p.isAsap
+        timeType = p.timeType
         scheduledAt = p.scheduledAt
+        flexDay = p.flexDay ?? .weekday
+        flexMeal = p.flexMeal ?? .lunch
         neededPeople = p.neededPeople
         currentPeople = p.currentPeople
         notes = p.notes
+        genderPreference = p.genderPreference
     }
 
     // MARK: - Submit
@@ -119,11 +156,24 @@ struct CreatePlanView: View {
         let name = authViewModel.displayName
         guard !uid.isEmpty else { return }
 
-        let now        = Date()
-        let schedDate  = isASAP ? now : scheduledAt
-        let expiry     = isASAP
-            ? now.addingTimeInterval(2 * 3600)         // 2-hour window for ASAP
-            : scheduledAt.addingTimeInterval(3600)     // 1 hour after scheduled time
+        let now = Date()
+        let schedDate: Date
+        let expiry: Date
+        switch timeType {
+        case .asap:
+            schedDate = now
+            expiry    = now.addingTimeInterval(2 * 3600)
+        case .scheduled:
+            schedDate = scheduledAt
+            expiry    = scheduledAt.addingTimeInterval(3600)
+        case .flexible:
+            // 7-day open window for flexible plans
+            schedDate = now
+            expiry    = now.addingTimeInterval(7 * 24 * 3600)
+        }
+        let isAsap = (timeType == .asap)
+        let storedFlexDay: FlexDay?  = (timeType == .flexible) ? flexDay  : nil
+        let storedFlexMeal: FlexMeal? = (timeType == .flexible) ? flexMeal : nil
 
         let plan: Plan
         if let existing = existingPlan {
@@ -134,14 +184,18 @@ struct CreatePlanView: View {
                 creatorId:        existing.creatorId,
                 creatorName:      existing.creatorName,
                 creatorAvatarURL: existing.creatorAvatarURL,
-                isAsap:           isASAP,
+                isAsap:           isAsap,
                 scheduledAt:      schedDate,
                 neededPeople:     neededPeople,
                 currentPeople:    currentPeople,
                 memberIds:        existing.memberIds,
                 notes:            notes.trimmingCharacters(in: .whitespacesAndNewlines),
                 expiresAt:        expiry,
-                reportedBy:       existing.reportedBy
+                reportedBy:       existing.reportedBy,
+                timeType:         timeType,
+                flexDay:          storedFlexDay,
+                flexMeal:         storedFlexMeal,
+                genderPreference: genderPreference
             )
         } else {
             plan = Plan(
@@ -151,14 +205,18 @@ struct CreatePlanView: View {
                 creatorId:        uid,
                 creatorName:      name,
                 creatorAvatarURL: authViewModel.avatarURL,
-                isAsap:           isASAP,
+                isAsap:           isAsap,
                 scheduledAt:      schedDate,
                 neededPeople:     neededPeople,
                 currentPeople:    currentPeople,
                 memberIds:        [uid],
                 notes:            notes.trimmingCharacters(in: .whitespacesAndNewlines),
                 expiresAt:        expiry,
-                reportedBy:       []
+                reportedBy:       [],
+                timeType:         timeType,
+                flexDay:          storedFlexDay,
+                flexMeal:         storedFlexMeal,
+                genderPreference: genderPreference
             )
         }
 

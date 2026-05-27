@@ -36,22 +36,16 @@ struct RestaurantCardView: View {
 
     @ViewBuilder
     private var thumbnail: some View {
-        if let urlString = restaurant.imageUrl, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                case .failure, .empty:
-                    placeholderBubble
-                @unknown default:
-                    placeholderBubble
-                }
-            }
-        } else {
-            placeholderBubble
-        }
+        let url = restaurant.imageUrl.flatMap { URL(string: $0) }
+        CachedAsyncImage(
+            url: url,
+            placeholder: { loadingPlaceholder },
+            failure: { placeholderBubble }
+        )
+    }
+
+    private var loadingPlaceholder: some View {
+        Rectangle().fill(Color(.tertiarySystemFill))
     }
 
     private var placeholderBubble: some View {

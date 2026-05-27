@@ -7,6 +7,7 @@ struct PlanCardView: View {
     let onLeave:   () -> Void
     let onOpen:    () -> Void
     let onMessage: () -> Void
+    var onOrganiserTap: ((String) -> Void)? = nil
 
     private var isMember: Bool { plan.isMember(uid: currentUID) }
     private var isOrganiser: Bool { plan.creatorId == currentUID }
@@ -16,12 +17,18 @@ struct PlanCardView: View {
 
             // MARK: Organiser row — avatar + name + time
             HStack(spacing: 10) {
-                AvatarImage(
-                    urlString: plan.creatorAvatarURL,
-                    name: plan.creatorName,
-                    size: 36,
-                    fontSize: 16
-                )
+                Button {
+                    onOrganiserTap?(plan.creatorId)
+                } label: {
+                    AvatarImage(
+                        urlString: plan.creatorAvatarURL,
+                        name: plan.creatorName,
+                        size: 36,
+                        fontSize: 16
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(onOrganiserTap == nil)
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
@@ -62,6 +69,18 @@ struct PlanCardView: View {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Color(.tertiarySystemGroupedBackground))
                 )
+            }
+
+            // MARK: Preference badge (if not "any")
+            if plan.genderPreference != .any {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.crop.circle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.pink)
+                    Text(LocalizedStringKey(plan.genderPreference.label))
+                        .font(.caption2.bold())
+                        .foregroundColor(.pink)
+                }
             }
 
             // MARK: "Need X more" badge

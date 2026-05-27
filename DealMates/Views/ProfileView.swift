@@ -115,6 +115,7 @@ struct ProfileEditView: View {
     @Binding var isPresented: Bool
     @State private var displayName: String = ""
     @State private var bio: String = ""
+    @State private var gender: Gender = .female
     @State private var isSaving = false
     @State private var pickedItem: PhotosPickerItem?
     @State private var pendingAvatarData: Data?
@@ -151,6 +152,14 @@ struct ProfileEditView: View {
 
                 Section("Display Name") {
                     TextField("Enter your name", text: $displayName)
+                }
+
+                Section("Gender") {
+                    Picker("Gender", selection: $gender) {
+                        Text("Female").tag(Gender.female)
+                        Text("Male").tag(Gender.male)
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 Section("Bio") {
@@ -196,6 +205,7 @@ struct ProfileEditView: View {
             .onAppear {
                 displayName = authViewModel.displayName
                 bio = authViewModel.bio
+                gender = authViewModel.currentUser?.gender ?? .female
             }
             .onChange(of: pickedItem) { _, newItem in
                 Task {
@@ -219,6 +229,9 @@ struct ProfileEditView: View {
             if newURL == nil { return }
         }
         await authViewModel.updateProfile(displayName: displayName, bio: bio, avatarURL: newURL)
+        if authViewModel.currentUser?.gender != gender {
+            await authViewModel.updateGender(gender)
+        }
         if authViewModel.errorMessage == nil {
             isPresented = false
         }

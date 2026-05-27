@@ -17,15 +17,52 @@ final class AuthService {
         return try await ensureUserProfileExists(uid: session.user.id.uuidString.lowercased(), email: "")
     }
 
-    func signUp(email: String, password: String, displayName: String) async throws -> AppUser {
+    /// Signs up a new user. Throws `AuthService.confirmationPending` if Supabase project requires
+    /// email confirmation and the session hasn't been issued yet.
+    func signUp(email: String, password: String, displayName: String, gender: Gender? = nil) async throws -> AppUser {
         let response = try await client.auth.signUp(email: email, password: password)
         let uid = response.user.id.uuidString.lowercased()
-        return try await ensureUserProfileExists(uid: uid, email: email, displayName: displayName)
+        let profile = try await ensureUserProfileExists(uid: uid, email: email, displayName: displayName)
+        if let gender {
+            try await updateGender(uid: uid, gender: gender)
+        }
+        if response.session == nil {
+            // Email confirmation flow: project requires user to click confirm link before session is issued.
+            throw NSError(
+                domain: "DealMates.Auth",
+                code: 1001,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("Please check your email to confirm your account before signing in.", comment: "")]
+            )
+        }
+        return profile
+    }
+
+    func updateGender(uid: String, gender: Gender) async throws {
+        struct Patch: Encodable {
+            let gender: String
+            let updatedAt: Date
+            enum CodingKeys: String, CodingKey {
+                case gender
+                case updatedAt = "updated_at"
+            }
+        }
+        try await client.from("users")
+            .update(Patch(gender: gender.rawValue, updatedAt: Date()))
+            .eq("id", value: uid)
+            .execute()
     }
 
     func signIn(email: String, password: String) async throws -> AppUser {
-        // Only sign in; do NOT create another auth user
         let response = try await client.auth.signIn(email: email, password: password)
+        // Enforce email confirmation: refuse to keep an unconfirmed user signed in.
+        if response.user.emailConfirmedAt == nil {
+            try? await client.auth.signOut()
+            throw NSError(
+                domain: "DealMates.Auth",
+                code: 1002,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("Please check your email to confirm your account before signing in.", comment: "")]
+            )
+        }
         let uid = response.user.id.uuidString.lowercased()
         return try await ensureUserProfileExists(uid: uid, email: email)
     }

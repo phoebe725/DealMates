@@ -48,6 +48,7 @@ struct RestaurantBoardView: View {
     @State private var showCreatePlan = false
     @State private var selectedPlan: Plan?
     @State private var dmTarget: DMTarget?
+    @State private var profileTarget: UserProfileSheetTarget?
     @State private var timeFilter: PlanTimeFilter = .all
     @State private var statusFilter: PlanStatusFilter = .all
     @State private var sortMode: PlanSortMode = .timeAsc
@@ -82,6 +83,9 @@ struct RestaurantBoardView: View {
         }
         .sheet(isPresented: $showCreatePlan) {
             CreatePlanView(restaurant: restaurant, planVM: vm)
+        }
+        .sheet(item: $profileTarget) { target in
+            UserProfileView(userId: target.id)
         }
         .navigationDestination(isPresented: Binding(
             get: { selectedPlan != nil },
@@ -152,7 +156,7 @@ struct RestaurantBoardView: View {
                     Button {
                         timeFilter = f
                     } label: {
-                        Label(f.rawValue, systemImage: timeFilter == f ? "checkmark" : "")
+                        Label(LocalizedStringKey(f.rawValue), systemImage: timeFilter == f ? "checkmark" : "")
                     }
                 }
             }
@@ -161,7 +165,7 @@ struct RestaurantBoardView: View {
                     Button {
                         statusFilter = s
                     } label: {
-                        Label(s.rawValue, systemImage: statusFilter == s ? "checkmark" : "")
+                        Label(LocalizedStringKey(s.rawValue), systemImage: statusFilter == s ? "checkmark" : "")
                     }
                 }
             }
@@ -170,7 +174,7 @@ struct RestaurantBoardView: View {
                     Button {
                         sortMode = mode
                     } label: {
-                        Label(mode.rawValue, systemImage: sortMode == mode ? "checkmark" : "")
+                        Label(LocalizedStringKey(mode.rawValue), systemImage: sortMode == mode ? "checkmark" : "")
                     }
                 }
             }
@@ -197,6 +201,9 @@ struct RestaurantBoardView: View {
                         onOpen:    { selectedPlan = plan },
                         onMessage: {
                             dmTarget = DMTarget(uid: plan.creatorId, name: plan.creatorName, avatarURL: plan.creatorAvatarURL)
+                        },
+                        onOrganiserTap: { uid in
+                            profileTarget = UserProfileSheetTarget(id: uid)
                         }
                     )
                     .padding(.horizontal, 16)

@@ -161,7 +161,7 @@ struct DiscoverView: View {
                     Button {
                         sortMode = mode
                     } label: {
-                        Label(mode.rawValue, systemImage: sortMode == mode ? "checkmark" : "")
+                        Label(LocalizedStringKey(mode.rawValue), systemImage: sortMode == mode ? "checkmark" : "")
                     }
                 }
             }

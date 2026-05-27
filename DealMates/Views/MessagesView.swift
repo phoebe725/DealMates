@@ -25,7 +25,7 @@ struct MessagesView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 Picker("Filter", selection: $filter) {
-                    ForEach(MessagesFilter.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(MessagesFilter.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal, 16)
@@ -83,7 +83,8 @@ struct MessagesView: View {
     }
 
     private func row(for item: ConversationItem) -> some View {
-        let notMine = item.lastSenderId != authViewModel.uid
+        let isSystem = item.lastSenderId == "system"
+        let notMine = item.lastSenderId != authViewModel.uid && !isSystem
         let isUnread = notMine && unread.isUnread(chatId: item.chatId, lastActivity: item.lastTimestamp)
         return HStack(spacing: 12) {
             AvatarImage(

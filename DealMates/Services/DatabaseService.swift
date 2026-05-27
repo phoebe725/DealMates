@@ -168,6 +168,76 @@ final class DatabaseService {
         return try await client.from("users").select().in("id", values: ids).execute().value
     }
 
+    // MARK: - Polls
+
+    func fetchPolls(planId: String) async throws -> [Poll] {
+        try await client.from("polls")
+            .select()
+            .eq("plan_id", value: planId)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+    }
+
+    func fetchVotes(planId: String) async throws -> [PollVote] {
+        struct PollIdOnly: Decodable { let id: String }
+        let polls: [PollIdOnly] = try await client.from("polls")
+            .select("id")
+            .eq("plan_id", value: planId)
+            .execute()
+            .value
+        let pollIds = polls.map(\.id)
+        guard !pollIds.isEmpty else { return [] }
+        return try await client.from("poll_votes")
+            .select()
+            .in("poll_id", values: pollIds)
+            .execute()
+            .value
+    }
+
+    func createPoll(_ poll: Poll) async throws {
+        try await client.from("polls").insert(poll).execute()
+    }
+
+    func castVote(_ vote: PollVote) async throws {
+        // Delete-then-insert pattern avoids relying on composite-key upsert syntax.
+        try await client.from("poll_votes")
+            .delete()
+            .eq("poll_id", value: vote.pollId)
+            .eq("user_id", value: vote.userId)
+            .execute()
+        try await client.from("poll_votes").insert(vote).execute()
+    }
+
+    func listenToPolls(planId: String, onChange: @escaping () async -> Void) -> Task<Void, Never> {
+        Task {
+            let channel = client.realtimeV2
+                .channel("polls-\(planId)-\(UUID().uuidString)")
+            let pollChanges = await channel.postgresChange(
+                AnyAction.self, schema: "public", table: "polls",
+                filter: "plan_id=eq.\(planId)"
+            )
+            let voteChanges = await channel.postgresChange(
+                AnyAction.self, schema: "public", table: "poll_votes"
+            )
+            await channel.subscribe()
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    for await _ in pollChanges {
+                        if Task.isCancelled { break }
+                        await onChange()
+                    }
+                }
+                group.addTask {
+                    for await _ in voteChanges {
+                        if Task.isCancelled { break }
+                        await onChange()
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Direct Messages
 
     func sendDirectMessage(_ message: DirectMessage) async throws {

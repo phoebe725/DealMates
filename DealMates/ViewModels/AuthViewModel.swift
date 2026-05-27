@@ -41,12 +41,23 @@ final class AuthViewModel: ObservableObject {
 
     // MARK: - Auth Actions
 
-    func signUp(email: String, password: String, displayName: String) async {
+    func signUp(email: String, password: String, displayName: String, gender: Gender? = nil) async {
         errorMessage = nil
         do {
-            let user = try await service.signUp(email: email, password: password, displayName: displayName)
+            let user = try await service.signUp(email: email, password: password, displayName: displayName, gender: gender)
             currentUser = user
             isAuthenticated = true
+        } catch {
+            // Email confirmation pending is surfaced as an error message (not a fatal).
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func updateGender(_ gender: Gender) async {
+        guard !uid.isEmpty else { return }
+        do {
+            try await service.updateGender(uid: uid, gender: gender)
+            currentUser?.gender = gender
         } catch {
             errorMessage = error.localizedDescription
         }
