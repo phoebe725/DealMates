@@ -4,14 +4,17 @@ struct DMChatView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var vm: DMChatViewModel
     @State private var profileTarget: UserProfileSheetTarget?
+    @ObservedObject private var cache = UserCache.shared
 
-    init(currentUid: String, otherUid: String, otherName: String, otherAvatarURL: String?) {
+    init(currentUid: String, otherUid: String) {
         _vm = StateObject(wrappedValue: DMChatViewModel(
             currentUid: currentUid,
-            otherUid: otherUid,
-            otherName: otherName,
-            otherAvatarURL: otherAvatarURL
+            otherUid: otherUid
         ))
+    }
+
+    private var otherUserDisplayName: String {
+        cache.name(for: vm.otherUid, fallback: "User")
     }
 
     var body: some View {
@@ -19,7 +22,7 @@ struct DMChatView: View {
             chatSection
             composer
         }
-        .navigationTitle(vm.otherName)
+        .navigationTitle(otherUserDisplayName)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             vm.startListening()
@@ -64,11 +67,12 @@ struct DMChatView: View {
                 Button {
                     profileTarget = UserProfileSheetTarget(id: msg.senderId)
                 } label: {
-                    AvatarImage(
-                        urlString: msg.senderAvatarURL,
-                        name: msg.senderName,
+                    LiveAvatar(
+                        userId: msg.senderId,
                         size: 28,
-                        fontSize: 12
+                        fontSize: 12,
+                        fallbackName: msg.senderName,
+                        fallbackAvatarURL: msg.senderAvatarURL
                     )
                 }
                 .buttonStyle(.plain)
@@ -88,11 +92,12 @@ struct DMChatView: View {
             }
 
             if isMine {
-                AvatarImage(
-                    urlString: msg.senderAvatarURL,
-                    name: msg.senderName,
+                LiveAvatar(
+                    userId: msg.senderId,
                     size: 28,
-                    fontSize: 12
+                    fontSize: 12,
+                    fallbackName: msg.senderName,
+                    fallbackAvatarURL: msg.senderAvatarURL
                 )
             } else {
                 Spacer(minLength: 60)
@@ -107,11 +112,9 @@ struct DMChatView: View {
             TextField("Message…", text: $vm.draftText)
                 .textFieldStyle(.roundedBorder)
                 .submitLabel(.send)
-                .onSubmit {
-                    vm.send(senderName: authViewModel.displayName, senderAvatarURL: authViewModel.avatarURL)
-                }
+                .onSubmit { vm.send() }
             Button {
-                vm.send(senderName: authViewModel.displayName, senderAvatarURL: authViewModel.avatarURL)
+                vm.send()
             } label: {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.title2)

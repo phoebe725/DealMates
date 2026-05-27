@@ -24,36 +24,44 @@ final class MessagesListViewModel: ObservableObject {
 
         for dm in dms {
             items.append(ConversationItem(
-                kind: .dm(otherUid: dm.otherUserId, otherName: dm.otherUserName, otherAvatar: dm.otherUserAvatarURL),
-                title: dm.otherUserName,
+                kind: .dm(otherUid: dm.otherUserId),
+                fallbackTitle: dm.otherUserName,
                 subtitle: nil,
-                avatarURL: dm.otherUserAvatarURL,
-                lastMessage: dm.lastMessage,
+                fallbackAvatarURL: dm.otherUserAvatarURL,
+                lastMessageText: dm.lastMessage,
                 lastTimestamp: dm.lastTimestamp,
-                lastSenderId: dm.lastSenderId
+                lastSenderId: dm.lastSenderId,
+                lastIsSystem: false,
+                lastSystemKind: nil,
+                lastSystemArgs: nil
             ))
         }
 
         for plan in plans {
             let last = latestByPlan[plan.id]
-            let preview: String
-            if let m = last {
-                preview = m.isSystem ? m.text : "\(m.senderName): \(m.text)"
-            } else {
-                preview = "No messages yet"
-            }
             items.append(ConversationItem(
                 kind: .plan(plan: plan),
-                title: plan.restaurantName,
+                fallbackTitle: plan.restaurantName,
                 subtitle: "Group · \(plan.currentPeople)/\(plan.neededPeople)",
-                avatarURL: plan.creatorAvatarURL,
-                lastMessage: preview,
+                fallbackAvatarURL: plan.creatorAvatarURL,
+                lastMessageText: last?.text ?? "No messages yet",
                 lastTimestamp: last?.timestamp ?? .distantPast,
-                lastSenderId: last?.senderId
+                lastSenderId: last?.senderId,
+                lastIsSystem: last?.isSystem ?? false,
+                lastSystemKind: last?.systemKind,
+                lastSystemArgs: last?.systemArgs
             ))
         }
 
         self.items = items.sorted { $0.lastTimestamp > $1.lastTimestamp }
+
+        // Warm the cache so live names/avatars are available for the row renderer.
+        var idsToFetch: [String] = []
+        for dm in dms { idsToFetch.append(dm.otherUserId) }
+        for plan in plans { idsToFetch.append(plan.creatorId) }
+        for last in latestByPlan.values where !last.isSystem { idsToFetch.append(last.senderId) }
+        await UserCache.shared.prefetch(ids: idsToFetch)
+
         isLoading = false
     }
 }

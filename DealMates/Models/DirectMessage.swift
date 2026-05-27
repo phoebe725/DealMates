@@ -53,24 +53,34 @@ struct DMConversation: Identifiable, Hashable {
 }
 
 /// Unified entry in the Messages tab — either a 1:1 DM thread or a group plan chat.
+///
+/// Snapshots (`fallbackTitle`, `fallbackAvatarURL`, sender names baked into `lastMessageText`)
+/// are kept ONLY as fallbacks for when `UserCache` hasn't yet seen the row. The Messages list
+/// view resolves the live title/avatar via the cache so historical conversations always show
+/// the participant's current profile.
 struct ConversationItem: Identifiable, Hashable {
     enum Kind: Hashable {
-        case dm(otherUid: String, otherName: String, otherAvatar: String?)
+        case dm(otherUid: String)
         case plan(plan: Plan)
     }
 
     let kind: Kind
-    let title: String
+    let fallbackTitle: String
     let subtitle: String?
-    let avatarURL: String?
-    let lastMessage: String
+    let fallbackAvatarURL: String?
+    let lastMessageText: String
     let lastTimestamp: Date
     let lastSenderId: String?
+    let lastIsSystem: Bool
+    // Carried so the Messages list can render the localized template for system messages
+    // (e.g. "Alice 加入了计划 🙌"), not the snapshot English `lastMessageText`.
+    let lastSystemKind: String?
+    let lastSystemArgs: [String]?
 
     var id: String {
         switch kind {
-        case .dm(let uid, _, _): return "dm-\(uid)"
-        case .plan(let plan):    return "plan-\(plan.id)"
+        case .dm(let uid):    return "dm-\(uid)"
+        case .plan(let plan): return "plan-\(plan.id)"
         }
     }
 

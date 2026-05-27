@@ -55,6 +55,7 @@ struct Plan: Identifiable, Codable, Hashable {
     var flexDay: FlexDay?
     var flexMeal: FlexMeal?
     var genderPreference: GenderPreference
+    var attendanceConfirmedAt: Date?
 
     // MARK: Computed
 
@@ -102,5 +103,6 @@ extension Plan {
         case flexDay = "flex_day"
         case flexMeal = "flex_meal"
         case genderPreference = "gender_preference"
+        case attendanceConfirmedAt = "attendance_confirmed_at"
     }
 }

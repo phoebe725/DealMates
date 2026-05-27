@@ -45,9 +45,20 @@ struct ContentView: View {
             tintColor: .systemOrange
         )
         .ignoresSafeArea()
-        .task { await unread.refresh(currentUid: authViewModel.uid) }
+        .task {
+            await unread.refresh(currentUid: authViewModel.uid)
+            await NotificationManager.shared.requestAuthorization()
+            PushTokenService.shared.setCurrentUser(uid: authViewModel.uid)
+            await SubscriptionsViewModel.shared.load(currentUid: authViewModel.uid)
+            NotificationManager.shared.startListening(currentUid: authViewModel.uid)
+        }
         .onChange(of: authViewModel.uid) { _, newUid in
-            Task { await unread.refresh(currentUid: newUid) }
+            Task {
+                await unread.refresh(currentUid: newUid)
+                PushTokenService.shared.setCurrentUser(uid: newUid)
+                await SubscriptionsViewModel.shared.load(currentUid: newUid)
+                NotificationManager.shared.startListening(currentUid: newUid)
+            }
         }
     }
 }

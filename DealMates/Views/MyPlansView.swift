@@ -6,6 +6,8 @@ import CoreLocation
 struct MyPlansView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @ObservedObject private var locationManager = LocationManager.shared
+    @ObservedObject private var userCache = UserCache.shared
+    @ObservedObject private var restaurantCache = RestaurantCache.shared
     @State private var plans: [Plan] = []
     @State private var restaurantById: [String: Restaurant] = [:]
     @State private var isLoading = false
@@ -15,17 +17,33 @@ struct MyPlansView: View {
     @State private var statusFilter: PlanStatusFilter = .all
     @State private var sortMode: PlanSortMode = .timeAsc
     @State private var profileTarget: UserProfileSheetTarget?
+    @State private var bucket: MyPlansBucket = .active
+
+    enum MyPlansBucket: String, CaseIterable, Identifiable {
+        case active = "Active"
+        case completed = "Completed"
+        var id: String { rawValue }
+    }
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView("Loading your plans…")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if visiblePlans.isEmpty {
-                    emptyState
-                } else {
-                    planList
+            VStack(spacing: 0) {
+                Picker("Bucket", selection: $bucket) {
+                    ForEach(MyPlansBucket.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+
+                Group {
+                    if isLoading {
+                        ProgressView("Loading your plans…")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if visiblePlans.isEmpty {
+                        emptyState
+                    } else {
+                        planList
+                    }
                 }
             }
             .navigationTitle("My Plans")
@@ -50,6 +68,14 @@ struct MyPlansView: View {
 
     private var visiblePlans: [Plan] {
         var result = plans
+        // Active = still needs people AND attendance not yet confirmed.
+        // Completed = group is full OR attendance has been confirmed.
+        switch bucket {
+        case .active:
+            result = result.filter { $0.needsMorePeople > 0 && $0.attendanceConfirmedAt == nil }
+        case .completed:
+            result = result.filter { $0.needsMorePeople == 0 || $0.attendanceConfirmedAt != nil }
+        }
         if let cuisine = cuisineFilter, !cuisine.isEmpty {
             result = result.filter { restaurantById[$0.restaurantId]?.cuisine == cuisine }
         }
@@ -83,13 +109,15 @@ struct MyPlansView: View {
                 Button {
                     cuisineFilter = nil
                 } label: {
-                    Label("All cuisines", systemImage: cuisineFilter == nil ? "checkmark" : "")
+                    if cuisineFilter == nil { Label("All cuisines", systemImage: "checkmark") }
+                    else { Text("All cuisines") }
                 }
                 ForEach(availableCuisines, id: \.self) { cuisine in
                     Button {
                         cuisineFilter = cuisine
                     } label: {
-                        Label(AppLocale.localizedCuisine(cuisine), systemImage: cuisineFilter == cuisine ? "checkmark" : "")
+                        if cuisineFilter == cuisine { Label(AppLocale.localizedCuisine(cuisine), systemImage: "checkmark") }
+                        else { Text(AppLocale.localizedCuisine(cuisine)) }
                     }
                 }
             }
@@ -98,7 +126,8 @@ struct MyPlansView: View {
                     Button {
                         statusFilter = s
                     } label: {
-                        Label(LocalizedStringKey(s.rawValue), systemImage: statusFilter == s ? "checkmark" : "")
+                        if statusFilter == s { Label(LocalizedStringKey(s.rawValue), systemImage: "checkmark") }
+                        else { Text(LocalizedStringKey(s.rawValue)) }
                     }
                 }
             }
@@ -107,7 +136,8 @@ struct MyPlansView: View {
                     Button {
                         sortMode = mode
                     } label: {
-                        Label(LocalizedStringKey(mode.rawValue), systemImage: sortMode == mode ? "checkmark" : "")
+                        if sortMode == mode { Label(LocalizedStringKey(mode.rawValue), systemImage: "checkmark") }
+                        else { Text(LocalizedStringKey(mode.rawValue)) }
                     }
                 }
             }
@@ -142,12 +172,11 @@ struct MyPlansView: View {
         }
         .listStyle(.insetGrouped)
         .animation(nil, value: visiblePlans.map(\.id))
-        .transaction { $0.animation = nil }
     }
 
     private func planRow(_ plan: Plan) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(plan.restaurantName)
+            Text(restaurantCache.displayName(for: plan.restaurantId, fallback: plan.restaurantName))
                 .font(.headline)
 
             HStack(spacing: 8) {
@@ -155,13 +184,14 @@ struct MyPlansView: View {
                     profileTarget = UserProfileSheetTarget(id: plan.creatorId)
                 } label: {
                     HStack(spacing: 8) {
-                        AvatarImage(
-                            urlString: plan.creatorAvatarURL,
-                            name: plan.creatorName,
+                        LiveAvatar(
+                            userId: plan.creatorId,
                             size: 22,
-                            fontSize: 11
+                            fontSize: 11,
+                            fallbackName: plan.creatorName,
+                            fallbackAvatarURL: plan.creatorAvatarURL
                         )
-                        Text(plan.creatorName)
+                        Text(userCache.name(for: plan.creatorId, fallback: plan.creatorName))
                             .font(.subheadline)
                     }
                 }
@@ -198,13 +228,21 @@ struct MyPlansView: View {
 
     private func load() async {
         guard authViewModel.isSignedIn else { return }
-        isLoading = true
+        // Only flip the full-screen spinner on for the first load, not for pull-to-refresh.
+        let isFirstLoad = plans.isEmpty
+        if isFirstLoad { isLoading = true }
         locationManager.requestPermissionAndStart()
-        async let plansTask = DatabaseService.shared.fetchMyActivePlans(userId: authViewModel.uid)
+        async let plansTask = DatabaseService.shared.fetchMyPlans(userId: authViewModel.uid)
         async let restaurantsTask = DatabaseService.shared.fetchRestaurants()
-        plans = (try? await plansTask) ?? []
-        let restaurants = (try? await restaurantsTask) ?? []
-        restaurantById = Dictionary(uniqueKeysWithValues: restaurants.map { ($0.id, $0) })
+        // Only overwrite on success — a failed refresh should leave the existing list intact
+        // rather than blanking it out (and stranding the refresh spinner on the empty view).
+        if let fetched = try? await plansTask { plans = fetched }
+        if let restaurants = try? await restaurantsTask {
+            restaurantById = Dictionary(uniqueKeysWithValues: restaurants.map { ($0.id, $0) })
+        }
+        // Prefetch organiser profiles so the live name/avatar fill in straight away rather than
+        // briefly showing the stale `plan.creatorName` snapshot from the row.
+        await userCache.prefetch(ids: plans.map(\.creatorId))
         isLoading = false
     }
 }

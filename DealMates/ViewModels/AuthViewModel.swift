@@ -3,7 +3,13 @@ import Combine
 
 @MainActor
 final class AuthViewModel: ObservableObject {
-    @Published var currentUser: AppUser?
+    @Published var currentUser: AppUser? {
+        didSet {
+            // Keep UserCache in sync with the signed-in user so every other view that resolves
+            // names/avatars via the cache picks up profile edits immediately.
+            if let currentUser { UserCache.shared.upsert(currentUser) }
+        }
+    }
     @Published var isLoading = true
     @Published var errorMessage: String?
     @Published var isAuthenticated = false
@@ -41,23 +47,31 @@ final class AuthViewModel: ObservableObject {
 
     // MARK: - Auth Actions
 
-    func signUp(email: String, password: String, displayName: String, gender: Gender? = nil) async {
+    func signUp(email: String, password: String, displayName: String, gender: Gender? = nil, age: Int? = nil) async {
         errorMessage = nil
         do {
-            let user = try await service.signUp(email: email, password: password, displayName: displayName, gender: gender)
+            let user = try await service.signUp(email: email, password: password, displayName: displayName, gender: gender, age: age)
             currentUser = user
             isAuthenticated = true
         } catch {
-            // Email confirmation pending is surfaced as an error message (not a fatal).
             errorMessage = error.localizedDescription
         }
     }
 
-    func updateGender(_ gender: Gender) async {
+    /// Re-fetch the current user's row so counters and other server-mutated fields stay fresh.
+    func refreshCurrentUser() async {
+        guard !uid.isEmpty else { return }
+        if let fresh = try? await DatabaseService.shared.fetchUser(id: uid) {
+            currentUser = fresh
+        }
+    }
+
+    func updateDemographics(gender: Gender?, age: Int?) async {
         guard !uid.isEmpty else { return }
         do {
-            try await service.updateGender(uid: uid, gender: gender)
-            currentUser?.gender = gender
+            try await service.updateDemographics(uid: uid, gender: gender, age: age)
+            if let gender { currentUser?.gender = gender }
+            if let age { currentUser?.age = age }
         } catch {
             errorMessage = error.localizedDescription
         }

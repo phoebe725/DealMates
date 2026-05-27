@@ -10,31 +10,32 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             List {
-                // Avatar + name + edit
+                // Public preview — matches what others see when they tap this user's profile pic
+                // (avatar + name + gender + Age chip + bio). Credits/account info live below and
+                // are only visible to the owner.
                 Section {
-                    HStack(spacing: 16) {
-                        AvatarImage(
-                            urlString: authViewModel.avatarURL,
-                            name: authViewModel.displayName,
-                            size: 64,
-                            fontSize: 28
-                        )
-                        VStack(alignment: .leading, spacing: 2) {
+                    if let user = authViewModel.currentUser {
+                        ProfileHeaderView(user: user, avatarSize: 72, avatarFontSize: 32)
+                    } else {
+                        HStack(spacing: 16) {
+                            AvatarImage(
+                                urlString: authViewModel.avatarURL,
+                                name: authViewModel.displayName,
+                                size: 72,
+                                fontSize: 32
+                            )
                             Text(authViewModel.displayName)
                                 .font(.title3.bold())
-                            Text(authViewModel.isSignedIn ? authViewModel.email : "Anonymous Guest")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            if !authViewModel.bio.isEmpty {
-                                Text(authViewModel.bio)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(2)
-                            }
+                            Spacer()
                         }
-                        Spacer()
+                        .padding(.vertical, 6)
                     }
-                    .padding(.vertical, 8)
+
+                    if !authViewModel.bio.isEmpty {
+                        Text(authViewModel.bio)
+                            .font(.subheadline)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
                     if authViewModel.isSignedIn {
                         Button {
@@ -54,6 +55,37 @@ struct ProfileView: View {
                             }
                             .foregroundColor(.orange)
                         }
+                    }
+                }
+
+                // Credits (attendance rate + hosted count)
+                Section("Credits") {
+                    HStack {
+                        Label("Attendance rate", systemImage: "checkmark.seal.fill")
+                            .foregroundColor(.green)
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 2) {
+                            if let rate = authViewModel.currentUser?.attendanceRate {
+                                Text("\(Int(rate * 100))%")
+                                    .font(.headline.monospacedDigit())
+                                let attended = authViewModel.currentUser?.attendedCount ?? 0
+                                let total = authViewModel.currentUser?.attendanceRecordCount ?? 0
+                                Text("\(attended) / \(total)")
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("—")
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    HStack {
+                        Label("Hosted", systemImage: "crown.fill")
+                            .foregroundColor(.orange)
+                        Spacer()
+                        Text("\(authViewModel.currentUser?.hostedCount ?? 0)")
+                            .font(.headline.monospacedDigit())
                     }
                 }
 
@@ -100,6 +132,9 @@ struct ProfileView: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Profile")
+            .onAppear {
+                Task { await authViewModel.refreshCurrentUser() }
+            }
             .sheet(isPresented: $showEditSheet) {
                 ProfileEditView(isPresented: $showEditSheet)
                     .environmentObject(authViewModel)
@@ -116,6 +151,7 @@ struct ProfileEditView: View {
     @State private var displayName: String = ""
     @State private var bio: String = ""
     @State private var gender: Gender = .female
+    @State private var ageText: String = ""
     @State private var isSaving = false
     @State private var pickedItem: PhotosPickerItem?
     @State private var pendingAvatarData: Data?
@@ -162,9 +198,23 @@ struct ProfileEditView: View {
                     .pickerStyle(.segmented)
                 }
 
-                Section("Bio") {
-                    TextEditor(text: $bio)
-                        .frame(height: 100)
+                Section("Age (optional)") {
+                    TextField("e.g., 27", text: $ageText)
+                        .keyboardType(.numberPad)
+                }
+
+                Section {
+                    TextField("Tell others a bit about yourself", text: $bio, axis: .vertical)
+                        .lineLimit(1...4)
+                        .onChange(of: bio) { _, newValue in
+                            if newValue.count > 150 { bio = String(newValue.prefix(150)) }
+                        }
+                } header: {
+                    Text("Bio")
+                } footer: {
+                    Text("\(bio.count) / 150")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
 
                 if let error = authViewModel.errorMessage {
@@ -206,6 +256,7 @@ struct ProfileEditView: View {
                 displayName = authViewModel.displayName
                 bio = authViewModel.bio
                 gender = authViewModel.currentUser?.gender ?? .female
+                if let age = authViewModel.currentUser?.age { ageText = String(age) } else { ageText = "" }
             }
             .onChange(of: pickedItem) { _, newItem in
                 Task {
@@ -229,8 +280,14 @@ struct ProfileEditView: View {
             if newURL == nil { return }
         }
         await authViewModel.updateProfile(displayName: displayName, bio: bio, avatarURL: newURL)
-        if authViewModel.currentUser?.gender != gender {
-            await authViewModel.updateGender(gender)
+        let parsedAge = Int(ageText.trimmingCharacters(in: .whitespaces))
+        let genderChanged = authViewModel.currentUser?.gender != gender
+        let ageChanged    = authViewModel.currentUser?.age != parsedAge
+        if genderChanged || ageChanged {
+            await authViewModel.updateDemographics(
+                gender: genderChanged ? gender : nil,
+                age: ageChanged ? parsedAge : nil
+            )
         }
         if authViewModel.errorMessage == nil {
             isPresented = false

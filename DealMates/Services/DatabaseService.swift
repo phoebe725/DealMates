@@ -57,6 +57,18 @@ final class DatabaseService {
         return plans
     }
 
+    /// Returns ALL of the user's plans — active + confirmed + any historical ones —
+    /// used to populate the "Completed" bucket on MyPlans.
+    func fetchMyPlans(userId: String) async throws -> [Plan] {
+        try await client
+            .from("plans")
+            .select()
+            .contains("member_ids", value: [userId])
+            .order("scheduled_at", ascending: false)
+            .execute()
+            .value
+    }
+
     func createPlan(_ plan: Plan) async throws {
         try await client.from("plans").insert(plan).execute()
     }
@@ -85,7 +97,12 @@ final class DatabaseService {
             .update(Patch(memberIds: newIds, currentPeople: newCount))
             .eq("id", value: plan.id)
             .execute()
-        try await postSystemMessage(planId: plan.id, text: "\(userName) joined the plan 🙌")
+        try await postSystemMessage(
+            planId: plan.id,
+            fallbackText: "\(userName) joined the plan 🙌",
+            kind: "joined",
+            args: [userId]
+        )
     }
 
     func leavePlan(_ plan: Plan, userId: String, userName: String) async throws {
@@ -121,7 +138,12 @@ final class DatabaseService {
                 ))
                 .eq("id", value: plan.id)
                 .execute()
-            try await postSystemMessage(planId: plan.id, text: "\(userName) left. \(nextUser.displayName) is now the organiser.")
+            try await postSystemMessage(
+                planId: plan.id,
+                fallbackText: "\(userName) left. \(nextUser.displayName) is now the organiser.",
+                kind: "left_promoted",
+                args: [userId, nextUser.id]
+            )
             return
         }
 
@@ -137,10 +159,28 @@ final class DatabaseService {
             .update(Patch(memberIds: newIds, currentPeople: newCount))
             .eq("id", value: plan.id)
             .execute()
-        try await postSystemMessage(planId: plan.id, text: "\(userName) left the plan")
+        try await postSystemMessage(
+            planId: plan.id,
+            fallbackText: "\(userName) left the plan",
+            kind: "left",
+            args: [userId]
+        )
     }
 
-    func removeMember(_ plan: Plan, targetUid: String, targetName: String, removerName: String) async throws {
+    /// Records attendance for a completed plan. Atomically increments attended_count for
+    /// each user marked attended and hosted_count for the organiser.
+    func confirmAttendance(planId: String, attendedUserIds: [String]) async throws {
+        struct Params: Encodable {
+            let p_plan_id: String
+            let p_attended: [String]
+        }
+        try await client.rpc("confirm_plan_attendance",
+                             params: Params(p_plan_id: planId, p_attended: attendedUserIds))
+            .execute()
+    }
+
+    func removeMember(_ plan: Plan, targetUid: String, targetName: String,
+                      removerUid: String, removerName: String) async throws {
         guard plan.memberIds.contains(targetUid), plan.creatorId != targetUid else { return }
         let newIds = plan.memberIds.filter { $0 != targetUid }
         let newCount = max(1, plan.currentPeople - 1)
@@ -156,16 +196,169 @@ final class DatabaseService {
             .update(Patch(memberIds: newIds, currentPeople: newCount))
             .eq("id", value: plan.id)
             .execute()
-        try await postSystemMessage(planId: plan.id, text: "\(removerName) removed \(targetName) from the plan.")
+        try await postSystemMessage(
+            planId: plan.id,
+            fallbackText: "\(removerName) removed \(targetName) from the plan.",
+            kind: "removed",
+            args: [removerUid, targetUid]
+        )
     }
 
     func fetchUser(id: String) async throws -> AppUser {
         try await client.from("users").select().eq("id", value: id).single().execute().value
     }
 
+    func listenToUser(uid: String, onChange: @escaping () async -> Void) -> Task<Void, Never> {
+        Task {
+            let channel = client.realtimeV2
+                .channel("user-\(uid)-\(UUID().uuidString)")
+            let changes = await channel.postgresChange(
+                AnyAction.self,
+                schema: "public",
+                table:  "users",
+                filter: "id=eq.\(uid)"
+            )
+            await channel.subscribe()
+            for await _ in changes {
+                if Task.isCancelled { break }
+                await onChange()
+            }
+        }
+    }
+
     func fetchUsers(ids: [String]) async throws -> [AppUser] {
         guard !ids.isEmpty else { return [] }
         return try await client.from("users").select().in("id", values: ids).execute().value
+    }
+
+    // MARK: - Subscriptions
+
+    func fetchSubscriptions(userId: String) async throws -> [RestaurantSubscription] {
+        guard !userId.isEmpty else { return [] }
+        return try await client.from("restaurant_subscriptions")
+            .select()
+            .eq("user_id", value: userId)
+            .execute()
+            .value
+    }
+
+    func subscribeToRestaurant(userId: String, restaurantId: String) async throws {
+        struct Row: Encodable {
+            let user_id: String
+            let restaurant_id: String
+        }
+        try await client.from("restaurant_subscriptions")
+            .upsert(Row(user_id: userId, restaurant_id: restaurantId))
+            .execute()
+    }
+
+    func unsubscribeFromRestaurant(userId: String, restaurantId: String) async throws {
+        try await client.from("restaurant_subscriptions")
+            .delete()
+            .eq("user_id", value: userId)
+            .eq("restaurant_id", value: restaurantId)
+            .execute()
+    }
+
+    /// Fetch all active plans across every restaurant (for the global Plans browse view).
+    func fetchAllActivePlans() async throws -> [Plan] {
+        let now = ISO8601DateFormatter().string(from: Date())
+        return try await client.from("plans")
+            .select()
+            .gt("expires_at", value: now)
+            .order("scheduled_at", ascending: true)
+            .execute()
+            .value
+    }
+
+    /// Listen to every insert/update on the `users` table — used by `UserCache` to keep names
+    /// and avatars live everywhere (historical chats, plan rows, DM threads).
+    func listenToAllUserUpdates(onChange: @escaping (AppUser) -> Void) -> Task<Void, Never> {
+        Task {
+            let channel = client.realtimeV2
+                .channel("users-global-\(UUID().uuidString)")
+            let inserts = await channel.postgresChange(
+                InsertAction.self,
+                schema: "public",
+                table:  "users"
+            )
+            let updates = await channel.postgresChange(
+                UpdateAction.self,
+                schema: "public",
+                table:  "users"
+            )
+            await channel.subscribe()
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    for await action in inserts {
+                        if Task.isCancelled { break }
+                        if let user = try? action.decodeRecord(
+                            as: AppUser.self,
+                            decoder: SupabaseManager.shared.decoder
+                        ) {
+                            await MainActor.run { onChange(user) }
+                        }
+                    }
+                }
+                group.addTask {
+                    for await action in updates {
+                        if Task.isCancelled { break }
+                        if let user = try? action.decodeRecord(
+                            as: AppUser.self,
+                            decoder: SupabaseManager.shared.decoder
+                        ) {
+                            await MainActor.run { onChange(user) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Listen to plan inserts across all restaurants — used for local notifications on subscribed restaurants.
+    func listenToAllPlanInserts(onInsert: @escaping (Plan) -> Void) -> Task<Void, Never> {
+        Task {
+            let channel = client.realtimeV2
+                .channel("plans-global-\(UUID().uuidString)")
+            let inserts = await channel.postgresChange(
+                InsertAction.self,
+                schema: "public",
+                table:  "plans"
+            )
+            await channel.subscribe()
+            for await action in inserts {
+                if Task.isCancelled { break }
+                if let plan = try? action.decodeRecord(as: Plan.self, decoder: SupabaseManager.shared.decoder) {
+                    await MainActor.run { onInsert(plan) }
+                }
+            }
+        }
+    }
+
+    // Updates an existing plan's scheduled_at + time_type (used when an ASAP/Flexible plan locks in a time).
+    func setPlanScheduledTime(planId: String, scheduledAt: Date) async throws {
+        struct Patch: Encodable {
+            let scheduledAt: Date
+            let timeType: String
+            let isAsap: Bool
+            let flexDay: String?
+            let flexMeal: String?
+            let expiresAt: Date
+            enum CodingKeys: String, CodingKey {
+                case scheduledAt = "scheduled_at"
+                case timeType    = "time_type"
+                case isAsap      = "is_asap"
+                case flexDay     = "flex_day"
+                case flexMeal    = "flex_meal"
+                case expiresAt   = "expires_at"
+            }
+        }
+        let expiry = scheduledAt.addingTimeInterval(2 * 3600)
+        try await client.from("plans")
+            .update(Patch(scheduledAt: scheduledAt, timeType: "scheduled", isAsap: false,
+                          flexDay: nil, flexMeal: nil, expiresAt: expiry))
+            .eq("id", value: planId)
+            .execute()
     }
 
     // MARK: - Polls
@@ -393,10 +586,19 @@ final class DatabaseService {
 
     // MARK: - Private
 
-    private func postSystemMessage(planId: String, text: String) async throws {
+    /// Post a structured system message. `fallbackText` is the legacy English text stored on
+    /// the row so older clients (or anything without the locale catalog) still has something
+    /// to show; new clients prefer the localized template selected by `kind` + `args`.
+    private func postSystemMessage(planId: String, fallbackText: String,
+                                   kind: String, args: [String]) async throws {
         let msg = ChatMessage(
-            planId: planId, senderId: "system",
-            senderName: "System", text: text, isSystem: true
+            planId: planId,
+            senderId: "system",
+            senderName: "System",
+            text: fallbackText,
+            isSystem: true,
+            systemKind: kind,
+            systemArgs: args
         )
         try await sendMessage(msg)
     }

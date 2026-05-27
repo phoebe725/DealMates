@@ -8,23 +8,22 @@ final class DMChatViewModel: ObservableObject {
 
     let currentUid: String
     let otherUid: String
-    let otherName: String
-    let otherAvatarURL: String?
 
     private var listenerTask: Task<Void, Never>?
     private let service = DatabaseService.shared
 
-    init(currentUid: String, otherUid: String, otherName: String, otherAvatarURL: String?) {
+    init(currentUid: String, otherUid: String) {
         self.currentUid = currentUid
         self.otherUid = otherUid
-        self.otherName = otherName
-        self.otherAvatarURL = otherAvatarURL
     }
 
     deinit { listenerTask?.cancel() }
 
     func startListening() {
-        Task { await fetchHistory() }
+        Task {
+            await UserCache.shared.ensure(id: otherUid)
+            await fetchHistory()
+        }
 
         listenerTask = service.listenToDirectMessages(currentUid: currentUid, otherUid: otherUid) { [weak self] msg in
             guard let self else { return }
@@ -41,17 +40,26 @@ final class DMChatViewModel: ObservableObject {
 
     func refresh() async { await fetchHistory() }
 
-    func send(senderName: String, senderAvatarURL: String?) {
+    /// Sends a DM. Sender / recipient name + avatar snapshots are pulled live from
+    /// `UserCache` so the row reflects current profiles (views will still re-resolve
+    /// at render time via the cache, but we keep the snapshot columns populated for
+    /// backwards-compatibility with old clients).
+    func send() {
         let text = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         draftText = ""
+
+        let cache = UserCache.shared
+        let sender = cache.user(for: currentUid)
+        let recipient = cache.user(for: otherUid)
+
         let msg = DirectMessage(
             senderId: currentUid,
-            senderName: senderName,
-            senderAvatarURL: senderAvatarURL,
+            senderName: sender?.displayName ?? "",
+            senderAvatarURL: sender?.avatarURL,
             recipientId: otherUid,
-            recipientName: otherName,
-            recipientAvatarURL: otherAvatarURL,
+            recipientName: recipient?.displayName ?? "",
+            recipientAvatarURL: recipient?.avatarURL,
             text: text
         )
         if !messages.contains(where: { $0.id == msg.id }) {

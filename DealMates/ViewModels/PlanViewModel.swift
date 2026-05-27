@@ -52,9 +52,12 @@ final class PlanViewModel: ObservableObject {
         await fetchPlans()
     }
 
-    func removeMember(plan: Plan, targetUid: String, targetName: String, removerName: String) async {
+    func removeMember(plan: Plan, targetUid: String, targetName: String,
+                      removerUid: String, removerName: String) async {
         do {
-            try await service.removeMember(plan, targetUid: targetUid, targetName: targetName, removerName: removerName)
+            try await service.removeMember(plan,
+                                           targetUid: targetUid, targetName: targetName,
+                                           removerUid: removerUid, removerName: removerName)
             await fetchPlans()
             successMessage = "Removed \(targetName)"
         } catch {

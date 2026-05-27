@@ -40,12 +40,21 @@ final class ChatViewModel: ObservableObject {
         await fetchHistory()
     }
 
-    func send(senderId: String, senderName: String, senderAvatarURL: String? = nil) {
+    /// Sends a chat message. The sender's name/avatar are looked up live from `UserCache`,
+    /// so the row written to `messages` carries the user's current profile snapshot. Readers
+    /// resolve through the cache anyway, but the snapshot keeps old clients consistent.
+    func send(senderId: String) {
         let text = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         draftText = ""
-        let msg = ChatMessage(planId: planId, senderId: senderId,
-                              senderName: senderName, senderAvatarURL: senderAvatarURL, text: text)
+        let sender = UserCache.shared.user(for: senderId)
+        let msg = ChatMessage(
+            planId: planId,
+            senderId: senderId,
+            senderName: sender?.displayName ?? "",
+            senderAvatarURL: sender?.avatarURL,
+            text: text
+        )
         if !messages.contains(where: { $0.id == msg.id }) {
             messages.append(msg)
         }

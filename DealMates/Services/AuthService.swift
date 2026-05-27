@@ -17,17 +17,16 @@ final class AuthService {
         return try await ensureUserProfileExists(uid: session.user.id.uuidString.lowercased(), email: "")
     }
 
-    /// Signs up a new user. Throws `AuthService.confirmationPending` if Supabase project requires
-    /// email confirmation and the session hasn't been issued yet.
-    func signUp(email: String, password: String, displayName: String, gender: Gender? = nil) async throws -> AppUser {
+    /// Signs up a new user. Throws if Supabase project requires email confirmation
+    /// and the session hasn't been issued yet.
+    func signUp(email: String, password: String, displayName: String, gender: Gender? = nil, age: Int? = nil) async throws -> AppUser {
         let response = try await client.auth.signUp(email: email, password: password)
         let uid = response.user.id.uuidString.lowercased()
         let profile = try await ensureUserProfileExists(uid: uid, email: email, displayName: displayName)
-        if let gender {
-            try await updateGender(uid: uid, gender: gender)
+        if gender != nil || age != nil {
+            try await updateDemographics(uid: uid, gender: gender, age: age)
         }
         if response.session == nil {
-            // Email confirmation flow: project requires user to click confirm link before session is issued.
             throw NSError(
                 domain: "DealMates.Auth",
                 code: 1001,
@@ -38,16 +37,22 @@ final class AuthService {
     }
 
     func updateGender(uid: String, gender: Gender) async throws {
+        try await updateDemographics(uid: uid, gender: gender, age: nil)
+    }
+
+    func updateDemographics(uid: String, gender: Gender?, age: Int?) async throws {
         struct Patch: Encodable {
-            let gender: String
+            let gender: String?
+            let age: Int?
             let updatedAt: Date
             enum CodingKeys: String, CodingKey {
                 case gender
+                case age
                 case updatedAt = "updated_at"
             }
         }
         try await client.from("users")
-            .update(Patch(gender: gender.rawValue, updatedAt: Date()))
+            .update(Patch(gender: gender?.rawValue, age: age, updatedAt: Date()))
             .eq("id", value: uid)
             .execute()
     }

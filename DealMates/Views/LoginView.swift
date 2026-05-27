@@ -7,6 +7,7 @@ struct LoginView: View {
     @State private var password = ""
     @State private var displayName = ""
     @State private var gender: Gender = .female
+    @State private var ageText: String = ""
     @State private var isLoading = false
 
     var body: some View {
@@ -48,6 +49,14 @@ struct LoginView: View {
                                     Text("Male").tag(Gender.male)
                                 }
                                 .pickerStyle(.segmented)
+                            }
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label("Age (optional)", systemImage: "number")
+                                    .font(.subheadline.bold())
+                                    .foregroundColor(.orange)
+                                TextField("e.g., 27", text: $ageText)
+                                    .textFieldStyle(.roundedBorder)
+                                    .keyboardType(.numberPad)
                             }
                         }
 
@@ -93,7 +102,8 @@ struct LoginView: View {
                             Task {
                                 isLoading = true
                                 if isSignUpMode {
-                                    await authViewModel.signUp(email: email, password: password, displayName: displayName, gender: gender)
+                                    let parsedAge = Int(ageText.trimmingCharacters(in: .whitespaces))
+                                    await authViewModel.signUp(email: email, password: password, displayName: displayName, gender: gender, age: parsedAge)
                                 } else {
                                     await authViewModel.signIn(email: email, password: password)
                                 }

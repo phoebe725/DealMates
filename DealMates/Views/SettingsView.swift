@@ -4,6 +4,7 @@ struct SettingsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @AppStorage("preferredLanguageCode") private var languageCode: String = Locale.current.language.languageCode?.identifier ?? "en"
     @AppStorage("preferredRegionCode") private var regionCode: String = "GB"
+    @AppStorage("notification_preference") private var notificationPreference: String = NotificationPreference.subscribed.rawValue
 
     private let languages: [(code: String, label: String)] = [
         ("en", "English"),
@@ -33,6 +34,18 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.menu)
+            }
+
+            Section("Notifications") {
+                Picker("New plans", selection: $notificationPreference) {
+                    ForEach(NotificationPreference.allCases) { pref in
+                        Text(LocalizedStringKey(pref.label)).tag(pref.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+                .onChange(of: notificationPreference) { _, _ in
+                    Task { await PushTokenService.shared.syncPreference() }
+                }
             }
 
             if authViewModel.isSignedIn {

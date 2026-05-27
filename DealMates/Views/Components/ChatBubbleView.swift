@@ -5,7 +5,13 @@ struct ChatBubbleView: View {
     let isCurrentUser: Bool
     var onAvatarTap: ((String) -> Void)? = nil
 
+    @ObservedObject private var cache = UserCache.shared
+
     private var isSystem: Bool { message.isSystem }
+
+    private var liveName: String {
+        cache.name(for: message.senderId, fallback: message.senderName)
+    }
 
     var body: some View {
         if isSystem {
@@ -20,7 +26,9 @@ struct ChatBubbleView: View {
     private var systemBubble: some View {
         HStack {
             Spacer()
-            Text(message.text)
+            // Render the localized template for structured system messages; legacy rows fall
+            // back to the stored English text (handled inside `displayText()`).
+            Text(message.displayText())
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .padding(.vertical, 4)
@@ -42,11 +50,12 @@ struct ChatBubbleView: View {
                 Button {
                     onAvatarTap?(message.senderId)
                 } label: {
-                    AvatarImage(
-                        urlString: message.senderAvatarURL,
-                        name: message.senderName,
+                    LiveAvatar(
+                        userId: message.senderId,
                         size: 28,
-                        fontSize: 12
+                        fontSize: 12,
+                        fallbackName: message.senderName,
+                        fallbackAvatarURL: message.senderAvatarURL
                     )
                 }
                 .buttonStyle(.plain)
@@ -55,7 +64,7 @@ struct ChatBubbleView: View {
 
             VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 2) {
                 if !isCurrentUser {
-                    Text(message.senderName)
+                    Text(liveName)
                         .font(.caption2.bold())
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 4)
@@ -77,11 +86,12 @@ struct ChatBubbleView: View {
             }
 
             if isCurrentUser {
-                AvatarImage(
-                    urlString: message.senderAvatarURL,
-                    name: message.senderName,
+                LiveAvatar(
+                    userId: message.senderId,
                     size: 28,
-                    fontSize: 12
+                    fontSize: 12,
+                    fallbackName: message.senderName,
+                    fallbackAvatarURL: message.senderAvatarURL
                 )
             } else {
                 Spacer(minLength: 60)

@@ -37,7 +37,7 @@ struct ChatView: View {
                     .focused($isTextFieldFocused)
 
                 Button {
-                    chatViewModel.send(senderId: authViewModel.uid, senderName: authViewModel.displayName)
+                    chatViewModel.send(senderId: authViewModel.uid)
                     isTextFieldFocused = false
                 } label: {
                     Image(systemName: "paperplane.fill")

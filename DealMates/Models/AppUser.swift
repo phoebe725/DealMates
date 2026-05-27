@@ -19,6 +19,16 @@ struct AppUser: Codable, Identifiable {
     var bio: String
     var avatarURL: String?
     var gender: Gender?
+    var age: Int?
+    var attendedCount: Int
+    var attendanceRecordCount: Int
+    var hostedCount: Int
+
+    /// Percentage of attended vs recorded plans. nil when no plans have been confirmed yet.
+    var attendanceRate: Double? {
+        guard attendanceRecordCount > 0 else { return nil }
+        return Double(attendedCount) / Double(attendanceRecordCount)
+    }
     var isAnonymous: Bool
     var blockedUsers: [String]
     var reportedPlans: [String]
@@ -32,6 +42,10 @@ struct AppUser: Codable, Identifiable {
         self.bio            = ""
         self.avatarURL      = nil
         self.gender         = nil
+        self.age            = nil
+        self.attendedCount  = 0
+        self.attendanceRecordCount = 0
+        self.hostedCount    = 0
         self.isAnonymous    = email.isEmpty
         self.blockedUsers   = []
         self.reportedPlans  = []
@@ -48,6 +62,10 @@ extension AppUser {
         case bio
         case avatarURL = "avatar_url"
         case gender
+        case age
+        case attendedCount = "attended_count"
+        case attendanceRecordCount = "attendance_record_count"
+        case hostedCount = "hosted_count"
         case isAnonymous = "is_anonymous"
         case blockedUsers = "blocked_users"
         case reportedPlans = "reported_plans"

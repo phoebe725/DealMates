@@ -10,6 +10,7 @@ struct UserProfileView: View {
     @State private var user: AppUser?
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var listenerTask: Task<Void, Never>?
 
     var body: some View {
         NavigationStack {
@@ -39,42 +40,51 @@ struct UserProfileView: View {
                 }
             }
         }
-        .task { await load() }
+        .onAppear {
+            Task { await load() }
+            startListening()
+        }
+        .onDisappear { stopListening() }
     }
 
     private func profileContent(_ user: AppUser) -> some View {
         List {
             Section {
-                HStack(spacing: 16) {
-                    AvatarImage(
-                        urlString: user.avatarURL,
-                        name: user.displayName,
-                        size: 72,
-                        fontSize: 32
-                    )
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(user.displayName)
-                            .font(.title3.bold())
-                        if let gender = user.gender {
-                            HStack(spacing: 4) {
-                                Image(systemName: "person.crop.circle.fill")
-                                    .font(.caption2)
-                                    .foregroundColor(.pink)
-                                Text(LocalizedStringKey(gender.label))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                    Spacer()
-                }
-                .padding(.vertical, 6)
+                ProfileHeaderView(user: user, avatarSize: 72, avatarFontSize: 32)
             }
 
             if !user.bio.isEmpty {
                 Section("Bio") {
                     Text(user.bio)
                         .font(.subheadline)
+                }
+            }
+
+            Section("Credits") {
+                HStack {
+                    Label("Attendance rate", systemImage: "checkmark.seal.fill")
+                        .foregroundColor(.green)
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        if let rate = user.attendanceRate {
+                            Text("\(Int(rate * 100))%")
+                                .font(.headline.monospacedDigit())
+                            Text("\(user.attendedCount) / \(user.attendanceRecordCount)")
+                                .font(.caption2.monospacedDigit())
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("—")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                HStack {
+                    Label("Hosted", systemImage: "crown.fill")
+                        .foregroundColor(.orange)
+                    Spacer()
+                    Text("\(user.hostedCount)")
+                        .font(.headline.monospacedDigit())
                 }
             }
         }
@@ -84,9 +94,22 @@ struct UserProfileView: View {
     private func load() async {
         do {
             user = try await DatabaseService.shared.fetchUser(id: userId)
+            errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    private func startListening() {
+        stopListening()
+        listenerTask = DatabaseService.shared.listenToUser(uid: userId) {
+            await load()
+        }
+    }
+
+    private func stopListening() {
+        listenerTask?.cancel()
+        listenerTask = nil
     }
 }

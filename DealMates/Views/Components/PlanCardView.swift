@@ -9,8 +9,13 @@ struct PlanCardView: View {
     let onMessage: () -> Void
     var onOrganiserTap: ((String) -> Void)? = nil
 
+    @ObservedObject private var cache = UserCache.shared
+
     private var isMember: Bool { plan.isMember(uid: currentUID) }
     private var isOrganiser: Bool { plan.creatorId == currentUID }
+    private var liveCreatorName: String {
+        cache.name(for: plan.creatorId, fallback: plan.creatorName)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -20,11 +25,12 @@ struct PlanCardView: View {
                 Button {
                     onOrganiserTap?(plan.creatorId)
                 } label: {
-                    AvatarImage(
-                        urlString: plan.creatorAvatarURL,
-                        name: plan.creatorName,
+                    LiveAvatar(
+                        userId: plan.creatorId,
                         size: 36,
-                        fontSize: 16
+                        fontSize: 16,
+                        fallbackName: plan.creatorName,
+                        fallbackAvatarURL: plan.creatorAvatarURL
                     )
                 }
                 .buttonStyle(.plain)
@@ -32,7 +38,7 @@ struct PlanCardView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(plan.creatorName)
+                        Text(liveCreatorName)
                             .font(.subheadline.bold())
                             .foregroundColor(.primary)
                             .lineLimit(1)

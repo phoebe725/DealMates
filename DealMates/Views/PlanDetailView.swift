@@ -32,10 +32,14 @@ struct PlanDetailView: View {
     @State private var showCancelConfirm = false
     @State private var showEditSheet = false
     @State private var showPollSheet = false
+    @State private var showAttendanceSheet = false
+    @State private var showLockTimeSheet = false
+    @State private var lockedTime: Date = Date().addingTimeInterval(3600)
     @State private var isBusy = false
-    @State private var members: [AppUser] = []
     @State private var pendingRemoval: AppUser?
     @State private var profileTarget: UserProfileSheetTarget?
+    @ObservedObject private var userCache = UserCache.shared
+    @ObservedObject private var restaurantCache = RestaurantCache.shared
 
     // Keep a live copy of the plan so member list changes reflect in UI
     @State private var livePlan: Plan
@@ -50,6 +54,26 @@ struct PlanDetailView: View {
 
     private var isMember: Bool { livePlan.isMember(uid: authViewModel.uid) }
     private var isOrganiser: Bool { livePlan.creatorId == authViewModel.uid }
+    private var canConfirmAttendance: Bool {
+        guard isOrganiser else { return false }
+        guard livePlan.attendanceConfirmedAt == nil else { return false }
+        guard livePlan.needsMorePeople == 0 else { return false }
+        // Only after a specific time is locked in AND that time has passed.
+        guard livePlan.timeType == .scheduled else { return false }
+        return livePlan.scheduledAt <= Date()
+    }
+
+    /// Organiser sees a "Lock in Time" CTA when the plan is full but no specific time has been set.
+    private var canLockTime: Bool {
+        guard isOrganiser else { return false }
+        guard livePlan.attendanceConfirmedAt == nil else { return false }
+        guard livePlan.needsMorePeople == 0 else { return false }
+        return livePlan.timeType != .scheduled
+    }
+
+    private var canAddToCalendar: Bool {
+        livePlan.timeType == .scheduled && livePlan.attendanceConfirmedAt == nil
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -67,7 +91,7 @@ struct PlanDetailView: View {
             // Message composer
             messageComposer
         }
-        .navigationTitle(livePlan.restaurantName)
+        .navigationTitle(restaurantCache.displayName(for: livePlan.restaurantId, fallback: livePlan.restaurantName))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { reportToolbarItem }
         .sheet(isPresented: $showReportSheet) {
@@ -100,7 +124,7 @@ struct PlanDetailView: View {
             chatVM.startListening()
             pollsVM.startListening()
             UnreadManager.shared.markRead(chatId: "plan-\(plan.id)")
-            Task { await loadMembers() }
+            Task { await userCache.prefetch(ids: livePlan.memberIds) }
         }
         .onDisappear {
             chatVM.stopListening()
@@ -117,7 +141,7 @@ struct PlanDetailView: View {
         .onReceive(planVM.$plans) { plans in
             if let updated = plans.first(where: { $0.id == plan.id }) {
                 if updated.memberIds != livePlan.memberIds {
-                    Task { await loadMembers() }
+                    Task { await userCache.prefetch(ids: updated.memberIds) }
                 }
                 livePlan = updated
             }
@@ -137,9 +161,9 @@ struct PlanDetailView: View {
                             plan: livePlan,
                             targetUid: target.id,
                             targetName: target.displayName,
+                            removerUid: authViewModel.uid,
                             removerName: authViewModel.displayName
                         )
-                        await loadMembers()
                     }
                     pendingRemoval = nil
                 }
@@ -161,6 +185,44 @@ struct PlanDetailView: View {
             Button("OK", role: .cancel) { pollsVM.errorMessage = nil }
         } message: {
             Text(pollsVM.errorMessage ?? "")
+        }
+        .sheet(isPresented: $showAttendanceSheet) {
+            ConfirmAttendanceSheet(
+                plan: livePlan,
+                isPresented: $showAttendanceSheet,
+                onConfirmed: {
+                    Task { await planVM.refresh() }
+                }
+            )
+        }
+        .sheet(isPresented: $showLockTimeSheet) {
+            NavigationStack {
+                Form {
+                    Section("Lock in the meet-up time") {
+                        DatePicker("Time",
+                                   selection: $lockedTime,
+                                   in: Date()...,
+                                   displayedComponents: [.date, .hourAndMinute])
+                    }
+                }
+                .navigationTitle("Lock in Time")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { showLockTimeSheet = false }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Lock") {
+                            Task {
+                                try? await DatabaseService.shared.setPlanScheduledTime(planId: livePlan.id, scheduledAt: lockedTime)
+                                await planVM.refresh()
+                                showLockTimeSheet = false
+                            }
+                        }
+                        .bold()
+                    }
+                }
+            }
         }
     }
 
@@ -201,6 +263,51 @@ struct PlanDetailView: View {
                 }
             }
 
+            if canLockTime {
+                Button {
+                    lockedTime = max(Date().addingTimeInterval(1800), livePlan.scheduledAt)
+                    showLockTimeSheet = true
+                } label: {
+                    Label("Lock in Time", systemImage: "clock.badge.checkmark")
+                        .font(.subheadline.bold())
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.blue)
+            } else if canConfirmAttendance {
+                Button {
+                    showAttendanceSheet = true
+                } label: {
+                    Label("Confirm Attendance", systemImage: "checkmark.seal.fill")
+                        .font(.subheadline.bold())
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
+            } else if livePlan.attendanceConfirmedAt != nil {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundColor(.green)
+                    Text("Attendance confirmed")
+                        .font(.caption.bold())
+                        .foregroundColor(.green)
+                }
+            }
+
+            if canAddToCalendar {
+                Button {
+                    Task {
+                        do { try await CalendarService.shared.addPlanToCalendar(plan: livePlan) }
+                        catch { print("[DEBUG] calendar add failed: \(error)") }
+                    }
+                } label: {
+                    Label("Add to Calendar", systemImage: "calendar.badge.plus")
+                        .font(.caption.bold())
+                }
+                .buttonStyle(.bordered)
+                .tint(.blue)
+            }
+
             if !livePlan.notes.isEmpty {
                 Text(livePlan.notes)
                     .font(.caption)
@@ -221,24 +328,25 @@ struct PlanDetailView: View {
                 .foregroundColor(.secondary)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(members) { member in
-                        memberChip(member)
+                    ForEach(livePlan.memberIds, id: \.self) { uid in
+                        memberChip(uid: uid)
                     }
                 }
             }
         }
     }
 
-    private func memberChip(_ member: AppUser) -> some View {
-        let isThisOrganiser = member.id == livePlan.creatorId
+    private func memberChip(uid: String) -> some View {
+        let isThisOrganiser = uid == livePlan.creatorId
         let canRemove = isOrganiser && !isThisOrganiser
+        let liveName = userCache.name(for: uid, fallback: "Diner")
         return HStack(spacing: 6) {
             Button {
-                profileTarget = UserProfileSheetTarget(id: member.id)
+                profileTarget = UserProfileSheetTarget(id: uid)
             } label: {
                 HStack(spacing: 6) {
-                    AvatarImage(urlString: member.avatarURL, name: member.displayName, size: 24, fontSize: 11)
-                    Text(member.displayName)
+                    LiveAvatar(userId: uid, size: 24, fontSize: 11)
+                    Text(liveName)
                         .font(.caption)
                         .lineLimit(1)
                     if isThisOrganiser {
@@ -251,7 +359,12 @@ struct PlanDetailView: View {
             .buttonStyle(.plain)
             if canRemove {
                 Button {
-                    pendingRemoval = member
+                    if let member = userCache.user(for: uid) {
+                        pendingRemoval = member
+                    } else {
+                        // Synthesise a minimal AppUser so the confirmation dialog can still name them.
+                        pendingRemoval = AppUser(id: uid, email: "", displayName: liveName)
+                    }
                 } label: {
                     Image(systemName: "minus.circle.fill")
                         .font(.caption)
@@ -264,13 +377,6 @@ struct PlanDetailView: View {
         .padding(.vertical, 4)
         .background(Color(.tertiarySystemFill))
         .clipShape(Capsule())
-    }
-
-    private func loadMembers() async {
-        guard let fetched = try? await DatabaseService.shared.fetchUsers(ids: livePlan.memberIds) else { return }
-        // Keep order matching memberIds (so organiser first)
-        let byId = Dictionary(uniqueKeysWithValues: fetched.map { ($0.id, $0) })
-        members = livePlan.memberIds.compactMap { byId[$0] }
     }
 
     private var joinLeaveButton: some View {
@@ -361,9 +467,11 @@ struct PlanDetailView: View {
     private func streamRow(_ item: ChatStreamItem) -> some View {
         switch item {
         case .message(let msg):
-            ChatBubbleView(message: msg, isCurrentUser: msg.senderId == authViewModel.uid) { uid in
-                profileTarget = UserProfileSheetTarget(id: uid)
-            }
+            ChatBubbleView(
+                message: msg,
+                isCurrentUser: msg.senderId == authViewModel.uid,
+                onAvatarTap: { uid in profileTarget = UserProfileSheetTarget(id: uid) }
+            )
         case .poll(let poll):
             PollCardView(
                 poll: poll,
@@ -394,11 +502,11 @@ struct PlanDetailView: View {
                 .textFieldStyle(.roundedBorder)
                 .submitLabel(.send)
                 .onSubmit {
-                    chatVM.send(senderId: authViewModel.uid, senderName: authViewModel.displayName, senderAvatarURL: authViewModel.avatarURL)
+                    chatVM.send(senderId: authViewModel.uid)
                 }
 
             Button {
-                chatVM.send(senderId: authViewModel.uid, senderName: authViewModel.displayName, senderAvatarURL: authViewModel.avatarURL)
+                chatVM.send(senderId: authViewModel.uid)
             } label: {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.title2)

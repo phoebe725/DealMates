@@ -3,8 +3,6 @@ import Combine
 
 struct DMTarget: Identifiable, Hashable {
     let uid: String
-    let name: String
-    let avatarURL: String?
     var id: String { uid }
 }
 
@@ -52,6 +50,7 @@ struct RestaurantBoardView: View {
     @State private var timeFilter: PlanTimeFilter = .all
     @State private var statusFilter: PlanStatusFilter = .all
     @State private var sortMode: PlanSortMode = .timeAsc
+    @ObservedObject private var subs = SubscriptionsViewModel.shared
 
     init(restaurant: Restaurant) {
         self.restaurant = restaurant
@@ -60,12 +59,15 @@ struct RestaurantBoardView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            Group {
+            VStack(spacing: 0) {
                 if vm.isLoading && vm.plans.isEmpty {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if vm.plans.isEmpty {
-                    emptyBoard
+                    VStack(spacing: 0) {
+                        dealsBanner
+                        emptyBoard
+                    }
                 } else {
                     planList
                 }
@@ -78,7 +80,10 @@ struct RestaurantBoardView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                filterSortMenu
+                HStack {
+                    subscribeButton
+                    filterSortMenu
+                }
             }
         }
         .sheet(isPresented: $showCreatePlan) {
@@ -99,9 +104,7 @@ struct RestaurantBoardView: View {
         .navigationDestination(item: $dmTarget) { target in
             DMChatView(
                 currentUid: authViewModel.uid,
-                otherUid: target.uid,
-                otherName: target.name,
-                otherAvatarURL: target.avatarURL
+                otherUid: target.uid
             )
         }
         .onAppear  { vm.startListening() }
@@ -156,7 +159,8 @@ struct RestaurantBoardView: View {
                     Button {
                         timeFilter = f
                     } label: {
-                        Label(LocalizedStringKey(f.rawValue), systemImage: timeFilter == f ? "checkmark" : "")
+                        if timeFilter == f { Label(LocalizedStringKey(f.rawValue), systemImage: "checkmark") }
+                        else { Text(LocalizedStringKey(f.rawValue)) }
                     }
                 }
             }
@@ -165,7 +169,8 @@ struct RestaurantBoardView: View {
                     Button {
                         statusFilter = s
                     } label: {
-                        Label(LocalizedStringKey(s.rawValue), systemImage: statusFilter == s ? "checkmark" : "")
+                        if statusFilter == s { Label(LocalizedStringKey(s.rawValue), systemImage: "checkmark") }
+                        else { Text(LocalizedStringKey(s.rawValue)) }
                     }
                 }
             }
@@ -174,7 +179,8 @@ struct RestaurantBoardView: View {
                     Button {
                         sortMode = mode
                     } label: {
-                        Label(LocalizedStringKey(mode.rawValue), systemImage: sortMode == mode ? "checkmark" : "")
+                        if sortMode == mode { Label(LocalizedStringKey(mode.rawValue), systemImage: "checkmark") }
+                        else { Text(LocalizedStringKey(mode.rawValue)) }
                     }
                 }
             }
@@ -187,11 +193,46 @@ struct RestaurantBoardView: View {
         timeFilter != .all || statusFilter != .all || sortMode != .timeAsc
     }
 
+    private var subscribeButton: some View {
+        let isSubscribed = subs.isSubscribed(restaurantId: restaurant.id)
+        return Button {
+            Task { await subs.toggle(restaurantId: restaurant.id, currentUid: authViewModel.uid) }
+        } label: {
+            Image(systemName: isSubscribed ? "bell.fill" : "bell")
+                .foregroundColor(isSubscribed ? .orange : .primary)
+        }
+    }
+
+    @ViewBuilder
+    private var dealsBanner: some View {
+        let deals = restaurant.displayDeals
+        if !deals.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Deals", systemImage: "tag.fill")
+                    .font(.caption.bold())
+                    .foregroundColor(.orange)
+                ForEach(Array(deals.enumerated()), id: \.offset) { _, deal in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(deal.title).font(.subheadline.bold())
+                        Text(deal.detail).font(.caption).foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.orange.opacity(0.1)))
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+        }
+    }
+
     // MARK: - Plan list
 
     private var planList: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
+                dealsBanner
                 ForEach(visiblePlans, id: \.id) { plan in
                     PlanCardView(
                         plan: plan,
@@ -200,7 +241,7 @@ struct RestaurantBoardView: View {
                         onLeave:   { Task { await vm.leave(plan: plan, userId: authViewModel.uid, userName: authViewModel.displayName) } },
                         onOpen:    { selectedPlan = plan },
                         onMessage: {
-                            dmTarget = DMTarget(uid: plan.creatorId, name: plan.creatorName, avatarURL: plan.creatorAvatarURL)
+                            dmTarget = DMTarget(uid: plan.creatorId)
                         },
                         onOrganiserTap: { uid in
                             profileTarget = UserProfileSheetTarget(id: uid)
@@ -214,7 +255,6 @@ struct RestaurantBoardView: View {
         }
         .refreshable { await vm.refresh() }
         .animation(nil, value: visiblePlans.map(\.id))
-        .transaction { $0.animation = nil }
     }
 
     // MARK: - Empty state

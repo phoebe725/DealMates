@@ -195,7 +195,8 @@ struct CreatePlanView: View {
                 timeType:         timeType,
                 flexDay:          storedFlexDay,
                 flexMeal:         storedFlexMeal,
-                genderPreference: genderPreference
+                genderPreference: genderPreference,
+                attendanceConfirmedAt: existing.attendanceConfirmedAt
             )
         } else {
             plan = Plan(
@@ -216,7 +217,8 @@ struct CreatePlanView: View {
                 timeType:         timeType,
                 flexDay:          storedFlexDay,
                 flexMeal:         storedFlexMeal,
-                genderPreference: genderPreference
+                genderPreference: genderPreference,
+                attendanceConfirmedAt: nil
             )
         }
 
