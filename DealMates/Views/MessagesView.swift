@@ -3,7 +3,7 @@ import SwiftUI
 enum MessagesFilter: String, CaseIterable, Identifiable {
     case all = "All"
     case dm = "DMs"
-    case group = "Groups"
+    case group = "Rafts"
     var id: String { rawValue }
 }
 
@@ -25,58 +25,126 @@ struct MessagesView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                Picker("Filter", selection: $filter) {
-                    ForEach(MessagesFilter.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+            ZStack {
+                Color.pinCream.ignoresSafeArea()
 
-                Group {
-                    if vm.isLoading && vm.items.isEmpty {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if visibleItems.isEmpty {
-                        emptyState
-                    } else {
-                        list
-                    }
-                }
+                // ScrollView is the body's only child and its content shape
+                // never changes — header is always the first child, ForEach is
+                // always present (renders zero rows when items is empty), and
+                // the loading / empty states are *siblings* of the ForEach
+                // rather than `if/else` branches that swap the LazyVStack's
+                // child types. That structural stability is what keeps
+                // `.refreshable`'s gesture anchor alive across data refreshes
+                // (e.g. coming back from DMChatView after sending a message).
+                list
             }
-            .navigationTitle("Messages")
+            .toolbar(.hidden, for: .navigationBar)
             .onAppear {
+                // Refresh every time we land on this tab — picks up DMs/plans
+                // that arrived while we were elsewhere.
                 Task {
                     await vm.load(currentUid: authViewModel.uid)
                     await UnreadManager.shared.refresh(currentUid: authViewModel.uid)
                 }
             }
-            .refreshable {
-                await vm.load(currentUid: authViewModel.uid)
-                await UnreadManager.shared.refresh(currentUid: authViewModel.uid)
-            }
         }
     }
 
+    // MARK: - Header
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 2) {
+                (
+                    Text("Your ")
+                        .font(.pinHero(28, weight: .light))
+                        .foregroundStyle(Color.pinInk)
+                    +
+                    Text("messages.")
+                        .font(.pinAccent(38))
+                        .foregroundStyle(Color.pinClayDeep)
+                )
+                .lineLimit(1)
+                Text("Pin chats and direct messages.")
+                    .font(.pinSubtitle(13))
+                    .foregroundStyle(Color.pinInkMuted)
+            }
+
+            PinSegmentedPicker(
+                options: [(value: MessagesFilter.all, label: "All"),
+                          (value: MessagesFilter.dm, label: "DMs"),
+                          (value: MessagesFilter.group, label: "Rafts")],
+                counts: filterCounts,
+                selection: $filter
+            )
+        }
+    }
+
+    /// Per-filter unread counts shown as chips on the segmented picker. "All"
+    /// gets the same total that the tab badge shows; the per-bucket counts
+    /// come straight from `UnreadManager` so they update in real-time as
+    /// messages arrive and disappear when the user reads a chat.
+    private var filterCounts: [MessagesFilter: Int] {
+        [.all:   unread.totalUnread,
+         .dm:    unread.unreadDMCount,
+         .group: unread.unreadPlanCount]
+    }
+
+    // MARK: - List
+    //
+    // The ONE ScrollView for this whole tab. The LazyVStack's children are
+    // always: [header, ForEach(items), placeholder]. None of those slots ever
+    // disappear — the ForEach just renders zero rows when items is empty, and
+    // the placeholder is an empty view when items exist. Keeping the shape
+    // constant is what stops `.refreshable` from breaking after a data update.
+
     private var list: some View {
-        List(visibleItems) { item in
-            NavigationLink {
-                destination(for: item)
-            } label: {
-                row(for: item)
+        ScrollView {
+            LazyVStack(spacing: 10) {
+                header
+                    .padding(.top, 12)
+                    .padding(.bottom, 16)
+
+                ForEach(visibleItems) { item in
+                    NavigationLink {
+                        destination(for: item)
+                    } label: {
+                        row(for: item)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                placeholder
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+        }
+        .refreshable {
+            await vm.load(currentUid: authViewModel.uid)
+            await UnreadManager.shared.refresh(currentUid: authViewModel.uid)
+        }
+    }
+
+    /// Renders the empty / loading state below an empty ForEach. The view is
+    /// always present in the LazyVStack — it just becomes a zero-height
+    /// `EmptyView`-equivalent when there's a real list to show. The container
+    /// `VStack` keeps the SwiftUI slot type stable across the three states.
+    @ViewBuilder
+    private var placeholder: some View {
+        VStack(spacing: 0) {
+            if vm.isLoading && vm.items.isEmpty {
+                loadingState.frame(minHeight: 220)
+            } else if visibleItems.isEmpty {
+                emptyState.frame(minHeight: 320)
             }
         }
-        .listStyle(.plain)
     }
 
     @ViewBuilder
     private func destination(for item: ConversationItem) -> some View {
         switch item.kind {
         case .dm(let uid):
-            DMChatView(
-                currentUid: authViewModel.uid,
-                otherUid: uid
-            )
+            DMChatView(currentUid: authViewModel.uid, otherUid: uid)
         case .plan(let plan):
             PlanDetailView(plan: plan, planVM: PlanViewModel(restaurantId: plan.restaurantId))
         }
@@ -87,8 +155,6 @@ struct MessagesView: View {
         let notMine = item.lastSenderId != authViewModel.uid && !isSystem
         let isUnread = notMine && unread.isUnread(chatId: item.chatId, lastActivity: item.lastTimestamp)
 
-        // Resolve live title/avatar/preview from the cache so a profile edit reflects everywhere
-        // — even on threads from months ago.
         let liveTitle: String
         let liveAvatarUserId: String?
         switch item.kind {
@@ -96,16 +162,14 @@ struct MessagesView: View {
             liveTitle = userCache.name(for: uid, fallback: item.fallbackTitle)
             liveAvatarUserId = uid
         case .plan(let plan):
-            // Restaurant name is the title for group chats; avatar mirrors the organiser.
             liveTitle = restaurantCache.displayName(for: plan.restaurantId, fallback: plan.restaurantName)
             liveAvatarUserId = plan.creatorId
         }
 
         let previewText: String = {
             if isSystem {
-                // Localize "X joined the plan" style messages on the fly.
                 if let kind = item.lastSystemKind, let args = item.lastSystemArgs {
-                    let names = args.map { userCache.name(for: $0, fallback: NSLocalizedString("Diner", comment: "")) }
+                    let names = args.map { userCache.name(for: $0, fallback: AppLocalization.string("Diner")) }
                     let key: String
                     switch kind {
                     case "joined":         key = "system.joined"
@@ -114,13 +178,13 @@ struct MessagesView: View {
                     case "removed":        key = "system.removed"
                     default:               return item.lastMessageText
                     }
-                    let format = NSLocalizedString(key, comment: "")
+                    let format = AppLocalization.string(key)
                     return String(format: format, arguments: names.map { $0 as CVarArg })
                 }
                 return item.lastMessageText
             }
             if case .plan = item.kind, let senderId = item.lastSenderId, senderId != "system" {
-                let senderName = userCache.name(for: senderId, fallback: "Someone")
+                let senderName = userCache.name(for: senderId, fallback: AppLocalization.string("Someone"))
                 return "\(senderName): \(item.lastMessageText)"
             }
             return item.lastMessageText
@@ -130,7 +194,7 @@ struct MessagesView: View {
             if let uid = liveAvatarUserId {
                 LiveAvatar(
                     userId: uid,
-                    size: 44,
+                    size: 46,
                     fontSize: 18,
                     fallbackName: item.fallbackTitle,
                     fallbackAvatarURL: item.fallbackAvatarURL
@@ -139,61 +203,58 @@ struct MessagesView: View {
                 AvatarImage(
                     urlString: item.fallbackAvatarURL,
                     name: item.fallbackTitle,
-                    size: 44,
+                    size: 46,
                     fontSize: 18
                 )
             }
-            VStack(alignment: .leading, spacing: 2) {
+
+            VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(liveTitle)
-                        .font(.subheadline.weight(isUnread ? .bold : .semibold))
+                        .font(.pinBody(15, weight: .medium))
+                        .foregroundStyle(Color.pinInk)
                     if case .plan = item.kind {
-                        Text("Group")
-                            .font(.caption2.bold())
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.orange.opacity(0.15))
-                            .foregroundColor(.orange)
-                            .clipShape(Capsule())
+                        // Sun-yellow chip so plan/raft chats are visually distinct
+                        // from one-on-one DMs in the list.
+                        PinChip(text: "Raft", tint: .pinSunDeep)
                     }
-                    if isUnread {
-                        Circle()
-                            .fill(Color.orange)
-                            .frame(width: 8, height: 8)
-                    }
-                }
-                if let sub = item.subtitle {
-                    Text(sub)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(item.lastTimestamp, style: .time)
+                        .font(.pinSubtitle(11))
+                        .foregroundStyle(Color.pinInkMuted)
                 }
                 Text(previewText)
-                    .font(.caption)
-                    .foregroundColor(isUnread ? .primary : .secondary)
-                    .fontWeight(isUnread ? .semibold : .regular)
+                    .font(.pinSubtitle(13))
+                    .foregroundStyle(isUnread ? Color.pinInk : Color.pinInkMuted)
                     .lineLimit(1)
             }
-            Spacer()
-            Text(item.lastTimestamp, style: .time)
-                .font(.caption2)
-                .foregroundColor(.secondary)
+
+            if isUnread {
+                Circle()
+                    .fill(Color.pinClay)
+                    .frame(width: 8, height: 8)
+            }
         }
-        .padding(.vertical, 4)
-        .listRowBackground(isUnread ? Color.orange.opacity(0.07) : Color.clear)
+        .padding(14)
+        .pinCard(fill: isUnread ? Color.pinClay.opacity(0.08) : Color.pinShell)
     }
 
+    // MARK: - Empty / loading
+
     private var emptyState: some View {
+        PinEmptyState(
+            title: "No messages yet",
+            message: "Join a pin or message an organiser to start a thread.",
+            systemImage: "bubble.left.and.bubble.right"
+        )
+    }
+
+    private var loadingState: some View {
         VStack(spacing: 14) {
-            Image(systemName: "bubble.left.and.bubble.right")
-                .font(.system(size: 56))
-                .foregroundColor(.secondary)
-            Text("No messages yet")
-                .font(.headline)
-            Text("Join a plan or message an organiser to start.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+            ProgressView().tint(Color.pinInkMuted)
+            Text("Loading your messages…")
+                .font(.pinSubtitle(14))
+                .foregroundStyle(Color.pinInkMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

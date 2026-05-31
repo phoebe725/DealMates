@@ -59,33 +59,27 @@ struct RestaurantBoardView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            VStack(spacing: 0) {
-                if vm.isLoading && vm.plans.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if vm.plans.isEmpty {
-                    VStack(spacing: 0) {
-                        dealsBanner
-                        emptyBoard
-                    }
-                } else {
-                    planList
-                }
-            }
+            Color.pinCream.ignoresSafeArea()
 
-            // Floating + button
+            content
             createButton
         }
-        .navigationTitle(restaurant.displayName)
-        .navigationBarTitleDisplayMode(.large)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text(restaurant.displayName)
+                    .font(.pinBody(16, weight: .medium))
+                    .foregroundStyle(Color.pinInk)
+                    .lineLimit(1)
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
-                HStack {
+                HStack(spacing: 6) {
                     subscribeButton
                     filterSortMenu
                 }
             }
         }
+        .toolbarBackground(Color.pinCream, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .sheet(isPresented: $showCreatePlan) {
             CreatePlanView(restaurant: restaurant, planVM: vm)
         }
@@ -102,29 +96,138 @@ struct RestaurantBoardView: View {
             }
         }
         .navigationDestination(item: $dmTarget) { target in
-            DMChatView(
-                currentUid: authViewModel.uid,
-                otherUid: target.uid
-            )
+            DMChatView(currentUid: authViewModel.uid, otherUid: target.uid)
         }
         .onAppear  { vm.startListening() }
         .onDisappear { vm.stopListening() }
-        .alert("Error", isPresented: Binding(
+        .alert("Heads up", isPresented: Binding(
             get:  { vm.errorMessage != nil },
             set:  { if !$0 { vm.errorMessage = nil } }
         )) {
             Button("OK", role: .cancel) { vm.errorMessage = nil }
-        } message: {
-            Text(vm.errorMessage ?? "")
-        }
+        } message: { Text(vm.errorMessage ?? "") }
         .alert("Done", isPresented: Binding(
             get:  { vm.successMessage != nil },
             set:  { if !$0 { vm.successMessage = nil } }
         )) {
             Button("OK", role: .cancel) { vm.successMessage = nil }
-        } message: {
-            Text(vm.successMessage ?? "")
+        } message: { Text(vm.successMessage ?? "") }
+    }
+
+    // MARK: - Content
+
+    @ViewBuilder
+    private var content: some View {
+        if vm.isLoading && vm.plans.isEmpty {
+            VStack(spacing: 14) {
+                ProgressView().tint(Color.pinInkMuted)
+                Text("Loading pins at \(restaurant.displayName)…")
+                    .font(.pinSubtitle(13))
+                    .foregroundStyle(Color.pinInkMuted)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if vm.plans.isEmpty {
+            ScrollView {
+                VStack(spacing: 18) {
+                    restaurantHeader
+                    dealsBanner
+                    emptyBoard
+                        .padding(.top, 24)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 80)
+            }
+        } else {
+            planList
         }
+    }
+
+    // MARK: - Restaurant header
+
+    private var restaurantHeader: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            (
+                Text(restaurant.displayName)
+                    .font(.pinHero(28, weight: .light))
+                    .foregroundStyle(Color.pinInk)
+            )
+            .lineLimit(2)
+            Text(restaurant.displayCuisine + " · " + restaurant.address)
+                .font(.pinSubtitle(13))
+                .foregroundStyle(Color.pinInkMuted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Deals banner
+
+    @ViewBuilder
+    private var dealsBanner: some View {
+        let deals = restaurant.displayDeals
+        if !deals.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Image(systemName: "tag.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.pinClay)
+                    Text("Deals at this spot")
+                        .font(.pinBody(12, weight: .medium))
+                        .foregroundStyle(Color.pinClayDeep)
+                }
+                ForEach(Array(deals.enumerated()), id: \.offset) { _, deal in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(deal.title)
+                            .font(.pinBody(14, weight: .medium))
+                            .foregroundStyle(Color.pinInk)
+                        Text(deal.detail)
+                            .font(.pinSubtitle(12))
+                            .foregroundStyle(Color.pinInkMuted)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.pinClay.opacity(0.10))
+            )
+        }
+    }
+
+    // MARK: - Plan list
+
+    private var planList: some View {
+        ScrollView {
+            LazyVStack(spacing: 14) {
+                restaurantHeader
+                dealsBanner
+
+                PinSectionHeader(title: "Active pins")
+                    .padding(.top, 8)
+
+                ForEach(visiblePlans, id: \.id) { plan in
+                    PlanCardView(
+                        plan: plan,
+                        currentUID: authViewModel.uid,
+                        onJoin:    { Task { await vm.join(plan: plan, userId: authViewModel.uid, userName: authViewModel.displayName) } },
+                        onLeave:   { Task { await vm.leave(plan: plan, userId: authViewModel.uid, userName: authViewModel.displayName) } },
+                        onOpen:    { selectedPlan = plan },
+                        onMessage: { dmTarget = DMTarget(uid: plan.creatorId) },
+                        onOrganiserTap: { uid in profileTarget = UserProfileSheetTarget(id: uid) }
+                    )
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 96) // room for the floating CTA
+        }
+        .refreshable {
+            await vm.refresh()
+            await UnreadManager.shared.refresh(currentUid: authViewModel.uid)
+        }
+        .animation(nil, value: visiblePlans.map(\.id))
     }
 
     // MARK: - Filtering / sorting
@@ -148,11 +251,6 @@ struct RestaurantBoardView: View {
     }
 
     private var filterSortMenu: some View {
-        filterSortMenuRaw
-            .transaction { $0.animation = nil }
-    }
-
-    private var filterSortMenuRaw: some View {
         Menu {
             Section("When") {
                 ForEach(PlanTimeFilter.allCases) { f in
@@ -185,8 +283,13 @@ struct RestaurantBoardView: View {
                 }
             }
         } label: {
-            Image(systemName: hasActiveFilter ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+            Image(systemName: hasActiveFilter
+                  ? "line.3.horizontal.decrease.circle.fill"
+                  : "line.3.horizontal.decrease.circle")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(Color.pinClay)
         }
+        .transaction { $0.animation = nil }
     }
 
     private var hasActiveFilter: Bool {
@@ -199,96 +302,45 @@ struct RestaurantBoardView: View {
             Task { await subs.toggle(restaurantId: restaurant.id, currentUid: authViewModel.uid) }
         } label: {
             Image(systemName: isSubscribed ? "bell.fill" : "bell")
-                .foregroundColor(isSubscribed ? .orange : .primary)
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(isSubscribed ? Color.pinClay : Color.pinInk)
         }
     }
 
-    @ViewBuilder
-    private var dealsBanner: some View {
-        let deals = restaurant.displayDeals
-        if !deals.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                Label("Deals", systemImage: "tag.fill")
-                    .font(.caption.bold())
-                    .foregroundColor(.orange)
-                ForEach(Array(deals.enumerated()), id: \.offset) { _, deal in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(deal.title).font(.subheadline.bold())
-                        Text(deal.detail).font(.caption).foregroundColor(.secondary)
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color.orange.opacity(0.1)))
-            .padding(.horizontal, 16)
-            .padding(.top, 10)
-        }
-    }
-
-    // MARK: - Plan list
-
-    private var planList: some View {
-        ScrollView {
-            LazyVStack(spacing: 12) {
-                dealsBanner
-                ForEach(visiblePlans, id: \.id) { plan in
-                    PlanCardView(
-                        plan: plan,
-                        currentUID: authViewModel.uid,
-                        onJoin:    { Task { await vm.join(plan: plan, userId: authViewModel.uid, userName: authViewModel.displayName) } },
-                        onLeave:   { Task { await vm.leave(plan: plan, userId: authViewModel.uid, userName: authViewModel.displayName) } },
-                        onOpen:    { selectedPlan = plan },
-                        onMessage: {
-                            dmTarget = DMTarget(uid: plan.creatorId)
-                        },
-                        onOrganiserTap: { uid in
-                            profileTarget = UserProfileSheetTarget(id: uid)
-                        }
-                    )
-                    .padding(.horizontal, 16)
-                }
-            }
-            .padding(.vertical, 10)
-            .padding(.bottom, 80) // room for FAB
-        }
-        .refreshable { await vm.refresh() }
-        .animation(nil, value: visiblePlans.map(\.id))
-    }
-
-    // MARK: - Empty state
+    // MARK: - Empty board
 
     private var emptyBoard: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "calendar.badge.plus")
-                .font(.system(size: 60))
-                .foregroundColor(.orange.opacity(0.6))
-            Text("No active plans")
-                .font(.headline)
-            Text("Be the first to create a dining plan\nfor \(restaurant.displayName)!")
-                .multilineTextAlignment(.center)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        PinEmptyState(
+            title: "No active pins here yet",
+            message: "Be the first — pin a plan at \(restaurant.displayName).",
+            systemImage: "mappin",
+            action: ("Pin a plan", { showCreatePlan = true })
+        )
     }
 
-    // MARK: - FAB
+    // MARK: - Floating CTA
 
     private var createButton: some View {
         Button {
             showCreatePlan = true
         } label: {
-            Image(systemName: "plus")
-                .font(.title2.bold())
-                .foregroundColor(.white)
-                .frame(width: 56, height: 56)
-                .background(Color.orange)
-                .clipShape(Circle())
-                .shadow(color: .orange.opacity(0.4), radius: 8, x: 0, y: 4)
+            HStack(spacing: 6) {
+                Image(systemName: "plus")
+                    .font(.system(size: 14, weight: .semibold))
+                Text("Pin a plan")
+                    .font(.pinButton(14))
+            }
+            .foregroundStyle(Color.pinCream)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color.pinClay)
+            )
+            .shadow(color: Color.pinClay.opacity(0.35), radius: 12, x: 0, y: 6)
         }
-        .padding(.trailing, 24)
-        .padding(.bottom, 28)
+        .buttonStyle(.plain)
+        .padding(.trailing, 20)
+        .padding(.bottom, 24)
     }
 }

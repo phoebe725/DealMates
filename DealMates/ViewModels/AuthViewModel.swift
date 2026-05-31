@@ -15,9 +15,36 @@ final class AuthViewModel: ObservableObject {
     @Published var isAuthenticated = false
 
     private let service = AuthService.shared
+    private var userCacheCancellable: AnyCancellable?
 
     init() {
         Task { await bootstrap() }
+        // Mirror UserCache → currentUser for the signed-in user's id. This way
+        // when the realtime listener brings in a fresh row for our own user
+        // (server-side counter bumps, edits from another device, etc.) the
+        // ProfileView updates in place — without us needing to re-fetch and
+        // risking overwriting an in-flight local edit.
+        userCacheCancellable = UserCache.shared.$users
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] users in
+                guard let self,
+                      let uid = self.currentUser?.id,
+                      let cached = users[uid]
+                else { return }
+                // Skip if nothing actually changed — avoids a feedback loop
+                // through `currentUser.didSet → UserCache.upsert → publisher`.
+                if cached.updatedAt != self.currentUser?.updatedAt
+                    || cached.displayName != self.currentUser?.displayName
+                    || cached.bio != self.currentUser?.bio
+                    || cached.avatarURL != self.currentUser?.avatarURL
+                    || cached.attendedCount != self.currentUser?.attendedCount
+                    || cached.attendanceRecordCount != self.currentUser?.attendanceRecordCount
+                    || cached.hostedCount != self.currentUser?.hostedCount
+                    || cached.gender != self.currentUser?.gender
+                    || cached.age != self.currentUser?.age {
+                    self.currentUser = cached
+                }
+            }
     }
 
     var uid: String          { currentUser?.id ?? "" }
@@ -89,13 +116,26 @@ final class AuthViewModel: ObservableObject {
     }
 
     func signOut() async {
+        // The auth-level signOut comes first and we honour its outcome even
+        // if the follow-up anonymous sign-in stumbles. That way the user
+        // never gets stuck on the signed-in flow because a downstream call
+        // threw — they'll see the signed-out hero and can sign in again.
         do {
             try await service.signOut()
-            currentUser = try await service.signInAnonymously()
             isAuthenticated = false
+            currentUser = nil
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
+            return
+        }
+        // Best-effort: re-establish an anonymous session so guest browsing
+        // works. If this fails the user simply stays on the signed-out flow,
+        // which is also a valid state.
+        do {
+            currentUser = try await service.signInAnonymously()
+        } catch {
+            print("[DEBUG] anonymous sign-in after signOut failed: \(error)")
         }
     }
 
@@ -103,11 +143,12 @@ final class AuthViewModel: ObservableObject {
         errorMessage = nil
         let finalAvatar = avatarURL ?? currentUser?.avatarURL
         do {
-            try await service.updateProfile(uid: uid, displayName: displayName, bio: bio, avatarURL: finalAvatar)
-            currentUser?.displayName = displayName
-            currentUser?.bio = bio
-            currentUser?.avatarURL = finalAvatar
-            currentUser?.updatedAt = Date()
+            // Take the server-confirmed row as truth. `service.updateProfile`
+            // uses `.select().single()`, so this throws if 0 rows were updated
+            // (e.g. RLS denied) — we'll never silently keep showing a local
+            // edit that didn't actually persist.
+            let updated = try await service.updateProfile(uid: uid, displayName: displayName, bio: bio, avatarURL: finalAvatar)
+            currentUser = updated
         } catch {
             errorMessage = error.localizedDescription
         }

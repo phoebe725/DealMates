@@ -1,23 +1,29 @@
 // notify-on-plan
 //
-// Called by a Supabase Database Webhook on INSERT to public.plans.
-// Looks up subscribers of the new plan's restaurant + all "notify all" device tokens,
-// then sends an APNs alert push to each token via APNs HTTP/2.
+// Webhook handler for public.plans. Handles two event shapes:
 //
-// Secrets needed (set in Supabase Dashboard → Settings → Functions → Secrets):
-//   APNS_KEY_ID       — your APNs Auth Key ID (10 chars)
-//   APNS_TEAM_ID      — your Apple Developer Team ID (10 chars)
-//   APNS_BUNDLE_ID    — bundle id, e.g. com.jj.DealMates
-//   APNS_AUTH_KEY     — the FULL contents of your AuthKey_XXXXXXXXXX.p8 file
-//   APNS_HOST         — "api.sandbox.push.apple.com" (dev) or "api.push.apple.com" (prod)
+//   INSERT  → notify subscribers of the restaurant ("new plan posted")
+//   UPDATE  → detect members joining or the raft becoming full and
+//             push the relevant alert to the affected members
+//
+// The Supabase webhook needs to be configured to fire on both events.
+//
+// Secrets (Settings → Functions → Secrets):
+//   APNS_KEY_ID
+//   APNS_TEAM_ID
+//   APNS_BUNDLE_ID  (default com.jj.DealMates)
+//   APNS_AUTH_KEY
+//   APNS_HOST       (api.sandbox.push.apple.com or api.push.apple.com)
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const APNS_KEY_ID    = Deno.env.get("APNS_KEY_ID")!;
 const APNS_TEAM_ID   = Deno.env.get("APNS_TEAM_ID")!;
 const APNS_BUNDLE_ID = Deno.env.get("APNS_BUNDLE_ID") ?? "com.jj.DealMates";
 const APNS_AUTH_KEY  = Deno.env.get("APNS_AUTH_KEY")!;
 const APNS_HOST      = Deno.env.get("APNS_HOST") ?? "api.sandbox.push.apple.com";
+
+// ───────── JWT for APNs ─────────
 
 const enc = (o: unknown) =>
   btoa(JSON.stringify(o)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
@@ -52,24 +58,21 @@ async function makeJWT(): Promise<string> {
   return `${unsigned}.${sigB64}`;
 }
 
-interface PlanRecord {
-  id: string;
-  restaurant_id: string;
-  restaurant_name: string;
-  creator_id: string;
-  creator_name: string;
+// ───────── APNs send ─────────
+
+interface PushBody {
+  title: string;
+  body: string;
+  planId: string;
 }
 
-async function sendOne(token: string, plan: PlanRecord, jwt: string) {
+async function sendOne(token: string, push: PushBody, jwt: string) {
   const body = JSON.stringify({
     aps: {
-      alert: {
-        title: `New plan at ${plan.restaurant_name}`,
-        body:  `${plan.creator_name} just created a plan`,
-      },
+      alert: { title: push.title, body: push.body },
       sound: "default",
     },
-    plan_id: plan.id,
+    plan_id: push.planId,
   });
   const res = await fetch(`https://${APNS_HOST}/3/device/${token}`, {
     method: "POST",
@@ -87,18 +90,28 @@ async function sendOne(token: string, plan: PlanRecord, jwt: string) {
   }
 }
 
-Deno.serve(async (req) => {
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
+// ───────── Row shapes ─────────
 
-  const payload = await req.json();
-  const plan = payload?.record as PlanRecord | undefined;
-  if (!plan?.id || !plan?.restaurant_id) {
-    return new Response("ignored", { status: 200 });
-  }
+interface PlanRecord {
+  id: string;
+  restaurant_id: string;
+  restaurant_name: string;
+  creator_id: string;
+  creator_name: string;
+  member_ids: string[];
+  current_people: number;
+  needed_people: number;
+}
 
+interface TokenRow {
+  user_id: string;
+  token: string;
+  notification_preference: string; // "off" | "subscribed" | "all"
+}
+
+// ───────── INSERT path (existing behavior) ─────────
+
+async function handleInsert(supabase: SupabaseClient, plan: PlanRecord, jwt: string) {
   const { data: subs } = await supabase
     .from("restaurant_subscriptions")
     .select("user_id")
@@ -111,23 +124,120 @@ Deno.serve(async (req) => {
     .from("device_tokens")
     .select("user_id, token, notification_preference");
 
-  const eligible = (tokens ?? []).filter((t: { user_id: string; notification_preference: string }) => {
+  const eligible = (tokens ?? []).filter((t: TokenRow) => {
     if (t.user_id === plan.creator_id) return false;
     if (t.notification_preference === "off") return false;
     if (t.notification_preference === "all") return true;
     return subscribedIds.includes(t.user_id);
   });
 
-  if (eligible.length === 0) {
-    return new Response(JSON.stringify({ sent: 0 }), {
-      headers: { "content-type": "application/json" },
-    });
+  if (eligible.length === 0) return { sent: 0 };
+
+  await Promise.all(eligible.map((t: TokenRow) =>
+    sendOne(t.token, {
+      title: `New plan at ${plan.restaurant_name}`,
+      body:  `${plan.creator_name} just created a plan`,
+      planId: plan.id,
+    }, jwt)
+  ));
+  return { sent: eligible.length };
+}
+
+// ───────── UPDATE path: member joined / raft just full ─────────
+
+async function handleUpdate(
+  supabase: SupabaseClient,
+  plan: PlanRecord,
+  oldPlan: PlanRecord,
+  jwt: string,
+) {
+  const oldMembers = oldPlan.member_ids ?? [];
+  const newMembers = plan.member_ids ?? [];
+  const added = newMembers.filter((m: string) => !oldMembers.includes(m));
+
+  // Bail out if no one joined — this UPDATE was a different field
+  // (attendance confirmation, lock-in time, edit, etc.).
+  if (added.length === 0) return { sent: 0, reason: "no_new_members" };
+
+  const wasFull = oldPlan.current_people >= oldPlan.needed_people;
+  const isFull  = plan.current_people  >= plan.needed_people;
+  const justFilled = !wasFull && isFull;
+
+  // Fetch the joining member's display name(s) so the push reads naturally.
+  const { data: addedUsers } = await supabase
+    .from("users")
+    .select("id, display_name")
+    .in("id", added);
+  const nameById = new Map<string, string>(
+    (addedUsers ?? []).map((u: { id: string; display_name: string }) => [u.id, u.display_name])
+  );
+  const namesLabel = added.length === 1
+    ? (nameById.get(added[0]) ?? "Someone")
+    : `${added.length} new puffins`;
+
+  // Push tokens for every member of the raft. We then filter recipients per case.
+  const { data: tokenRows } = await supabase
+    .from("device_tokens")
+    .select("user_id, token, notification_preference")
+    .in("user_id", newMembers);
+  const tokens: TokenRow[] = (tokenRows ?? []).filter(
+    (t: TokenRow) => t.notification_preference !== "off"
+  );
+
+  // Member-joined → notify existing members (excluding the joiner).
+  const joinRecipients = tokens.filter((t) => !added.includes(t.user_id));
+  await Promise.all(joinRecipients.map((t) =>
+    sendOne(t.token, {
+      title: `New raft member at ${plan.restaurant_name}`,
+      body:  `${namesLabel} joined the pin.`,
+      planId: plan.id,
+    }, jwt)
+  ));
+
+  // Raft-just-full → notify everyone in the raft (including the new joiner).
+  let fullSent = 0;
+  if (justFilled) {
+    await Promise.all(tokens.map((t) =>
+      sendOne(t.token, {
+        title: `Your raft at ${plan.restaurant_name} is ready 🎉`,
+        body:  `Everyone's in. Time to lock in the meet-up.`,
+        planId: plan.id,
+      }, jwt)
+    ));
+    fullSent = tokens.length;
+  }
+
+  return { sent: joinRecipients.length + fullSent, joined: joinRecipients.length, full: fullSent };
+}
+
+// ───────── Entry point ─────────
+
+Deno.serve(async (req) => {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  const payload = await req.json();
+  const type = (payload?.type as string) ?? "INSERT";
+  const plan = payload?.record as PlanRecord | undefined;
+  const oldPlan = payload?.old_record as PlanRecord | undefined;
+  if (!plan?.id || !plan?.restaurant_id) {
+    return new Response("ignored", { status: 200 });
   }
 
   const jwt = await makeJWT();
-  await Promise.all(eligible.map((t) => sendOne(t.token, plan, jwt)));
 
-  return new Response(JSON.stringify({ sent: eligible.length }), {
+  let result: unknown;
+  if (type === "INSERT") {
+    result = await handleInsert(supabase, plan, jwt);
+  } else if (type === "UPDATE" && oldPlan) {
+    result = await handleUpdate(supabase, plan, oldPlan, jwt);
+  } else {
+    result = { sent: 0, reason: "unsupported_event" };
+  }
+
+  return new Response(JSON.stringify(result), {
     headers: { "content-type": "application/json" },
   });
 });

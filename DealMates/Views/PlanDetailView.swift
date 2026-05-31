@@ -41,7 +41,6 @@ struct PlanDetailView: View {
     @ObservedObject private var userCache = UserCache.shared
     @ObservedObject private var restaurantCache = RestaurantCache.shared
 
-    // Keep a live copy of the plan so member list changes reflect in UI
     @State private var livePlan: Plan
 
     init(plan: Plan, planVM: PlanViewModel) {
@@ -58,42 +57,45 @@ struct PlanDetailView: View {
         guard isOrganiser else { return false }
         guard livePlan.attendanceConfirmedAt == nil else { return false }
         guard livePlan.needsMorePeople == 0 else { return false }
-        // Only after a specific time is locked in AND that time has passed.
         guard livePlan.timeType == .scheduled else { return false }
         return livePlan.scheduledAt <= Date()
     }
-
-    /// Organiser sees a "Lock in Time" CTA when the plan is full but no specific time has been set.
     private var canLockTime: Bool {
         guard isOrganiser else { return false }
         guard livePlan.attendanceConfirmedAt == nil else { return false }
         guard livePlan.needsMorePeople == 0 else { return false }
         return livePlan.timeType != .scheduled
     }
-
     private var canAddToCalendar: Bool {
         livePlan.timeType == .scheduled && livePlan.attendanceConfirmedAt == nil
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Plan summary header
-            planSummary
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color(.secondarySystemGroupedBackground))
+        ZStack {
+            Color.pinCream.ignoresSafeArea()
 
-            Divider()
+            VStack(spacing: 0) {
+                planSummary
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+                    .background(Color.pinShell)
 
-            // Combined chat + polls stream
-            chatSection
+                chatSection
 
-            // Message composer
-            messageComposer
+                messageComposer
+            }
         }
-        .navigationTitle(restaurantCache.displayName(for: livePlan.restaurantId, fallback: livePlan.restaurantName))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar { reportToolbarItem }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text(restaurantCache.displayName(for: livePlan.restaurantId, fallback: livePlan.restaurantName))
+                    .font(.pinBody(16, weight: .medium))
+                    .foregroundStyle(Color.pinInk)
+                    .lineLimit(1)
+            }
+            reportToolbarItem
+        }
+        .toolbarBackground(Color.pinShell, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .sheet(isPresented: $showReportSheet) {
             ReportBlockSheet(plan: livePlan, currentUID: authViewModel.uid, isPresented: $showReportSheet)
         }
@@ -106,19 +108,19 @@ struct PlanDetailView: View {
             .environmentObject(authViewModel)
         }
         .confirmationDialog(
-            "Cancel this plan for everyone?",
+            "Cancel this pin?",
             isPresented: $showCancelConfirm,
             titleVisibility: .visible
         ) {
-            Button("Cancel Plan", role: .destructive) {
+            Button("Cancel pin", role: .destructive) {
                 Task {
                     await planVM.cancelPlan(livePlan)
                     dismiss()
                 }
             }
-            Button("Keep Plan", role: .cancel) {}
+            Button("Keep pin", role: .cancel) {}
         } message: {
-            Text("All members will lose access and the chat will be deleted.")
+            Text("Everyone in the raft loses access and the chat goes away.")
         }
         .onAppear {
             chatVM.startListening()
@@ -147,7 +149,7 @@ struct PlanDetailView: View {
             }
         }
         .confirmationDialog(
-            pendingRemoval.map { "Remove \($0.displayName) from the plan?" } ?? "",
+            pendingRemoval.map { "Remove \($0.displayName) from the raft?" } ?? "",
             isPresented: Binding(
                 get: { pendingRemoval != nil },
                 set: { if !$0 { pendingRemoval = nil } }
@@ -175,123 +177,92 @@ struct PlanDetailView: View {
             set: { if !$0 { planVM.successMessage = nil } }
         )) {
             Button("OK", role: .cancel) { planVM.successMessage = nil }
-        } message: {
-            Text(planVM.successMessage ?? "")
-        }
-        .alert("Error", isPresented: Binding(
+        } message: { Text(planVM.successMessage ?? "") }
+        .alert("Heads up", isPresented: Binding(
             get: { pollsVM.errorMessage != nil },
             set: { if !$0 { pollsVM.errorMessage = nil } }
         )) {
             Button("OK", role: .cancel) { pollsVM.errorMessage = nil }
-        } message: {
-            Text(pollsVM.errorMessage ?? "")
-        }
+        } message: { Text(pollsVM.errorMessage ?? "") }
         .sheet(isPresented: $showAttendanceSheet) {
             ConfirmAttendanceSheet(
                 plan: livePlan,
                 isPresented: $showAttendanceSheet,
-                onConfirmed: {
-                    Task { await planVM.refresh() }
-                }
+                onConfirmed: { Task { await planVM.refresh() } }
             )
         }
         .sheet(isPresented: $showLockTimeSheet) {
-            NavigationStack {
-                Form {
-                    Section("Lock in the meet-up time") {
-                        DatePicker("Time",
-                                   selection: $lockedTime,
-                                   in: Date()...,
-                                   displayedComponents: [.date, .hourAndMinute])
-                    }
-                }
-                .navigationTitle("Lock in Time")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { showLockTimeSheet = false }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Lock") {
-                            Task {
-                                try? await DatabaseService.shared.setPlanScheduledTime(planId: livePlan.id, scheduledAt: lockedTime)
-                                await planVM.refresh()
-                                showLockTimeSheet = false
-                            }
-                        }
-                        .bold()
-                    }
-                }
-            }
+            lockTimeSheet
         }
     }
 
-    // MARK: - Plan summary header
+    // MARK: - Plan summary
 
     private var planSummary: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
                 Label(livePlan.timeDisplay, systemImage: "clock")
-                    .font(.headline)
-                Spacer()
-            }
-
-            HStack(spacing: 6) {
-                Image(systemName: "person.3.fill")
-                    .foregroundColor(.orange)
-                if livePlan.needsMorePeople > 0 {
-                    Text("Need \(livePlan.needsMorePeople) more")
-                        .foregroundColor(.orange)
-                } else {
-                    Text("Group is full")
-                        .foregroundColor(.green)
-                }
+                    .font(.pinBody(15, weight: .medium))
+                    .foregroundStyle(Color.pinInk)
                 Spacer()
                 Text("\(livePlan.currentPeople)/\(livePlan.neededPeople)")
-                    .font(.caption.monospacedDigit())
-                    .foregroundColor(.secondary)
+                    .font(.pinBody(13, weight: .medium).monospacedDigit())
+                    .foregroundStyle(Color.pinInkMuted)
             }
-            .font(.subheadline)
 
-            if livePlan.genderPreference != .any {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.crop.circle.fill")
-                        .foregroundColor(.pink)
-                    Text(LocalizedStringKey(livePlan.genderPreference.label))
-                        .font(.caption.bold())
-                        .foregroundColor(.pink)
+            HStack(spacing: 8) {
+                if livePlan.needsMorePeople > 0 {
+                    PinChip(text: "Needs \(livePlan.needsMorePeople) more",
+                            systemImage: "person.3.fill", tint: .pinClay)
+                } else {
+                    PinChip(text: "Group is full",
+                            systemImage: "checkmark.seal.fill", tint: .pinSageDeep)
+                }
+                if livePlan.genderPreference != .any {
+                    // Pass the English source key directly; PinChip's
+                    // LocalizedStringKey type does the catalog lookup. Don't
+                    // pre-translate via NSLocalizedString here — that'd hand
+                    // the chip a runtime String which can't be re-localised.
+                    PinChip(text: LocalizedStringKey(livePlan.genderPreference.label),
+                            systemImage: "person.crop.circle.fill",
+                            tint: .pinLavenderDeep)
+                }
+                if livePlan.attendanceConfirmedAt != nil {
+                    PinChip(text: "Confirmed", systemImage: "checkmark.seal.fill", tint: .pinSageDeep)
                 }
             }
 
+            if !livePlan.notes.isEmpty {
+                Text(livePlan.notes)
+                    .font(.pinBody(13))
+                    .foregroundStyle(Color.pinInkMuted)
+                    .padding(.top, 2)
+            }
+
+            primaryActions
+            membersStrip
+            joinLeaveButton
+        }
+    }
+
+    @ViewBuilder
+    private var primaryActions: some View {
+        VStack(spacing: 8) {
             if canLockTime {
                 Button {
                     lockedTime = max(Date().addingTimeInterval(1800), livePlan.scheduledAt)
                     showLockTimeSheet = true
                 } label: {
-                    Label("Lock in Time", systemImage: "clock.badge.checkmark")
-                        .font(.subheadline.bold())
-                        .frame(maxWidth: .infinity)
+                    Label("Lock in the time", systemImage: "clock.badge.checkmark")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.blue)
+                .buttonStyle(PinPrimaryButtonStyle(size: 14))
             } else if canConfirmAttendance {
                 Button {
                     showAttendanceSheet = true
                 } label: {
-                    Label("Confirm Attendance", systemImage: "checkmark.seal.fill")
-                        .font(.subheadline.bold())
-                        .frame(maxWidth: .infinity)
+                    Label("Confirm attendance", systemImage: "checkmark.seal.fill")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.green)
-            } else if livePlan.attendanceConfirmedAt != nil {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.seal.fill")
-                        .foregroundColor(.green)
-                    Text("Attendance confirmed")
-                        .font(.caption.bold())
-                        .foregroundColor(.green)
-                }
+                .buttonStyle(PinPrimaryButtonStyle(size: 14))
             }
 
             if canAddToCalendar {
@@ -301,31 +272,34 @@ struct PlanDetailView: View {
                         catch { print("[DEBUG] calendar add failed: \(error)") }
                     }
                 } label: {
-                    Label("Add to Calendar", systemImage: "calendar.badge.plus")
-                        .font(.caption.bold())
+                    Label("Add to calendar", systemImage: "calendar.badge.plus")
+                        .font(.pinButton(13))
+                        .foregroundStyle(Color.pinClayDeep)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.pinClay.opacity(0.12))
+                        )
                 }
-                .buttonStyle(.bordered)
-                .tint(.blue)
+                .buttonStyle(.plain)
             }
-
-            if !livePlan.notes.isEmpty {
-                Text(livePlan.notes)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            membersList
-
-            // Join / Leave
-            joinLeaveButton
         }
+        .padding(.top, livePlan.needsMorePeople == 0 || canConfirmAttendance || canLockTime || canAddToCalendar ? 4 : 0)
     }
 
-    private var membersList: some View {
+    private var membersStrip: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Members")
-                .font(.caption.bold())
-                .foregroundColor(.secondary)
+            // Sun-yellow accent — "raft" is the group concept; tinting the label
+            // ties this section to the Raft chip in the Messages list.
+            HStack(spacing: 5) {
+                Image(systemName: "sailboat.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Color.pinSunDeep)
+                Text("Your raft")
+                    .font(.pinBody(11, weight: .medium))
+                    .foregroundStyle(Color.pinSunDeep)
+            }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(livePlan.memberIds, id: \.self) { uid in
@@ -339,20 +313,21 @@ struct PlanDetailView: View {
     private func memberChip(uid: String) -> some View {
         let isThisOrganiser = uid == livePlan.creatorId
         let canRemove = isOrganiser && !isThisOrganiser
-        let liveName = userCache.name(for: uid, fallback: "Diner")
+        let liveName = userCache.name(for: uid, fallback: AppLocalization.string("Diner"))
         return HStack(spacing: 6) {
             Button {
                 profileTarget = UserProfileSheetTarget(id: uid)
             } label: {
                 HStack(spacing: 6) {
-                    LiveAvatar(userId: uid, size: 24, fontSize: 11)
+                    LiveAvatar(userId: uid, size: 22, fontSize: 10)
                     Text(liveName)
-                        .font(.caption)
+                        .font(.pinBody(12))
+                        .foregroundStyle(Color.pinInk)
                         .lineLimit(1)
                     if isThisOrganiser {
                         Image(systemName: "crown.fill")
                             .font(.caption2)
-                            .foregroundColor(.orange)
+                            .foregroundStyle(Color.pinClay)
                     }
                 }
             }
@@ -362,76 +337,90 @@ struct PlanDetailView: View {
                     if let member = userCache.user(for: uid) {
                         pendingRemoval = member
                     } else {
-                        // Synthesise a minimal AppUser so the confirmation dialog can still name them.
                         pendingRemoval = AppUser(id: uid, email: "", displayName: liveName)
                     }
                 } label: {
                     Image(systemName: "minus.circle.fill")
                         .font(.caption)
-                        .foregroundColor(.red)
+                        .foregroundStyle(Color.pinClayDeep)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color(.tertiarySystemFill))
-        .clipShape(Capsule())
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(Capsule(style: .continuous).fill(Color.pinCream))
     }
 
+    @ViewBuilder
     private var joinLeaveButton: some View {
         HStack(spacing: 10) {
             if isBusy {
                 Spacer()
-                ProgressView()
+                ProgressView().tint(Color.pinClay)
                 Spacer()
             } else if isMember {
                 Button {
                     Task { await toggleMembership() }
                 } label: {
                     Label("Leave", systemImage: "arrow.uturn.left")
+                        .font(.pinButton(14))
+                        .foregroundStyle(Color.pinClayDeep)
                         .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color.pinClay.opacity(0.12))
+                        )
                 }
-                .buttonStyle(.bordered)
-                .tint(.red)
+                .buttonStyle(.plain)
 
                 if isOrganiser {
                     Button {
                         showEditSheet = true
                     } label: {
                         Label("Edit", systemImage: "pencil")
+                            .font(.pinButton(14))
+                            .foregroundStyle(Color.pinInk)
                             .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Color.pinCream)
+                            )
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.blue)
+                    .buttonStyle(.plain)
 
                     Button {
                         showCancelConfirm = true
                     } label: {
-                        Label("Cancel", systemImage: "trash")
-                            .frame(maxWidth: .infinity)
+                        Image(systemName: "trash")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(Color.pinCream)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Color.pinClayDeep)
+                            )
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
+                    .buttonStyle(.plain)
                 }
             } else {
                 Button {
                     Task { await toggleMembership() }
                 } label: {
-                    Label("Join Plan", systemImage: "plus.circle.fill")
-                        .frame(maxWidth: .infinity)
+                    Label("Join this pin", systemImage: "plus.circle.fill")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.orange)
+                .buttonStyle(PinPrimaryButtonStyle(size: 14))
                 .disabled(livePlan.needsMorePeople == 0)
+                .opacity(livePlan.needsMorePeople == 0 ? 0.5 : 1)
             }
         }
         .padding(.top, 4)
     }
 
-    // MARK: - Chat
+    // MARK: - Chat stream
 
-    /// Combined timeline of messages and polls so polls scroll naturally with chat.
     private var streamItems: [ChatStreamItem] {
         let msgs = chatVM.messages.map { ChatStreamItem.message($0) }
         let polls = pollsVM.polls.map { ChatStreamItem.poll($0) }
@@ -447,13 +436,14 @@ struct PlanDetailView: View {
                             .id(item.id)
                     }
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
             }
             .refreshable {
                 await planVM.refresh()
                 await chatVM.refresh()
                 await pollsVM.load()
+                await UnreadManager.shared.refresh(currentUid: authViewModel.uid)
             }
             .onChange(of: streamItems.count) { _, _ in
                 if let lastId = streamItems.last?.id {
@@ -485,7 +475,7 @@ struct PlanDetailView: View {
         }
     }
 
-    // MARK: - Message composer
+    // MARK: - Composer
 
     private var messageComposer: some View {
         HStack(spacing: 10) {
@@ -493,32 +483,49 @@ struct PlanDetailView: View {
                 showPollSheet = true
             } label: {
                 Image(systemName: "chart.bar.fill")
-                    .font(.title3)
-                    .foregroundColor(.orange)
+                    .font(.system(size: 16))
+                    .foregroundStyle(isMember ? Color.pinClay : Color.pinInkMuted.opacity(0.4))
             }
             .disabled(!isMember)
 
             TextField("Message…", text: $chatVM.draftText)
-                .textFieldStyle(.roundedBorder)
+                .font(.pinBody(15))
+                .foregroundStyle(Color.pinInk)
+                .tint(Color.pinClay)
                 .submitLabel(.send)
-                .onSubmit {
-                    chatVM.send(senderId: authViewModel.uid)
-                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.pinShell)
+                )
+                .onSubmit { chatVM.send(senderId: authViewModel.uid) }
 
             Button {
                 chatVM.send(senderId: authViewModel.uid)
             } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(chatVM.draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .secondary : .orange)
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Color.pinCream)
+                    .frame(width: 36, height: 36)
+                    .background(
+                        Circle().fill(
+                            chatVM.draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                ? Color.pinInkMuted.opacity(0.4)
+                                : Color.pinClay
+                        )
+                    )
             }
+            .buttonStyle(.plain)
             .disabled(chatVM.draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(Color.pinCream)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.pinFog).frame(height: 1)
+        }
     }
-
 
     // MARK: - Toolbar
 
@@ -532,7 +539,51 @@ struct PlanDetailView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(Color.pinInk)
             }
+        }
+    }
+
+    // MARK: - Lock-time sheet
+
+    private var lockTimeSheet: some View {
+        NavigationStack {
+            ZStack {
+                Color.pinCream.ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Lock in the meet-up time")
+                        .font(.pinBody(13, weight: .medium))
+                        .foregroundStyle(Color.pinInkMuted)
+                    DatePicker("",
+                               selection: $lockedTime,
+                               in: Date()...,
+                               displayedComponents: [.date, .hourAndMinute])
+                        .datePickerStyle(.graphical)
+                        .tint(Color.pinClay)
+                }
+                .padding(20)
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showLockTimeSheet = false }
+                        .font(.pinButton(15))
+                        .foregroundStyle(Color.pinInk)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Lock") {
+                        Task {
+                            try? await DatabaseService.shared.setPlanScheduledTime(planId: livePlan.id, scheduledAt: lockedTime)
+                            await planVM.refresh()
+                            showLockTimeSheet = false
+                        }
+                    }
+                    .font(.pinButton(15))
+                    .foregroundStyle(Color.pinClay)
+                }
+            }
+            .toolbarBackground(Color.pinCream, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
         }
     }
 

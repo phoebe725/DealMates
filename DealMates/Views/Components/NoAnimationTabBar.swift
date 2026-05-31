@@ -35,7 +35,16 @@ struct NoAnimationTabBar: UIViewControllerRepresentable {
         }
         guard let vcs = controller.viewControllers else { return }
         for (i, tab) in tabs.enumerated() where i < vcs.count {
-            vcs[i].tabBarItem.badgeValue = tab.badge
+            // Only mutate when the value actually changed — UITabBarItem
+            // animates badge state transitions on every assignment, so
+            // re-setting the same value used to make the badge briefly
+            // flicker.
+            if vcs[i].tabBarItem.title != tab.title {
+                vcs[i].tabBarItem.title = tab.title
+            }
+            if vcs[i].tabBarItem.badgeValue != tab.badge {
+                vcs[i].tabBarItem.badgeValue = tab.badge
+            }
         }
     }
 

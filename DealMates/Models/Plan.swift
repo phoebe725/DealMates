@@ -65,17 +65,20 @@ struct Plan: Identifiable, Codable, Hashable {
     var timeDisplay: String {
         switch timeType {
         case .asap:
-            return NSLocalizedString("ASAP", comment: "")
+            return AppLocalization.string("ASAP")
         case .flexible:
             let dayKey: String = (flexDay == .weekend) ? "Weekend" : "Weekday"
             let mealKey: String = (flexMeal == .dinner) ? "Dinner" : "Lunch"
-            let day = NSLocalizedString(dayKey, comment: "")
-            let meal = NSLocalizedString(mealKey, comment: "")
+            let day = AppLocalization.string(dayKey)
+            let meal = AppLocalization.string(mealKey)
             return "\(day) \(meal)"
         case .scheduled:
             let f = DateFormatter()
             f.dateStyle = .medium
             f.timeStyle = .short
+            if let lang = UserDefaults.standard.string(forKey: "preferredLanguageCode") {
+                f.locale = Locale(identifier: lang)
+            }
             return f.string(from: scheduledAt)
         }
     }

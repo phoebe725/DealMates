@@ -8,7 +8,6 @@ struct ChatBubbleView: View {
     @ObservedObject private var cache = UserCache.shared
 
     private var isSystem: Bool { message.isSystem }
-
     private var liveName: String {
         cache.name(for: message.senderId, fallback: message.senderName)
     }
@@ -21,26 +20,25 @@ struct ChatBubbleView: View {
         }
     }
 
-    // MARK: - System message
+    // MARK: - System
 
     private var systemBubble: some View {
         HStack {
             Spacer()
-            // Render the localized template for structured system messages; legacy rows fall
-            // back to the stored English text (handled inside `displayText()`).
             Text(message.displayText())
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(.pinSubtitle(12))
+                .foregroundStyle(Color.pinInkMuted)
                 .padding(.vertical, 4)
                 .padding(.horizontal, 10)
-                .background(Color(.tertiarySystemFill))
-                .clipShape(Capsule())
+                .background(
+                    Capsule(style: .continuous).fill(Color.pinShell)
+                )
             Spacer()
         }
         .padding(.vertical, 2)
     }
 
-    // MARK: - User message
+    // MARK: - User
 
     private var userBubble: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -65,23 +63,24 @@ struct ChatBubbleView: View {
             VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 2) {
                 if !isCurrentUser {
                     Text(liveName)
-                        .font(.caption2.bold())
-                        .foregroundColor(.secondary)
+                        .font(.pinBody(11, weight: .medium))
+                        .foregroundStyle(Color.pinInkMuted)
                         .padding(.horizontal, 4)
                 }
 
                 Text(message.text)
+                    .font(.pinBody(14))
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(isCurrentUser ? Color.orange : Color(.systemGray5))
-                    .foregroundColor(isCurrentUser ? .white : .primary)
-                    .clipShape(
+                    .padding(.vertical, 9)
+                    .background(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(isCurrentUser ? Color.pinClay : Color.pinShell)
                     )
+                    .foregroundStyle(isCurrentUser ? Color.pinCream : Color.pinInk)
 
                 Text(message.timestamp, style: .time)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .font(.pinSubtitle(10))
+                    .foregroundStyle(Color.pinInkMuted)
                     .padding(.horizontal, 4)
             }
 

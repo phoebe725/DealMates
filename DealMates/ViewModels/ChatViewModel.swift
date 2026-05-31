@@ -19,6 +19,11 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Listener
 
     func startListening() {
+        // Re-entering the view via NavigationStack fires `.onAppear` again
+        // and would open a duplicate channel — cancel the old one first.
+        listenerTask?.cancel()
+        // Auto-refresh-on-appear: every landing on this view re-fetches the
+        // chat history, so messages sent from another device land immediately.
         Task { await fetchHistory() }
 
         listenerTask = service.listenToMessages(planId: planId) { [weak self] msg in

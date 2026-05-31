@@ -1,5 +1,8 @@
 import SwiftUI
 
+/// Plan / pin card used in `RestaurantBoardView` (and similar places). Header
+/// shows the organiser; middle shows notes + preference + status; bottom is
+/// the action row.
 struct PlanCardView: View {
     let plan: Plan
     let currentUID: String
@@ -18,154 +21,162 @@ struct PlanCardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            organiserRow
+            if !plan.notes.isEmpty { noteBlock }
+            statusRow
+            Divider().background(Color.pinFog)
+            actionRow
+        }
+        .padding(16)
+        .pinCard()
+    }
 
-            // MARK: Organiser row — avatar + name + time
-            HStack(spacing: 10) {
-                Button {
-                    onOrganiserTap?(plan.creatorId)
-                } label: {
-                    LiveAvatar(
-                        userId: plan.creatorId,
-                        size: 36,
-                        fontSize: 16,
-                        fallbackName: plan.creatorName,
-                        fallbackAvatarURL: plan.creatorAvatarURL
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(onOrganiserTap == nil)
+    // MARK: - Organiser row
 
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(liveCreatorName)
-                            .font(.subheadline.bold())
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                        Text("Organiser")
-                            .font(.caption2.bold())
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.orange.opacity(0.15))
-                            .foregroundColor(.orange)
-                            .clipShape(Capsule())
-                    }
-                    Label(plan.timeDisplay, systemImage: "clock")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-            }
-
-            // MARK: Organiser's comment
-            if !plan.notes.isEmpty {
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "quote.opening")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    Text(plan.notes)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(3)
-                }
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(.tertiarySystemGroupedBackground))
+    private var organiserRow: some View {
+        HStack(spacing: 10) {
+            Button {
+                onOrganiserTap?(plan.creatorId)
+            } label: {
+                LiveAvatar(
+                    userId: plan.creatorId,
+                    size: 38,
+                    fontSize: 16,
+                    fallbackName: plan.creatorName,
+                    fallbackAvatarURL: plan.creatorAvatarURL
                 )
             }
+            .buttonStyle(.plain)
+            .disabled(onOrganiserTap == nil)
 
-            // MARK: Preference badge (if not "any")
-            if plan.genderPreference != .any {
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Image(systemName: "person.crop.circle.fill")
-                        .font(.caption2)
-                        .foregroundColor(.pink)
-                    Text(LocalizedStringKey(plan.genderPreference.label))
-                        .font(.caption2.bold())
-                        .foregroundColor(.pink)
-                }
-            }
-
-            // MARK: "Need X more" badge
-            HStack(spacing: 6) {
-                Image(systemName: "person.3.fill")
-                    .foregroundColor(.orange)
-                if plan.needsMorePeople > 0 {
-                    Text("Need \(plan.needsMorePeople) more")
-                        .font(.subheadline)
-                        .foregroundColor(.orange)
-                } else {
-                    Text("Group is full")
-                        .font(.subheadline)
-                        .foregroundColor(.green)
-                }
-
-                Spacer()
-
-                Text("\(plan.currentPeople)/\(plan.neededPeople)")
-                    .font(.caption.monospacedDigit())
-                    .foregroundColor(.secondary)
-            }
-
-            Divider()
-
-            // MARK: Action buttons
-            HStack(spacing: 6) {
-                Button(action: onOpen) {
-                    Text("Open")
-                        .font(.caption.bold())
+                    Text(liveCreatorName)
+                        .font(.pinBody(15, weight: .medium))
+                        .foregroundStyle(Color.pinInk)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    PinChip(text: "Organiser", tint: .pinClay)
+                }
+                Label(plan.timeDisplay, systemImage: "clock")
+                    .font(.pinSubtitle(12))
+                    .foregroundStyle(Color.pinInkMuted)
+            }
+
+            Spacer()
+        }
+    }
+
+    // MARK: - Note block
+
+    private var noteBlock: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "quote.opening")
+                .font(.caption2)
+                .foregroundStyle(Color.pinInkMuted)
+            Text(plan.notes)
+                .font(.pinBody(13))
+                .foregroundStyle(Color.pinInkMuted)
+                .lineLimit(3)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.pinCream)
+        )
+    }
+
+    // MARK: - Status row
+
+    private var statusRow: some View {
+        HStack(spacing: 8) {
+            if plan.genderPreference != .any {
+                PinChip(
+                    text: LocalizedStringKey(plan.genderPreference.label),
+                    systemImage: "person.crop.circle.fill",
+                    tint: .pinLavenderDeep
+                )
+            }
+            if plan.needsMorePeople > 0 {
+                PinChip(
+                    text: "Needs \(plan.needsMorePeople) more",
+                    systemImage: "person.3.fill",
+                    tint: .pinClay
+                )
+            } else {
+                PinChip(
+                    text: "Group is full",
+                    systemImage: "checkmark.seal.fill",
+                    tint: .pinSageDeep
+                )
+            }
+            Spacer()
+            Text("\(plan.currentPeople)/\(plan.neededPeople)")
+                .font(.pinBody(12, weight: .medium).monospacedDigit())
+                .foregroundStyle(Color.pinInkMuted)
+        }
+    }
+
+    // MARK: - Action row
+
+    private var actionRow: some View {
+        HStack(spacing: 8) {
+            Button(action: onOpen) {
+                Text("Open")
+                    .font(.pinButton(13))
+                    .foregroundStyle(Color.pinInk)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.pinCream)
+                    )
+            }
+            .buttonStyle(.plain)
+
+            if isMember {
+                Button(action: onLeave) {
+                    Text("Leave")
+                        .font(.pinButton(13))
+                        .foregroundStyle(Color.pinClayDeep)
                         .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.pinClay.opacity(0.12))
+                        )
                 }
-                .buttonStyle(.bordered)
-                .tint(.blue)
+                .buttonStyle(.plain)
+            } else {
+                Button(action: onJoin) {
+                    Text("Join")
+                        .font(.pinButton(13))
+                        .foregroundStyle(Color.pinCream)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(plan.needsMorePeople == 0 ? Color.pinFog : Color.pinClay)
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(plan.needsMorePeople == 0)
+            }
 
-                if isMember {
-                    Button(action: onLeave) {
-                        Text("Leave")
-                            .font(.caption.bold())
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                } else {
-                    Button(action: onJoin) {
-                        Text("Join")
-                            .font(.caption.bold())
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.orange)
-                    .disabled(plan.needsMorePeople == 0)
+            if !isOrganiser {
+                Button(action: onMessage) {
+                    Image(systemName: "bubble.left.fill")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.pinSageDeep)
+                        .frame(width: 44, height: 36)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.pinSage.opacity(0.18))
+                        )
                 }
-
-                if !isOrganiser {
-                    Button(action: onMessage) {
-                        Text("Message Organiser")
-                            .font(.caption.bold())
-                            .lineLimit(2)
-                            .multilineTextAlignment(.center)
-                            .minimumScaleFactor(0.7)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.purple)
-                }
+                .buttonStyle(.plain)
             }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
     }
 }

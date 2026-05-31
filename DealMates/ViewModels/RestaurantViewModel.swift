@@ -24,17 +24,20 @@ final class RestaurantViewModel: ObservableObject {
     // MARK: - Actions
 
     func load() async {
-        isLoading = true
+        // Only show the full-screen loading state on the first load. Auto-
+        // refresh-on-appear / pull-to-refresh keeps the existing list visible
+        // and just swaps content in when the fetch returns.
+        let isFirstLoad = restaurants.isEmpty
+        if isFirstLoad { isLoading = true }
         errorMessage = nil
         do {
             restaurants = try await service.fetchRestaurants()
-            print("[DEBUG] Loaded \(restaurants.count) restaurants")
             applyFilter()
         } catch {
             print("[DEBUG] Failed to load restaurants: \(error)")
             errorMessage = error.localizedDescription
         }
-        isLoading = false
+        if isFirstLoad { isLoading = false }
     }
 
     func refreshActivePlanCount(for restaurantId: String) async {

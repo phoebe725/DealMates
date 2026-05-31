@@ -20,6 +20,11 @@ final class DMChatViewModel: ObservableObject {
     deinit { listenerTask?.cancel() }
 
     func startListening() {
+        // Cancel any prior listener so re-entering the view doesn't open
+        // duplicate realtime channels for the same conversation.
+        listenerTask?.cancel()
+        // Auto-refresh-on-appear: every landing re-fetches DM history so a
+        // message sent from another device appears immediately on return.
         Task {
             await UserCache.shared.ensure(id: otherUid)
             await fetchHistory()

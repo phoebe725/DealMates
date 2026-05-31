@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Shared header used by both `UserProfileView` (when looking at someone else) and the user's
-/// own `ProfileView`. The user sees the same layout others see when tapping their avatar — only
-/// the owner-only credit score lives elsewhere in `ProfileView`.
+/// Shared header used by both `UserProfileView` (someone else's profile) and
+/// the user's own `ProfileView`. The user sees the same header others see; the
+/// owner-only credit numbers live in their own section below.
 struct ProfileHeaderView: View {
     let user: AppUser
     var avatarSize: CGFloat = 72
@@ -16,22 +16,27 @@ struct ProfileHeaderView: View {
                 size: avatarSize,
                 fontSize: avatarFontSize
             )
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(user.displayName)
-                    .font(.title3.bold())
+                    .font(.pinBody(20, weight: .medium))
+                    .foregroundStyle(Color.pinInk)
                 HStack(spacing: 8) {
                     if let gender = user.gender {
-                        chip(
+                        // Pass the English source key — PinChip's LocalizedStringKey
+                        // does the catalog lookup. Pre-translating via NSLocalizedString
+                        // hands the chip a runtime String which doesn't compile against
+                        // a LocalizedStringKey parameter.
+                        PinChip(
+                            text: LocalizedStringKey(gender.label),
                             systemImage: "person.crop.circle.fill",
-                            iconColor: .pink,
-                            text: Text(LocalizedStringKey(gender.label))
+                            tint: .pinLavenderDeep
                         )
                     }
                     if let age = user.age {
-                        chip(
+                        PinChip(
+                            text: "Age \(age)",
                             systemImage: "birthday.cake.fill",
-                            iconColor: .orange,
-                            text: Text("Age \(age)")
+                            tint: .pinClay
                         )
                     }
                 }
@@ -39,20 +44,5 @@ struct ProfileHeaderView: View {
             Spacer()
         }
         .padding(.vertical, 6)
-    }
-
-    private func chip(systemImage: String, iconColor: Color, text: Text) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: systemImage)
-                .font(.caption2)
-                .foregroundColor(iconColor)
-            text
-                .font(.caption.bold())
-                .foregroundColor(.primary)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color(.tertiarySystemFill))
-        .clipShape(Capsule())
     }
 }

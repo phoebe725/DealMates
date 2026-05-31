@@ -49,23 +49,75 @@ extension ChatMessage {
 }
 
 extension ChatMessage {
-    /// User-facing text. For structured system messages (with `systemKind` + `systemArgs`),
-    /// formats the localized template substituting in each arg user's current display name
-    /// from `UserCache`. Legacy messages without a kind fall back to the stored `text`.
+    /// User-facing text. Three paths, in priority order:
+    ///   1. Structured system messages (post-migration) → render localized template
+    ///      with names resolved live from `UserCache`.
+    ///   2. Legacy system messages (pre-migration, no `system_kind`) → pattern-match
+    ///      the stored English text to recover the kind + names, then render the
+    ///      localized template with the snapshot names embedded in the text.
+    ///   3. Anything else → return `text` verbatim (regular chat content).
     @MainActor
     func displayText() -> String {
-        guard let kind = systemKind, let args = systemArgs else { return text }
-        let cache = UserCache.shared
-        let names = args.map { cache.name(for: $0, fallback: NSLocalizedString("Diner", comment: "Fallback name for an unknown user")) }
+        // 1. Structured system message
+        if let kind = systemKind, let args = systemArgs {
+            let cache = UserCache.shared
+            let names = args.map {
+                cache.name(for: $0, fallback: AppLocalization.string("Diner"))
+            }
+            return formatSystem(kind: kind, names: names) ?? text
+        }
+
+        // 2. Legacy English system message — try to parse the action out
+        if isSystem, let (kind, names) = legacyParse(text) {
+            return formatSystem(kind: kind, names: names) ?? text
+        }
+
+        // 3. Plain chat message
+        return text
+    }
+
+    private func formatSystem(kind: String, names: [String]) -> String? {
         let key: String
         switch kind {
         case "joined":         key = "system.joined"
         case "left":           key = "system.left"
         case "left_promoted":  key = "system.left_promoted"
         case "removed":        key = "system.removed"
-        default:               return text
+        default:               return nil
         }
-        let format = NSLocalizedString(key, comment: "System chat message template")
+        let format = AppLocalization.string(key)
         return String(format: format, arguments: names.map { $0 as CVarArg })
+    }
+
+    /// Recovers `(kind, names)` from the four hardcoded English strings the
+    /// app used to write before the `system_kind` migration. Snapshot names
+    /// embedded in the text — if Alice has since renamed, the legacy entry
+    /// keeps the old name.
+    private func legacyParse(_ raw: String) -> (kind: String, names: [String])? {
+        // "%@ joined the plan 🙌"
+        if let r = raw.range(of: " joined the plan") {
+            let name = String(raw[..<r.lowerBound])
+            return ("joined", [name])
+        }
+        // "%1$@ left. %2$@ is now the organiser."
+        if let leftR = raw.range(of: " left. "),
+           let orgR = raw.range(of: " is now the organiser") {
+            let leaver = String(raw[..<leftR.lowerBound])
+            let newOrg = String(raw[leftR.upperBound..<orgR.lowerBound])
+            return ("left_promoted", [leaver, newOrg])
+        }
+        // "%@ left the plan"
+        if raw.hasSuffix(" left the plan") {
+            let name = String(raw.dropLast(" left the plan".count))
+            return ("left", [name])
+        }
+        // "%1$@ removed %2$@ from the plan."
+        if let remR = raw.range(of: " removed "),
+           let fromR = raw.range(of: " from the plan") {
+            let remover = String(raw[..<remR.lowerBound])
+            let target = String(raw[remR.upperBound..<fromR.lowerBound])
+            return ("removed", [remover, target])
+        }
+        return nil
     }
 }

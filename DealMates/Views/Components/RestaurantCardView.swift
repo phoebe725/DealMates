@@ -6,33 +6,30 @@ struct RestaurantCardView: View {
     var body: some View {
         HStack(spacing: 14) {
             thumbnail
-                .frame(width: 56, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .frame(width: 64, height: 64)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(restaurant.displayName)
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                    .font(.pinBody(16, weight: .medium))
+                    .foregroundStyle(Color.pinInk)
+                    .lineLimit(2)
                 Text(restaurant.displayCuisine)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .font(.pinSubtitle(13))
+                    .foregroundStyle(Color.pinInkMuted)
                 Text(restaurant.address)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.pinSubtitle(12))
+                    .foregroundStyle(Color.pinInkMuted)
                     .lineLimit(1)
             }
 
-            Spacer()
+            Spacer(minLength: 4)
         }
         .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .pinCard()
     }
 
-    // MARK: - Helpers
+    // MARK: - Thumbnail
 
     @ViewBuilder
     private var thumbnail: some View {
@@ -45,46 +42,38 @@ struct RestaurantCardView: View {
     }
 
     private var loadingPlaceholder: some View {
-        Rectangle().fill(Color(.tertiarySystemFill))
+        Rectangle().fill(Color.pinFog)
     }
 
     private var placeholderBubble: some View {
         ZStack {
-            Rectangle().fill(cuisineGradient)
-            Text(cuisineEmoji).font(.title2)
+            Rectangle().fill(cuisineTint.opacity(0.25))
+            Text(cuisineEmoji).font(.system(size: 26))
         }
     }
 
     private var cuisineEmoji: String {
         switch restaurant.cuisine.lowercased() {
         case "chinese":    return "🥘"
-        case "japanese":   return "🍣"
+        case "japanese", "japanese / sushi": return "🍣"
         case "taiwanese":  return "🫖"
         case "thai":       return "🍜"
         case "sri lankan": return "🍛"
         case "malaysian":  return "🥜"
         case "pan-asian":  return "🥢"
+        case "hot pot", "hot pot / bbq": return "🍲"
+        case "sichuan":    return "🌶️"
         default:           return "🍽️"
         }
     }
 
-    private var cuisineGradient: LinearGradient {
-        let color: Color = {
-            switch restaurant.cuisine.lowercased() {
-            case "chinese":    return .red
-            case "japanese":   return .pink
-            case "taiwanese":  return .teal
-            case "thai":       return .green
-            case "sri lankan": return .orange
-            case "malaysian":  return .yellow
-            case "pan-asian":  return .purple
-            default:           return .indigo
-            }
-        }()
-        return LinearGradient(
-            colors: [color.opacity(0.25), color.opacity(0.1)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+    private var cuisineTint: Color {
+        switch restaurant.cuisine.lowercased() {
+        case "chinese", "sichuan":  return .pinClay
+        case "japanese", "japanese / sushi": return .pinLavender
+        case "taiwanese", "thai":   return .pinSage
+        case "hot pot", "hot pot / bbq": return .pinClay
+        default:                    return .pinSage
+        }
     }
 }

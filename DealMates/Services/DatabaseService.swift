@@ -69,6 +69,22 @@ final class DatabaseService {
             .value
     }
 
+    /// Returns the user's plans that haven't been attendance-confirmed —
+    /// i.e. anything still in the Active or Ready-to-go bucket, regardless of
+    /// `expires_at`. Used by `UnreadManager` so the tab badge matches the
+    /// bucket totals in MyPlansView even when a plan's scheduled time has
+    /// passed but the organiser hasn't recorded attendance yet.
+    func fetchMyOpenPlans(userId: String) async throws -> [Plan] {
+        try await client
+            .from("plans")
+            .select()
+            .contains("member_ids", value: [userId])
+            .is("attendance_confirmed_at", value: nil)
+            .order("scheduled_at", ascending: true)
+            .execute()
+            .value
+    }
+
     func createPlan(_ plan: Plan) async throws {
         try await client.from("plans").insert(plan).execute()
     }
@@ -273,6 +289,12 @@ final class DatabaseService {
 
     /// Listen to every insert/update on the `users` table — used by `UserCache` to keep names
     /// and avatars live everywhere (historical chats, plan rows, DM threads).
+    ///
+    /// Decode is wrapped in a do/catch (instead of `try?`) so failures are visible in the
+    /// console rather than silently dropping updates. As a defensive fallback we also try to
+    /// pull the affected user's `id` directly from the raw record and refetch via the
+    /// regular database path — this way even if the realtime payload's shape drifts from
+    /// `AppUser` later, profile renames still propagate.
     func listenToAllUserUpdates(onChange: @escaping (AppUser) -> Void) -> Task<Void, Never> {
         Task {
             let channel = client.realtimeV2
@@ -288,29 +310,139 @@ final class DatabaseService {
                 table:  "users"
             )
             await channel.subscribe()
+            print("[DEBUG] users realtime: subscribed")
+
             await withTaskGroup(of: Void.self) { group in
-                group.addTask {
+                group.addTask { [weak self] in
                     for await action in inserts {
                         if Task.isCancelled { break }
-                        if let user = try? action.decodeRecord(
-                            as: AppUser.self,
-                            decoder: SupabaseManager.shared.decoder
-                        ) {
+                        do {
+                            let user = try action.decodeRecord(
+                                as: AppUser.self,
+                                decoder: SupabaseManager.shared.decoder
+                            )
                             await MainActor.run { onChange(user) }
+                        } catch {
+                            print("[DEBUG] users realtime insert decode failed: \(error)")
+                            await self?.fallbackUserFetch(record: action.record, onChange: onChange)
                         }
                     }
                 }
-                group.addTask {
+                group.addTask { [weak self] in
                     for await action in updates {
                         if Task.isCancelled { break }
-                        if let user = try? action.decodeRecord(
-                            as: AppUser.self,
-                            decoder: SupabaseManager.shared.decoder
-                        ) {
+                        do {
+                            let user = try action.decodeRecord(
+                                as: AppUser.self,
+                                decoder: SupabaseManager.shared.decoder
+                            )
                             await MainActor.run { onChange(user) }
+                        } catch {
+                            print("[DEBUG] users realtime update decode failed: \(error)")
+                            await self?.fallbackUserFetch(record: action.record, onChange: onChange)
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /// When the realtime payload can't be decoded straight to `AppUser`, pull the
+    /// `id` field out of the raw record and refetch the user via the regular
+    /// query path. That keeps the cache fresh even if the payload's shape drifts.
+    private func fallbackUserFetch(record: JSONObject, onChange: @escaping (AppUser) -> Void) async {
+        guard case .string(let id)? = record["id"] else {
+            print("[DEBUG] users realtime: no id in payload — \(record)")
+            return
+        }
+        do {
+            let user = try await fetchUser(id: id)
+            await MainActor.run { onChange(user) }
+        } catch {
+            print("[DEBUG] users realtime: refetch for id \(id) failed: \(error)")
+        }
+    }
+
+    /// Fires `onInsert` on every new row in the `messages` table. Coarse on
+    /// purpose — the caller is responsible for filtering / debouncing.
+    func listenToAllMessageInserts(onInsert: @escaping () -> Void) -> Task<Void, Never> {
+        Task {
+            let channel = client.realtimeV2
+                .channel("messages-global-\(UUID().uuidString)")
+            let inserts = await channel.postgresChange(
+                InsertAction.self, schema: "public", table: "messages"
+            )
+            await channel.subscribe()
+            print("[DEBUG] listenToAllMessageInserts: subscribed")
+            for await _ in inserts {
+                if Task.isCancelled { break }
+                await MainActor.run { onInsert() }
+            }
+        }
+    }
+
+    /// Fires `onInsert` on every new row in the `direct_messages` table.
+    func listenToAllDMInserts(onInsert: @escaping () -> Void) -> Task<Void, Never> {
+        Task {
+            let channel = client.realtimeV2
+                .channel("dms-global-\(UUID().uuidString)")
+            let inserts = await channel.postgresChange(
+                InsertAction.self, schema: "public", table: "direct_messages"
+            )
+            await channel.subscribe()
+            print("[DEBUG] listenToAllDMInserts: subscribed")
+            for await _ in inserts {
+                if Task.isCancelled { break }
+                await MainActor.run { onInsert() }
+            }
+        }
+    }
+
+    /// Fires `onUpdate(plan)` with the new row whenever a plan UPDATE event
+    /// arrives via realtime. Used by `NotificationManager` to post local
+    /// "X joined" / "raft ready" alerts even while the app is foregrounded.
+    func listenToAllPlanUpdates(onUpdate: @escaping (Plan) -> Void) -> Task<Void, Never> {
+        Task {
+            let channel = client.realtimeV2
+                .channel("plans-updates-\(UUID().uuidString)")
+            let updates = await channel.postgresChange(
+                UpdateAction.self, schema: "public", table: "plans"
+            )
+            await channel.subscribe()
+            print("[DEBUG] listenToAllPlanUpdates: subscribed")
+            for await action in updates {
+                if Task.isCancelled { break }
+                do {
+                    let plan = try action.decodeRecord(
+                        as: Plan.self,
+                        decoder: SupabaseManager.shared.decoder
+                    )
+                    await MainActor.run { onUpdate(plan) }
+                } catch {
+                    // Decode failures here would silently swallow the event
+                    // and we'd never post a notification — surface them so we
+                    // can spot a schema/replica-identity mismatch.
+                    print("[DEBUG] listenToAllPlanUpdates: decode failed: \(error)")
+                }
+            }
+        }
+    }
+
+    /// Fires `onChange` on every insert / update / delete of `plans`. Used by
+    /// `UnreadManager` to recompute the "ready-to-go" tab badge when membership
+    /// or attendance state changes.
+    func listenToAllPlanChanges(onChange: @escaping () -> Void) -> Task<Void, Never> {
+        Task {
+            let channel = client.realtimeV2
+                .channel("plans-global-changes-\(UUID().uuidString)")
+            let changes = await channel.postgresChange(
+                AnyAction.self, schema: "public", table: "plans"
+            )
+            await channel.subscribe()
+            print("[DEBUG] listenToAllPlanChanges: subscribed")
+            for await _ in changes {
+                if Task.isCancelled { break }
+                await MainActor.run { onChange() }
             }
         }
     }

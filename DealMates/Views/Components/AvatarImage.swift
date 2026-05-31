@@ -41,11 +41,11 @@ struct AvatarImage: View {
     private var initialBubble: some View {
         ZStack {
             Circle()
-                .fill(Color.orange.opacity(0.15))
+                .fill(Color.pinSage.opacity(0.25))
                 .frame(width: size, height: size)
             Text(initial)
-                .font(.system(size: fontSize, weight: .bold, design: .rounded))
-                .foregroundColor(.orange)
+                .font(.pinButton(fontSize))
+                .foregroundStyle(Color.pinSageDeep)
         }
     }
 

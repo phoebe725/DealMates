@@ -16,38 +16,76 @@ struct CreatePollSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Question") {
-                    TextField("Where should we eat?", text: $question)
-                }
+            ZStack {
+                Color.pinCream.ignoresSafeArea()
 
-                Section("Options") {
-                    ForEach(options.indices, id: \.self) { i in
-                        TextField("Option \(i + 1)", text: $options[i])
-                    }
-                    if options.count < 6 {
-                        Button {
-                            options.append("")
-                        } label: {
-                            Label("Add option", systemImage: "plus.circle")
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        section("Question") {
+                            TextField("Where should we eat?", text: $question)
+                                .pinTextField()
+                        }
+
+                        section("Options") {
+                            VStack(spacing: 10) {
+                                ForEach(options.indices, id: \.self) { i in
+                                    TextField("Option \(i + 1)", text: $options[i])
+                                        .pinTextField()
+                                }
+                                if options.count < 6 {
+                                    Button {
+                                        options.append("")
+                                    } label: {
+                                        Label("Add option", systemImage: "plus.circle")
+                                            .font(.pinButton(14))
+                                            .foregroundStyle(Color.pinClay)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
                         }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    .padding(.bottom, 32)
                 }
             }
-            .navigationTitle("New Poll")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("New poll")
+                        .font(.pinBody(15, weight: .medium))
+                        .foregroundStyle(Color.pinInk)
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { isPresented = false }
+                        .font(.pinButton(15))
+                        .foregroundStyle(Color.pinInk)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Post Poll") {
-                        submit()
-                    }
-                    .bold()
-                    .disabled(!canPost || isSubmitting)
+                    Button("Post") { submit() }
+                        .font(.pinButton(15))
+                        .foregroundStyle(canPost ? Color.pinClay : Color.pinInkMuted)
+                        .disabled(!canPost || isSubmitting)
                 }
             }
+            .toolbarBackground(Color.pinCream, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+        }
+    }
+
+    @ViewBuilder
+    private func section<Content: View>(_ title: LocalizedStringKey, @ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            PinSectionHeader(title: title)
+            VStack(alignment: .leading, spacing: 10) {
+                content()
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.pinShell)
+            )
         }
     }
 
@@ -68,4 +106,25 @@ struct CreatePollSheet: View {
             isPresented = false
         }
     }
+}
+
+// MARK: - Text field modifier
+
+private struct PinTextFieldModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.pinBody(15))
+            .foregroundStyle(Color.pinInk)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.pinCream)
+            )
+            .tint(Color.pinClay)
+    }
+}
+
+private extension View {
+    func pinTextField() -> some View { modifier(PinTextFieldModifier()) }
 }

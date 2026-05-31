@@ -14,31 +14,41 @@ struct UserProfileView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let user {
-                    profileContent(user)
-                } else {
-                    VStack(spacing: 12) {
-                        Image(systemName: "person.crop.circle.badge.exclamationmark")
-                            .font(.system(size: 50))
-                            .foregroundColor(.secondary)
-                        Text(errorMessage ?? "Could not load profile")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+            ZStack {
+                Color.pinCream.ignoresSafeArea()
+
+                Group {
+                    if isLoading {
+                        ProgressView().tint(Color.pinInkMuted)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if let user {
+                        profileContent(user)
+                    } else {
+                        // `LocalizedStringKey(_:)` looks up the value in the catalog if a key
+                        // matches (so the default copy translates) and falls back to verbatim
+                        // when it doesn't (so the runtime Supabase error renders as-is).
+                        PinEmptyState(
+                            title: "Profile unavailable",
+                            message: LocalizedStringKey(errorMessage ?? "Couldn't load this puffin's profile."),
+                            systemImage: "person.crop.circle.badge.exclamationmark"
+                        )
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .navigationTitle("Profile")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Profile")
+                        .font(.pinBody(15, weight: .medium))
+                        .foregroundStyle(Color.pinInk)
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                        .font(.pinButton(15))
+                        .foregroundStyle(Color.pinClay)
                 }
             }
+            .toolbarBackground(Color.pinCream, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
         }
         .onAppear {
             Task { await load() }
@@ -48,47 +58,96 @@ struct UserProfileView: View {
     }
 
     private func profileContent(_ user: AppUser) -> some View {
-        List {
-            Section {
-                ProfileHeaderView(user: user, avatarSize: 72, avatarFontSize: 32)
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                ProfileHeaderView(user: user)
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(Color.pinShell)
+                    )
 
-            if !user.bio.isEmpty {
-                Section("Bio") {
-                    Text(user.bio)
-                        .font(.subheadline)
-                }
-            }
-
-            Section("Credits") {
-                HStack {
-                    Label("Attendance rate", systemImage: "checkmark.seal.fill")
-                        .foregroundColor(.green)
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 2) {
-                        if let rate = user.attendanceRate {
-                            Text("\(Int(rate * 100))%")
-                                .font(.headline.monospacedDigit())
-                            Text("\(user.attendedCount) / \(user.attendanceRecordCount)")
-                                .font(.caption2.monospacedDigit())
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("—")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-                        }
+                if !user.bio.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        PinSectionHeader(title: "Bio")
+                        Text(user.bio)
+                            .font(.pinBody(14))
+                            .foregroundStyle(Color.pinInk)
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(Color.pinShell)
+                            )
                     }
                 }
-                HStack {
-                    Label("Hosted", systemImage: "crown.fill")
-                        .foregroundColor(.orange)
-                    Spacer()
-                    Text("\(user.hostedCount)")
-                        .font(.headline.monospacedDigit())
-                }
+
+                creditsSection(user)
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 32)
         }
-        .listStyle(.insetGrouped)
+    }
+
+    private func creditsSection(_ user: AppUser) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            PinSectionHeader(title: "Credit")
+            VStack(spacing: 0) {
+                creditRow(
+                    icon: "checkmark.seal.fill",
+                    tint: .pinSageDeep,
+                    label: "Attendance rate",
+                    trailing: {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            if let rate = user.attendanceRate {
+                                Text("\(Int(rate * 100))%")
+                                    .font(.pinBody(15, weight: .medium).monospacedDigit())
+                                    .foregroundStyle(Color.pinInk)
+                                Text("\(user.attendedCount) / \(user.attendanceRecordCount)")
+                                    .font(.pinSubtitle(11).monospacedDigit())
+                                    .foregroundStyle(Color.pinInkMuted)
+                            } else {
+                                Text("—")
+                                    .font(.pinBody(15, weight: .medium))
+                                    .foregroundStyle(Color.pinInkMuted)
+                            }
+                        }
+                    }
+                )
+                Divider().background(Color.pinFog).padding(.leading, 50)
+                creditRow(
+                    icon: "crown.fill",
+                    tint: .pinClay,
+                    label: "Hosted",
+                    trailing: {
+                        Text("\(user.hostedCount)")
+                            .font(.pinBody(15, weight: .medium).monospacedDigit())
+                            .foregroundStyle(Color.pinInk)
+                    }
+                )
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.pinShell)
+            )
+        }
+    }
+
+    private func creditRow<Trailing: View>(icon: String, tint: Color, label: LocalizedStringKey, @ViewBuilder trailing: () -> Trailing) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(tint)
+                .frame(width: 26, height: 26)
+                .background(Circle().fill(tint.opacity(0.18)))
+            Text(label)
+                .font(.pinBody(14))
+                .foregroundStyle(Color.pinInk)
+            Spacer()
+            trailing()
+        }
+        .padding(14)
     }
 
     private func load() async {

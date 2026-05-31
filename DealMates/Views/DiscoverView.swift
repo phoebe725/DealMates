@@ -27,47 +27,34 @@ struct DiscoverView: View {
     @State private var subscribedOnly: Bool = false
     @State private var allPlans: [Plan] = []
     @State private var plansLoading: Bool = false
-
     @State private var showMap = false
+    @State private var didInitialLoad = false
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                Picker("View", selection: $mode) {
-                    ForEach(DiscoverMode.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+            ZStack {
+                Color.pinCream.ignoresSafeArea()
 
-                Group {
-                    switch mode {
-                    case .restaurants:
-                        if vm.isLoading && vm.restaurants.isEmpty { loadingState }
-                        else if visibleRestaurants.isEmpty { emptyState }
-                        else { restaurantList }
-                    case .plans:
-                        if plansLoading && allPlans.isEmpty { loadingState }
-                        else { plansScroll }
+                VStack(spacing: 0) {
+                    header
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
+                        .padding(.bottom, 16)
+
+                    Group {
+                        switch mode {
+                        case .restaurants:
+                            if vm.isLoading && vm.restaurants.isEmpty { loadingState }
+                            else if visibleRestaurants.isEmpty { emptyRestaurants }
+                            else { restaurantList }
+                        case .plans:
+                            if plansLoading && allPlans.isEmpty { loadingState }
+                            else { plansScroll }
+                        }
                     }
                 }
             }
-            .navigationTitle("DealMates")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack {
-                        cuisineFilterMenu
-                        Button { showMap = true } label: { Image(systemName: "map") }
-                        userBadge
-                    }
-                }
-            }
-            .searchable(
-                text: $vm.searchText,
-                placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "Search restaurants or cuisine"
-            )
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(item: $selectedRestaurant) { restaurant in
                 RestaurantBoardView(restaurant: restaurant)
                     .onDisappear {
@@ -78,11 +65,20 @@ struct DiscoverView: View {
                 PlanDetailView(plan: plan, planVM: PlanViewModel(restaurantId: plan.restaurantId))
             }
         }
-        .task {
-            await vm.load()
-            locationManager.requestPermissionAndStart()
-            await loadAllPlans()
-            await subs.load(currentUid: authViewModel.uid)
+        .onAppear {
+            // `.onAppear` fires every time this tab becomes the visible one —
+            // unlike `.task`, which only fires on first creation. Re-fetching
+            // restaurants + active pins on each landing keeps the Discover
+            // tab fresh without requiring a manual pull.
+            if !didInitialLoad {
+                didInitialLoad = true
+                locationManager.requestPermissionAndStart()
+            }
+            Task {
+                await vm.load()
+                await loadAllPlans()
+                await subs.load(currentUid: authViewModel.uid)
+            }
         }
         .sheet(isPresented: $showMap) {
             RestaurantMapView()
@@ -91,170 +87,60 @@ struct DiscoverView: View {
         }
     }
 
-    private var visiblePlans: [Plan] {
-        let active = allPlans.filter { $0.needsMorePeople > 0 && $0.attendanceConfirmedAt == nil }
-        return subscribedOnly
-            ? active.filter { subs.subscribedRestaurantIds.contains($0.restaurantId) }
-            : active
-    }
+    // MARK: - Header (greeting + segmented mode + filters + search)
 
-    // Single always-mounted ScrollView so the .refreshable anchor never disappears
-    // when the result set goes empty mid-refresh.
-    private var plansScroll: some View {
-        ScrollView {
-            LazyVStack(spacing: 12) {
-                Toggle("Subscribed restaurants only", isOn: $subscribedOnly)
-                    .toggleStyle(.switch)
-                    .padding(.horizontal, 4)
-
-                if visiblePlans.isEmpty {
-                    plansEmptyContent
-                        .padding(.top, 40)
-                } else {
-                    ForEach(visiblePlans) { plan in
-                        Button { selectedPlan = plan } label: {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack(spacing: 6) {
-                                    Text(restaurantCache.displayName(for: plan.restaurantId, fallback: plan.restaurantName))
-                                        .font(.headline)
-                                    Spacer()
-                                    Label(plan.timeDisplay, systemImage: "clock")
-                                        .font(.caption).foregroundColor(.secondary)
-                                }
-                                Text("\(userCache.name(for: plan.creatorId, fallback: plan.creatorName)) · \(plan.currentPeople)/\(plan.neededPeople)")
-                                    .font(.caption).foregroundColor(.secondary)
-                                if plan.needsMorePeople > 0 {
-                                    Text("Need \(plan.needsMorePeople) more")
-                                        .font(.caption.bold()).foregroundColor(.orange)
-                                }
-                            }
-                            .padding(12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
-                        }
-                        .buttonStyle(.plain)
-                    }
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Title row with wordmark + map + filter
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    (
+                        Text("Find your ")
+                            .font(.pinHero(28, weight: .light))
+                            .foregroundStyle(Color.pinInk)
+                        +
+                        Text("raft.")
+                            .font(.pinAccent(38))
+                            .foregroundStyle(Color.pinClayDeep)
+                    )
+                    .lineLimit(1)
+                    Text("Restaurants and pins near you.")
+                        .font(.pinSubtitle(13))
+                        .foregroundStyle(Color.pinInkMuted)
                 }
+                Spacer()
+                headerActions
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-        }
-        .refreshable {
-            await subs.load(currentUid: authViewModel.uid)
-            await loadAllPlans()
-        }
-    }
 
-    private var plansEmptyContent: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "calendar.badge.exclamationmark")
-                .font(.system(size: 56)).foregroundColor(.secondary)
-            if subscribedOnly && subs.subscribedRestaurantIds.isEmpty {
-                Text("You haven't subscribed to any restaurants yet")
-                    .font(.headline).multilineTextAlignment(.center)
-                Text("Open a restaurant and tap the bell icon to subscribe.")
-                    .font(.subheadline).foregroundColor(.secondary)
-                    .multilineTextAlignment(.center).padding(.horizontal, 32)
-            } else {
-                Text(subscribedOnly ? "No active plans at your subscribed restaurants" : "No active plans right now")
-                    .font(.headline).multilineTextAlignment(.center)
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
+            PinSegmentedPicker(
+                options: [(value: DiscoverMode.restaurants, label: "Restaurants"),
+                          (value: DiscoverMode.plans, label: "Pins")],
+                selection: $mode
+            )
 
-    private func loadAllPlans() async {
-        // Only show the full-screen spinner on first load; otherwise keep the list visible
-        // so the pull-to-refresh control stays attached.
-        if allPlans.isEmpty { plansLoading = true }
-        do {
-            allPlans = try await DatabaseService.shared.fetchAllActivePlans()
-            await userCache.prefetch(ids: allPlans.map(\.creatorId))
-        } catch {
-            print("[DEBUG] loadAllPlans failed: \(error)")
-        }
-        plansLoading = false
-    }
-
-    // MARK: - Computed
-
-    private var visibleRestaurants: [Restaurant] {
-        let base = vm.filteredRestaurants
-        switch sortMode {
-        case .name:
-            return base
-        case .distance:
-            guard let userLoc = locationManager.currentLocation else { return base }
-            return base.sorted { a, b in
-                distance(from: userLoc, to: a) < distance(from: userLoc, to: b)
+            if mode == .restaurants {
+                PinSearchField(text: $vm.searchText, placeholder: "Search restaurants or cuisine")
             }
         }
     }
 
-    private func distance(from user: CLLocation, to r: Restaurant) -> CLLocationDistance {
-        guard let lat = r.latitude, let lon = r.longitude else { return .infinity }
-        return user.distance(from: CLLocation(latitude: lat, longitude: lon))
-    }
-
-    // MARK: - Sub-views
-
-    private var restaurantList: some View {
-        ScrollView {
-            LazyVStack(spacing: 12) {
-                ForEach(visibleRestaurants) { restaurant in
-                    Button {
-                        selectedRestaurant = restaurant
-                    } label: {
-                        RestaurantCardView(restaurant: restaurant)
-                    }
-                    .buttonStyle(.plain)
-                }
+    @ViewBuilder
+    private var headerActions: some View {
+        HStack(spacing: 8) {
+            Button { showMap = true } label: {
+                Image(systemName: "map")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(Color.pinInk)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(Color.pinShell))
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-        }
-        .refreshable { await vm.load() }
-        .animation(nil, value: visibleRestaurants.map(\.id))
-    }
+            .buttonStyle(.plain)
 
-    private var loadingState: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-            Text("Finding restaurants nearby…")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+            cuisineFilterMenu
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "fork.knife.circle")
-                .font(.system(size: 60))
-                .foregroundColor(.secondary)
-            Text(vm.searchText.isEmpty ? "No restaurants yet" : "No results for \"\(vm.searchText)\"")
-                .font(.headline)
-            if !vm.searchText.isEmpty {
-                Text("Try a different name or cuisine.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var userBadge: some View {
-        Label(authViewModel.displayName, systemImage: "person.circle")
-            .font(.caption)
-            .foregroundColor(.secondary)
     }
 
     private var cuisineFilterMenu: some View {
-        cuisineFilterMenuRaw
-            .transaction { $0.animation = nil }
-    }
-
-    private var cuisineFilterMenuRaw: some View {
         Menu {
             Section("Cuisine") {
                 Button {
@@ -283,7 +169,199 @@ struct DiscoverView: View {
                 }
             }
         } label: {
-            Image(systemName: (vm.cuisineFilter != nil || sortMode != .name) ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+            Image(systemName: (vm.cuisineFilter != nil || sortMode != .name)
+                  ? "line.3.horizontal.decrease.circle.fill"
+                  : "line.3.horizontal.decrease.circle")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(Color.pinClay)
+                .frame(width: 40, height: 40)
+                .background(Circle().fill(Color.pinShell))
         }
+    }
+
+    // MARK: - Restaurants list
+
+    private var restaurantList: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(visibleRestaurants) { restaurant in
+                    Button {
+                        selectedRestaurant = restaurant
+                    } label: {
+                        RestaurantCardView(restaurant: restaurant)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .padding(.bottom, 24)
+        }
+        .refreshable {
+            await vm.load()
+            await UnreadManager.shared.refresh(currentUid: authViewModel.uid)
+        }
+        .animation(nil, value: visibleRestaurants.map(\.id))
+    }
+
+    private var visibleRestaurants: [Restaurant] {
+        let base = vm.filteredRestaurants
+        switch sortMode {
+        case .name:
+            return base
+        case .distance:
+            guard let userLoc = locationManager.currentLocation else { return base }
+            return base.sorted { a, b in
+                distance(from: userLoc, to: a) < distance(from: userLoc, to: b)
+            }
+        }
+    }
+
+    private func distance(from user: CLLocation, to r: Restaurant) -> CLLocationDistance {
+        guard let lat = r.latitude, let lon = r.longitude else { return .infinity }
+        return user.distance(from: CLLocation(latitude: lat, longitude: lon))
+    }
+
+    // MARK: - Plans (pins) tab
+
+    private var visiblePlans: [Plan] {
+        let active = allPlans.filter { $0.needsMorePeople > 0 && $0.attendanceConfirmedAt == nil }
+        let filtered = subscribedOnly
+            ? active.filter { subs.subscribedRestaurantIds.contains($0.restaurantId) }
+            : active
+        // Soonest meet-up at the top.
+        return filtered.sorted { $0.scheduledAt < $1.scheduledAt }
+    }
+
+    private var plansScroll: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                subscribedToggle
+
+                if visiblePlans.isEmpty {
+                    plansEmptyContent
+                        .padding(.top, 40)
+                } else {
+                    ForEach(visiblePlans) { plan in
+                        Button { selectedPlan = plan } label: {
+                            planRow(plan)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .padding(.bottom, 24)
+        }
+        .refreshable {
+            await subs.load(currentUid: authViewModel.uid)
+            await loadAllPlans()
+            await UnreadManager.shared.refresh(currentUid: authViewModel.uid)
+        }
+    }
+
+    private var subscribedToggle: some View {
+        HStack {
+            Text("Only restaurants I'm watching")
+                .font(.pinBody(14))
+                .foregroundStyle(Color.pinInk)
+            Spacer()
+            Toggle("", isOn: $subscribedOnly)
+                .labelsHidden()
+                .tint(Color.pinClay)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.pinShell)
+        )
+    }
+
+    private func planRow(_ plan: Plan) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Text(restaurantCache.displayName(for: plan.restaurantId, fallback: plan.restaurantName))
+                    .font(.pinBody(15, weight: .medium))
+                    .foregroundStyle(Color.pinInk)
+                Spacer()
+                Label(plan.timeDisplay, systemImage: "clock")
+                    .font(.pinSubtitle(12))
+                    .foregroundStyle(Color.pinInkMuted)
+            }
+            HStack(spacing: 8) {
+                LiveAvatar(
+                    userId: plan.creatorId,
+                    size: 22,
+                    fontSize: 10,
+                    fallbackName: plan.creatorName,
+                    fallbackAvatarURL: plan.creatorAvatarURL
+                )
+                Text(userCache.name(for: plan.creatorId, fallback: plan.creatorName))
+                    .font(.pinSubtitle(13))
+                    .foregroundStyle(Color.pinInkMuted)
+                Spacer()
+                if plan.needsMorePeople > 0 {
+                    PinChip(text: "Needs \(plan.needsMorePeople)", systemImage: "person.3.fill", tint: .pinClay)
+                } else {
+                    PinChip(text: "Full", systemImage: "checkmark.seal.fill", tint: .pinSageDeep)
+                }
+            }
+        }
+        .padding(14)
+        .pinCard()
+    }
+
+    private var plansEmptyContent: some View {
+        if subscribedOnly && subs.subscribedRestaurantIds.isEmpty {
+            return AnyView(PinEmptyState(
+                title: "Pick your spots first",
+                message: "Open a restaurant and tap the bell to watch it. New pins there land in this tab.",
+                systemImage: "bell"
+            ))
+        } else {
+            return AnyView(PinEmptyState(
+                title: subscribedOnly ? "Nothing pinned here yet" : "No live pins right now",
+                message: subscribedOnly
+                    ? "Try unticking the toggle to see all active pins."
+                    : "Be the first — pin a plan at a restaurant.",
+                systemImage: "mappin"
+            ))
+        }
+    }
+
+    private func loadAllPlans() async {
+        if allPlans.isEmpty { plansLoading = true }
+        do {
+            allPlans = try await DatabaseService.shared.fetchAllActivePlans()
+            await userCache.prefetch(ids: allPlans.map(\.creatorId))
+        } catch {
+            print("[DEBUG] loadAllPlans failed: \(error)")
+        }
+        plansLoading = false
+    }
+
+    // MARK: - Loading / empty states
+
+    private var loadingState: some View {
+        VStack(spacing: 14) {
+            ProgressView().tint(Color.pinInkMuted)
+            Text("Finding restaurants nearby…")
+                .font(.pinSubtitle(14))
+                .foregroundStyle(Color.pinInkMuted)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var emptyRestaurants: some View {
+        let searchEmpty = !vm.searchText.isEmpty
+        return PinEmptyState(
+            title: searchEmpty ? "No matches for \"\(vm.searchText)\"" : "No restaurants yet",
+            message: searchEmpty
+                ? "Try a different name or cuisine."
+                : "The list is empty — pull to refresh.",
+            systemImage: "magnifyingglass"
+        )
     }
 }

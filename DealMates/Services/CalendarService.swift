@@ -6,8 +6,8 @@ enum CalendarServiceError: LocalizedError {
     case eventCreationFailed
     var errorDescription: String? {
         switch self {
-        case .accessDenied:        return NSLocalizedString("Calendar access was denied. Enable it in Settings.", comment: "")
-        case .eventCreationFailed: return NSLocalizedString("Could not create the calendar event.", comment: "")
+        case .accessDenied:        return AppLocalization.string("Calendar access was denied. Enable it in Settings.")
+        case .eventCreationFailed: return AppLocalization.string("Could not create the calendar event.")
         }
     }
 }

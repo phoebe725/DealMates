@@ -72,4 +72,28 @@ extension AppUser {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
+
+    /// Resilient custom decoder. The `users` table's `email` column is
+    /// nullable, and `attended_count` / `hosted_count` / etc. were added by
+    /// later migrations — old rows or partial realtime payloads can ship with
+    /// any of these missing. Defaulting them here keeps the decode (and
+    /// therefore the realtime listener) from silently failing on edge cases.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id                    = try c.decode(String.self, forKey: .id)
+        email                 = (try? c.decodeIfPresent(String.self, forKey: .email)) ?? ""
+        displayName           = try c.decode(String.self, forKey: .displayName)
+        bio                   = (try? c.decodeIfPresent(String.self, forKey: .bio)) ?? ""
+        avatarURL             = try? c.decodeIfPresent(String.self, forKey: .avatarURL)
+        gender                = try? c.decodeIfPresent(Gender.self, forKey: .gender)
+        age                   = try? c.decodeIfPresent(Int.self, forKey: .age)
+        attendedCount         = (try? c.decodeIfPresent(Int.self, forKey: .attendedCount)) ?? 0
+        attendanceRecordCount = (try? c.decodeIfPresent(Int.self, forKey: .attendanceRecordCount)) ?? 0
+        hostedCount           = (try? c.decodeIfPresent(Int.self, forKey: .hostedCount)) ?? 0
+        isAnonymous           = (try? c.decodeIfPresent(Bool.self, forKey: .isAnonymous)) ?? false
+        blockedUsers          = (try? c.decodeIfPresent([String].self, forKey: .blockedUsers)) ?? []
+        reportedPlans         = (try? c.decodeIfPresent([String].self, forKey: .reportedPlans)) ?? []
+        createdAt             = (try? c.decodeIfPresent(Date.self, forKey: .createdAt)) ?? Date()
+        updatedAt             = (try? c.decodeIfPresent(Date.self, forKey: .updatedAt)) ?? Date()
+    }
 }

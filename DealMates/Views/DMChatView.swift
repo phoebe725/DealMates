@@ -14,16 +14,30 @@ struct DMChatView: View {
     }
 
     private var otherUserDisplayName: String {
-        cache.name(for: vm.otherUid, fallback: "User")
+        cache.name(for: vm.otherUid, fallback: AppLocalization.string("User"))
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            chatSection
-            composer
+        ZStack {
+            Color.pinCream.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                chatSection
+                composer
+            }
         }
-        .navigationTitle(otherUserDisplayName)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                HStack(spacing: 8) {
+                    LiveAvatar(userId: vm.otherUid, size: 26, fontSize: 12)
+                    Text(otherUserDisplayName)
+                        .font(.pinBody(15, weight: .medium))
+                        .foregroundStyle(Color.pinInk)
+                }
+            }
+        }
+        .toolbarBackground(Color.pinCream, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .onAppear {
             vm.startListening()
             UnreadManager.shared.markRead(chatId: "dm-\(vm.otherUid)")
@@ -46,10 +60,13 @@ struct DMChatView: View {
                             .id(msg.id)
                     }
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
             }
-            .refreshable { await vm.refresh() }
+            .refreshable {
+                await vm.refresh()
+                await UnreadManager.shared.refresh(currentUid: authViewModel.uid)
+            }
             .onChange(of: vm.messages.count) { _, _ in
                 if let last = vm.messages.last?.id {
                     withAnimation { proxy.scrollTo(last, anchor: .bottom) }
@@ -80,14 +97,17 @@ struct DMChatView: View {
 
             VStack(alignment: isMine ? .trailing : .leading, spacing: 2) {
                 Text(msg.text)
+                    .font(.pinBody(14))
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(isMine ? Color.orange : Color(.systemGray5))
-                    .foregroundColor(isMine ? .white : .primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .padding(.vertical, 9)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(isMine ? Color.pinClay : Color.pinShell)
+                    )
+                    .foregroundStyle(isMine ? Color.pinCream : Color.pinInk)
                 Text(msg.timestamp, style: .time)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .font(.pinSubtitle(10))
+                    .foregroundStyle(Color.pinInkMuted)
                     .padding(.horizontal, 4)
             }
 
@@ -110,20 +130,40 @@ struct DMChatView: View {
     private var composer: some View {
         HStack(spacing: 10) {
             TextField("Message…", text: $vm.draftText)
-                .textFieldStyle(.roundedBorder)
+                .font(.pinBody(15))
+                .foregroundStyle(Color.pinInk)
+                .tint(Color.pinClay)
                 .submitLabel(.send)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.pinShell)
+                )
                 .onSubmit { vm.send() }
             Button {
                 vm.send()
             } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(vm.draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .secondary : .orange)
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Color.pinCream)
+                    .frame(width: 36, height: 36)
+                    .background(
+                        Circle().fill(
+                            vm.draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                ? Color.pinInkMuted.opacity(0.4)
+                                : Color.pinClay
+                        )
+                    )
             }
+            .buttonStyle(.plain)
             .disabled(vm.draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(Color.pinCream)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.pinFog).frame(height: 1)
+        }
     }
 }

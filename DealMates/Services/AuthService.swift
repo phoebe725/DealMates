@@ -30,7 +30,7 @@ final class AuthService {
             throw NSError(
                 domain: "DealMates.Auth",
                 code: 1001,
-                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("Please check your email to confirm your account before signing in.", comment: "")]
+                userInfo: [NSLocalizedDescriptionKey: AppLocalization.string("Please check your email to confirm your account before signing in.")]
             )
         }
         return profile
@@ -65,7 +65,7 @@ final class AuthService {
             throw NSError(
                 domain: "DealMates.Auth",
                 code: 1002,
-                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("Please check your email to confirm your account before signing in.", comment: "")]
+                userInfo: [NSLocalizedDescriptionKey: AppLocalization.string("Please check your email to confirm your account before signing in.")]
             )
         }
         let uid = response.user.id.uuidString.lowercased()
@@ -84,7 +84,16 @@ final class AuthService {
         return try? await ensureUserProfileExists(uid: uid, email: email)
     }
 
-    func updateProfile(uid: String, displayName: String, bio: String, avatarURL: String?) async throws {
+    /// Patches the user's profile and returns the updated row.
+    ///
+    /// `.select()` (without `.single()`) asks PostgREST to return the affected
+    /// rows as an array. We then count them ourselves: a 0-row response means
+    /// the update was blocked by RLS or matched no rows. That distinction
+    /// lets us throw a human-readable error instead of the raw PGRST116
+    /// "Cannot coerce the result to a single JSON object" that `.single()`
+    /// surfaces in the same situation.
+    @discardableResult
+    func updateProfile(uid: String, displayName: String, bio: String, avatarURL: String?) async throws -> AppUser {
         struct Patch: Encodable {
             let displayName: String
             let bio: String
@@ -97,10 +106,35 @@ final class AuthService {
                 case updatedAt = "updated_at"
             }
         }
-        try await client.from("users")
+        let rows: [AppUser] = try await client.from("users")
             .update(Patch(displayName: displayName, bio: bio, avatarURL: avatarURL, updatedAt: Date()))
             .eq("id", value: uid)
+            .select()
             .execute()
+            .value
+        if let user = rows.first { return user }
+
+        // Update returned no rows. Re-fetch via a fresh GET so we can tell whether
+        // the row exists at all — gives the user (and us in [DEBUG]) a clearer
+        // signal about the actual failure mode.
+        let existing: [AppUser] = try await client.from("users")
+            .select()
+            .eq("id", value: uid)
+            .limit(1)
+            .execute()
+            .value
+        if existing.first == nil {
+            print("[DEBUG] updateProfile: no users row for uid=\(uid) — auth/profile mismatch?")
+        } else {
+            print("[DEBUG] updateProfile: RLS denied UPDATE for uid=\(uid). Check that auth.uid()::text matches the row id.")
+        }
+        throw NSError(
+            domain: "DealMates.Auth",
+            code: 1003,
+            userInfo: [NSLocalizedDescriptionKey: AppLocalization.string(
+                "Couldn't save your profile. Please sign out and back in, then try again."
+            )]
+        )
     }
 
     /// Uploads JPEG data to the `avatars` Storage bucket under `{uid}.jpg`
@@ -208,13 +242,30 @@ final class AuthService {
         } catch {
             print("[DEBUG] Upsert by id failed: \(error)")
             let msg = error.localizedDescription.lowercased()
-            // If failure is due to duplicate email (another profile exists with same email),
-            // fetch that profile and return it. Do NOT upsert by email.
+            // The unique-email constraint fires when a previous row used this
+            // email under a different (now-stale) auth uid. Call the
+            // consolidation RPC to re-point that row to the current auth uid
+            // (and migrate any FK references) so this user is the canonical
+            // owner of the row going forward. Without this fix, the next
+            // profile update would silently RLS-deny because the row's id
+            // wouldn't match `auth.uid()`.
             if msg.contains("users_email_key") || msg.contains("duplicate") || msg.contains("unique") {
-                print("[DEBUG] Detected duplicate email constraint; fetching existing profile by email")
-                let existingByEmail: [AppUser] = try await client
-                    .from("users").select().eq("email", value: email).limit(1).execute().value
-                if let first = existingByEmail.first { return first }
+                print("[DEBUG] Duplicate email — consolidating prior row into uid=\(uid)")
+                struct ConsolidateParams: Encodable {
+                    let target_email: String
+                    let new_uid: String
+                }
+                do {
+                    try await client.rpc(
+                        "consolidate_user_by_email",
+                        params: ConsolidateParams(target_email: email, new_uid: uid)
+                    ).execute()
+                } catch {
+                    print("[DEBUG] consolidate_user_by_email RPC failed: \(error)")
+                }
+                let fetchedById: [AppUser] = try await client
+                    .from("users").select().eq("id", value: uid).limit(1).execute().value
+                if let first = fetchedById.first { return first }
             }
             throw error
         }

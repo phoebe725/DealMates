@@ -21,7 +21,14 @@ final class PlanViewModel: ObservableObject {
     // MARK: - Listener
 
     func startListening() {
-        isLoading = true
+        // Idempotent: cancel any previous listener so re-entering the view
+        // doesn't open duplicate realtime channels.
+        listenerTask?.cancel()
+        // Only show the full-screen spinner on the very first load — auto-
+        // refresh-on-appear (RestaurantBoardView.onAppear) calls this on every
+        // re-entry, and flickering `isLoading` would swap the body shape and
+        // break any in-progress pull-to-refresh.
+        if plans.isEmpty { isLoading = true }
         Task { await fetchPlans() }
 
         listenerTask = service.listenToPlans(restaurantId: restaurantId) { [weak self] in
@@ -39,13 +46,13 @@ final class PlanViewModel: ObservableObject {
     func createPlan(_ plan: Plan) async throws {
         try await service.createPlan(plan)
         await fetchPlans()
-        successMessage = "Plan created!"
+        successMessage = AppLocalization.string("Plan created!")
     }
 
     func updatePlan(_ plan: Plan) async throws {
         try await service.updatePlan(plan)
         await fetchPlans()
-        successMessage = "Plan updated"
+        successMessage = AppLocalization.string("Plan updated")
     }
 
     func refresh() async {
@@ -59,7 +66,13 @@ final class PlanViewModel: ObservableObject {
                                            targetUid: targetUid, targetName: targetName,
                                            removerUid: removerUid, removerName: removerName)
             await fetchPlans()
-            successMessage = "Removed \(targetName)"
+            // "Removed %@" lives in the catalog; AppLocalization returns the
+            // format string in the current language, then String(format:) fills
+            // in the name.
+            successMessage = String(
+                format: AppLocalization.string("Removed %@"),
+                targetName
+            )
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -69,7 +82,7 @@ final class PlanViewModel: ObservableObject {
         do {
             try await service.deletePlan(planId: plan.id)
             plans.removeAll { $0.id == plan.id }
-            successMessage = "Plan cancelled"
+            successMessage = AppLocalization.string("Plan cancelled")
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -79,7 +92,7 @@ final class PlanViewModel: ObservableObject {
         do {
             try await service.joinPlan(plan, userId: userId, userName: userName)
             await fetchPlans()
-            successMessage = "You joined the plan!"
+            successMessage = AppLocalization.string("You joined the plan!")
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -89,7 +102,7 @@ final class PlanViewModel: ObservableObject {
         do {
             try await service.leavePlan(plan, userId: userId, userName: userName)
             await fetchPlans()
-            successMessage = "You left the plan"
+            successMessage = AppLocalization.string("You left the plan")
         } catch {
             errorMessage = error.localizedDescription
         }
