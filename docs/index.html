@@ -3,30 +3,58 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Email Confirmed · DealMates</title>
+<title>Email confirmed · PinTable</title>
 <style>
-  :root { color-scheme: light dark; }
+  /* Warm, light brand palette pulled from the app's design system. */
+  :root {
+    color-scheme: light;
+    --cream: #FAF6F0;
+    --shell: #F2EBE0;
+    --ink:   #2B2620;
+    --muted: #6B6359;
+    --clay:      #C97B5C;
+    --clay-deep: #A85E42;
+  }
+  html, body { margin: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Helvetica, Arial, sans-serif;
-    max-width: 460px; margin: 0 auto; padding: 64px 24px; text-align: center;
-    color: #1f2937;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 48px 24px;
   }
-  @media (prefers-color-scheme: dark) { body { color: #f3f4f6; background: #111827; } }
-  .icon { font-size: 64px; }
-  h1 { color: #f97316; font-weight: 700; margin: 16px 0 8px; }
-  p { font-size: 16px; line-height: 1.5; color: inherit; opacity: .85; }
+  .card { max-width: 420px; width: 100%; text-align: center; }
+  .badge {
+    width: 72px; height: 72px; margin: 0 auto 20px;
+    border-radius: 999px;
+    background: rgba(201, 123, 92, 0.14);  /* clay @ ~14% */
+    display: flex; align-items: center; justify-content: center;
+    color: var(--clay-deep); font-size: 34px; line-height: 1;
+  }
+  .wordmark {
+    font-weight: 700; letter-spacing: .3px; font-size: 15px;
+    color: var(--clay); margin-bottom: 22px;
+  }
+  .wordmark .table { color: var(--ink); }
+  h1 { color: var(--clay-deep); font-weight: 700; font-size: 28px; margin: 0 0 10px; }
+  p { font-size: 16px; line-height: 1.55; color: var(--muted); margin: 6px 0; }
   .cta {
-    display: inline-block; margin-top: 24px; padding: 12px 24px;
-    background: #f97316; color: white; border-radius: 999px;
-    text-decoration: none; font-weight: 600;
+    display: inline-block; margin-top: 26px; padding: 14px 28px;
+    background: var(--clay); color: var(--cream); border-radius: 999px;
+    text-decoration: none; font-weight: 600; font-size: 16px;
   }
+  .cta:hover { background: var(--clay-deep); }
 </style>
 </head>
 <body>
-<div class="icon">✓</div>
-<h1>Email Confirmed</h1>
-<p>Your DealMates account is verified.</p>
-<p>Return to the app and sign in to get started.</p>
-<a class="cta" href="dealmates://signin">Open DealMates</a>
+<div class="card">
+  <div class="wordmark">Pin<span class="table">Table</span></div>
+  <div class="badge">✓</div>
+  <h1>Email confirmed</h1>
+  <p>Your PinTable account is verified.</p>
+  <p>Head back to the app and tap “I've verified my email” to get started.</p>
+  <a class="cta" href="pintable://signin">Open PinTable</a>
+</div>
 </body>
 </html>
