@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Join a plan · PinTable</title>
+<style>
+  :root {
+    color-scheme: light;
+    --cream: #FAF6F0; --shell: #F2EBE0; --ink: #2B2620; --muted: #6B6359;
+    --clay: #C97B5C; --clay-deep: #A85E42;
+  }
+  html, body { margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Helvetica, Arial, sans-serif;
+    background: var(--cream); color: var(--ink);
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 48px 24px;
+  }
+  .card { max-width: 420px; width: 100%; text-align: center; }
+  .badge {
+    width: 72px; height: 72px; margin: 0 auto 20px; border-radius: 999px;
+    background: rgba(201,123,92,0.14); display: flex; align-items: center; justify-content: center;
+    color: var(--clay-deep); font-size: 32px;
+  }
+  .wordmark { font-weight: 700; letter-spacing: .3px; font-size: 15px; color: var(--clay); margin-bottom: 22px; }
+  .wordmark .table { color: var(--ink); }
+  h1 { color: var(--clay-deep); font-weight: 700; font-size: 28px; margin: 0 0 10px; }
+  p { font-size: 16px; line-height: 1.55; color: var(--muted); margin: 6px 0; }
+  .cta {
+    display: inline-block; margin-top: 24px; padding: 14px 28px; border-radius: 999px;
+    text-decoration: none; font-weight: 600; font-size: 16px;
+    background: var(--clay); color: var(--cream);
+  }
+  .cta:hover { background: var(--clay-deep); }
+  .secondary { display: inline-block; margin-top: 14px; font-size: 15px; color: var(--clay); text-decoration: none; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="wordmark">Pin<span class="table">Table</span></div>
+  <div class="badge">🍽️</div>
+  <h1>You're invited to a table</h1>
+  <p>Someone wants you to join their dining plan on PinTable — find people to share group dining deals.</p>
+
+  <a id="open" class="cta" href="#">Open in PinTable</a>
+  <!-- Founder: replace the href below with the App Store / TestFlight link once published. -->
+  <a id="get" class="secondary" href="https://phoebe725.github.io/DealMates/">Don't have the app? Get PinTable</a>
+</div>
+
+<script>
+  // Pull the plan id from ?plan=<id> and point "Open in PinTable" at the
+  // pintable://plan/<id> deep link the app registers. The id is never shown.
+  var params = new URLSearchParams(window.location.search);
+  var planId = params.get('plan');
+  var open = document.getElementById('open');
+  if (planId) {
+    open.href = 'pintable://plan/' + encodeURIComponent(planId);
+  } else {
+    open.href = 'pintable://';
+  }
+</script>
+</body>
+</html>
