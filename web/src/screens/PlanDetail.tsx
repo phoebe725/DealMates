@@ -207,11 +207,11 @@ export function PlanDetail() {
       <div className="border-t border-fog bg-cream px-4 py-3">
         {showNamePrompt && (
           <div className="mb-3 rounded-card bg-shell p-3">
-            <div className="text-[14px] font-medium text-ink">What should we call you?</div>
-            <p className="mt-0.5 text-[12px] text-inkMuted">No account needed — just a name.</p>
+            <div className="text-[14px] font-medium text-ink">{t("What should we call you?")}</div>
+            <p className="mt-0.5 text-[12px] text-inkMuted">{t("No account needed — just a name.")}</p>
             <input
               className="pin-field mt-2"
-              placeholder="Your name"
+              placeholder={t("Your name")}
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && guestName.trim().length >= 2 && document.getElementById("guest-join-btn")?.click()}
@@ -231,7 +231,7 @@ export function PlanDetail() {
                   toggleMembership();
                 }}
               >
-                Join as guest
+                {t("Join as guest")}
               </button>
               <button
                 className="rounded-full bg-shell px-4 py-2.5 text-[14px] font-semibold text-inkMuted"

@@ -30,21 +30,21 @@ export function Profile() {
 
         {/* What they CAN do */}
         <div className="mt-4 w-full max-w-xs rounded-card bg-shell p-4 text-left">
-          <div className="text-[12px] font-semibold uppercase tracking-wide text-sageDeep">✓ Available as guest</div>
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-sageDeep">{t("✓ Available as guest")}</div>
           <ul className="mt-2 space-y-1 text-[13px] text-ink">
-            <li>Browse restaurants and deals</li>
-            <li>View and join dining plans</li>
-            <li>Chat inside plans you've joined</li>
+            <li>{t("Browse restaurants and deals")}</li>
+            <li>{t("View and join dining plans")}</li>
+            <li>{t("Chat inside plans you've joined")}</li>
           </ul>
         </div>
 
         {/* What they're missing */}
         <div className="mt-3 w-full max-w-xs rounded-card bg-shell p-4 text-left">
-          <div className="text-[12px] font-semibold uppercase tracking-wide text-clay">↑ With a free account</div>
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-clay">{t("↑ With a free account")}</div>
           <ul className="mt-2 space-y-1 text-[13px] text-ink">
-            <li>Create your own dining plans</li>
-            <li>Send direct messages</li>
-            <li>Track attendance and history</li>
+            <li>{t("Create your own dining plans")}</li>
+            <li>{t("Send direct messages")}</li>
+            <li>{t("Track attendance and history")}</li>
           </ul>
         </div>
 

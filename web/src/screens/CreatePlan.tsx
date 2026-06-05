@@ -44,10 +44,10 @@ export function CreatePlan() {
       <div className="flex min-h-full flex-col items-center justify-center px-8 text-center">
         <div className="text-[48px]">🍽️</div>
         <h1 className="mt-4 font-sans text-[22px] font-light text-ink">
-          Create a free account to start a plan
+          {t("Create a free account to start a plan")}
         </h1>
         <p className="mt-2 text-[14px] text-inkMuted">
-          You can still <strong>join plans as a guest</strong> — no account needed for that.
+          {t("You can still join plans as a guest — no account needed for that.")}
         </p>
         <button className="pin-btn-primary mt-8 w-full max-w-xs" onClick={() => nav("/signin")}>
           {t("Sign up — it's free")}
