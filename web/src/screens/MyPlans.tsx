@@ -8,6 +8,7 @@ import { needsMorePeople, type Plan } from "@/types";
 import { t } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
 import { Chip, EmptyState, Segmented, Spinner } from "@/components/ui";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 
 type Bucket = "active" | "ready" | "completed";
 
@@ -39,6 +40,8 @@ export function MyPlans() {
     [q.data, bucket],
   );
 
+  const { ref: pullRef, refreshing } = usePullToRefresh(async () => { await q.refetch(); });
+
   const counts = useMemo(() => {
     const c = { active: 0, ready: 0, completed: 0 };
     for (const p of q.data ?? []) c[bucketOf(p)] += 1;
@@ -46,7 +49,8 @@ export function MyPlans() {
   }, [q.data]);
 
   return (
-    <div className="flex flex-col">
+    <div ref={pullRef} className="flex flex-col">
+      {refreshing && <div className="flex justify-center py-3"><div className="h-5 w-5 animate-spin rounded-full border-2 border-clay/30 border-t-clay" /></div>}
       <div className="px-5 pb-3 pt-3">
         <h1 className="leading-tight">
           <span className="font-sans text-[28px] font-light text-ink">{t("My ")}</span>

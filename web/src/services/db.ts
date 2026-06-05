@@ -104,14 +104,15 @@ export async function fetchMyActivePlans(userId: string): Promise<Plan[]> {
   return (data ?? []) as Plan[];
 }
 
-/** The user's plans whose attendance hasn't been confirmed yet — the same set
- *  My Plans counts in its Active / Ready-to-go buckets. Drives unread badges. */
+/** The user's non-expired plans whose attendance hasn't been confirmed yet —
+ *  the same set Messages shows. Drives unread badges so counts match display. */
 export async function fetchMyOpenPlans(userId: string): Promise<Plan[]> {
   const { data, error } = await supabase
     .from("plans")
     .select("*")
     .contains("member_ids", [userId])
-    .is("attendance_confirmed_at", null);
+    .is("attendance_confirmed_at", null)
+    .gt("expires_at", new Date().toISOString());
   if (error) throw error;
   return (data ?? []) as Plan[];
 }

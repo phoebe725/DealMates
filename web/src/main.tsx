@@ -8,7 +8,7 @@ import { UnreadProvider } from "./unread/UnreadContext";
 import "./index.css";
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
+  defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: true } },
 });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

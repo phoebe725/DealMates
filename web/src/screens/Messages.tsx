@@ -8,6 +8,7 @@ import type { DMConversation, Plan } from "@/types";
 import { t, systemMessageText } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
 import { useUnread } from "@/unread/UnreadContext";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { EmptyState, Segmented, Spinner } from "@/components/ui";
 
 type Filter = "all" | "dm" | "plan";
@@ -21,6 +22,7 @@ export function Messages() {
   const { user } = useAuth();
   const { unreadDMCount, isUnread } = useUnread();
   const [filter, setFilter] = useState<Filter>("all");
+  const { ref: pullRef, refreshing } = usePullToRefresh(async () => { await q.refetch(); });
 
   const q = useQuery({
     queryKey: ["messagesList", user?.id],
@@ -65,7 +67,8 @@ export function Messages() {
   const visible = items.filter((it) => filter === "all" || it.kind === filter);
 
   return (
-    <div className="flex flex-col">
+    <div ref={pullRef} className="flex flex-col">
+      {refreshing && <div className="flex justify-center py-3"><div className="h-5 w-5 animate-spin rounded-full border-2 border-clay/30 border-t-clay" /></div>}
       <div className="px-5 pb-3 pt-3">
         <h1 className="pb-3">
           <span className="font-accent text-[38px] italic text-clayDeep">{t("Messages")}</span>

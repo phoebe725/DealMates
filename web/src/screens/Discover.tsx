@@ -8,6 +8,7 @@ import { restaurantName, restaurantDeals, needsMorePeople, type Plan, type Resta
 import { t, localizedCuisine } from "@/i18n";
 import { Chip, EmptyState, Segmented, Spinner } from "@/components/ui";
 import { useDragScroll } from "@/hooks/useDragScroll";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 
 const BUFFET_CATEGORY = "AYCE / Buffet";
 const BUFFET_IDS = new Set([
@@ -46,6 +47,9 @@ export function Discover() {
   const [search, setSearch] = useState("");
   const [cuisine, setCuisine] = useState<string | null>(null);
   const cuisineScroll = useDragScroll<HTMLDivElement>();
+  const { ref: pullRef, refreshing } = usePullToRefresh(async () => {
+    await Promise.all([restaurants.refetch(), plans.refetch()]);
+  });
 
   const restaurants = useQuery({ queryKey: ["restaurants"], queryFn: fetchRestaurants });
   const plans = useQuery({ queryKey: ["activePlans"], queryFn: fetchAllActivePlans });
@@ -78,7 +82,8 @@ export function Discover() {
   );
 
   return (
-    <div className="flex flex-col">
+    <div ref={pullRef} className="flex flex-col">
+      {refreshing && <PullSpinner />}
       {/* Header */}
       <div className="px-5 pb-4 pt-3">
         <h1 className="leading-tight">
@@ -160,6 +165,14 @@ export function Discover() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function PullSpinner() {
+  return (
+    <div className="flex justify-center py-3">
+      <div className="h-5 w-5 animate-spin rounded-full border-2 border-clay/30 border-t-clay" />
     </div>
   );
 }
