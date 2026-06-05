@@ -27,10 +27,28 @@ export function Profile() {
         <h1 className="mt-4 font-sans text-[22px] font-light text-ink">
           {t("You're browsing as a guest")}
         </h1>
-        <p className="mt-2 text-[14px] text-inkMuted">
-          {t("Create a free account to join plans, chat with mates, and track your dining history.")}
-        </p>
-        <div className="mt-8 w-full max-w-xs space-y-3">
+
+        {/* What they CAN do */}
+        <div className="mt-4 w-full max-w-xs rounded-card bg-shell p-4 text-left">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-sageDeep">✓ Available as guest</div>
+          <ul className="mt-2 space-y-1 text-[13px] text-ink">
+            <li>Browse restaurants and deals</li>
+            <li>View and join dining plans</li>
+            <li>Chat inside plans you've joined</li>
+          </ul>
+        </div>
+
+        {/* What they're missing */}
+        <div className="mt-3 w-full max-w-xs rounded-card bg-shell p-4 text-left">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-clay">↑ With a free account</div>
+          <ul className="mt-2 space-y-1 text-[13px] text-ink">
+            <li>Create your own dining plans</li>
+            <li>Send direct messages</li>
+            <li>Track attendance and history</li>
+          </ul>
+        </div>
+
+        <div className="mt-6 w-full max-w-xs space-y-3">
           <button className="pin-btn-primary" onClick={() => nav("/signin")}>
             {t("Sign up — it's free")}
           </button>

@@ -207,17 +207,20 @@ export function PlanDetail() {
       <div className="border-t border-fog bg-cream px-4 py-3">
         {showNamePrompt && (
           <div className="mb-3 rounded-card bg-shell p-3">
-            <div className="text-[13px] font-medium text-ink">What should we call you?</div>
+            <div className="text-[14px] font-medium text-ink">What should we call you?</div>
+            <p className="mt-0.5 text-[12px] text-inkMuted">No account needed — just a name.</p>
             <input
               className="pin-field mt-2"
               placeholder="Your name"
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && guestName.trim().length >= 2 && document.getElementById("guest-join-btn")?.click()}
               autoFocus
             />
             <div className="mt-2 flex gap-2">
               <button
-                className="pin-btn-primary flex-1 py-2.5 text-[14px]"
+                id="guest-join-btn"
+                className="flex-1 rounded-full bg-clay py-2.5 text-[14px] font-semibold text-cream disabled:opacity-40"
                 disabled={guestName.trim().length < 2 || busy}
                 onClick={async () => {
                   if (!user || guestName.trim().length < 2) return;
@@ -228,9 +231,12 @@ export function PlanDetail() {
                   toggleMembership();
                 }}
               >
-                Join
+                Join as guest
               </button>
-              <button className="pin-btn-secondary py-2.5 text-[14px]" onClick={() => setShowNamePrompt(false)}>
+              <button
+                className="rounded-full bg-shell px-4 py-2.5 text-[14px] font-semibold text-inkMuted"
+                onClick={() => setShowNamePrompt(false)}
+              >
                 Cancel
               </button>
             </div>
