@@ -9,6 +9,39 @@ export type Lang = "en" | "zh-Hans" | "zh-Hant";
 
 const KEY = "preferredLanguageCode";
 
+function normaliseLang(raw: string): Lang | null {
+  if (raw.startsWith("zh-Hans") || raw === "zh-CN") return "zh-Hans";
+  if (raw.startsWith("zh-Hant") || raw === "zh-TW" || raw === "zh-HK") return "zh-Hant";
+  if (raw.startsWith("zh")) return "zh-Hans";
+  if (raw.startsWith("en")) return "en";
+  return null;
+}
+
+// One-time language handoff: if the page is opened with a ?lang= parameter
+// (e.g. a visitor arriving from the localized waitlist), honour it, remember it,
+// then strip it from the URL so the in-app switcher still takes precedence later.
+// Completely inert when there is no ?lang= param, so existing behaviour is unchanged.
+(function applyLangFromUrl() {
+  if (typeof window === "undefined") return;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const param = params.get("lang");
+    if (!param) return;
+    const norm = normaliseLang(param);
+    if (!norm) return;
+    localStorage.setItem(KEY, norm);
+    params.delete("lang");
+    const qs = params.toString();
+    window.history.replaceState(
+      {},
+      "",
+      window.location.pathname + (qs ? "?" + qs : "") + window.location.hash
+    );
+  } catch {
+    /* ignore — fall back to stored / browser language */
+  }
+})();
+
 export function currentLang(): Lang {
   const stored = typeof localStorage !== "undefined" ? localStorage.getItem(KEY) : null;
   const raw = stored || (typeof navigator !== "undefined" ? navigator.language : "en");

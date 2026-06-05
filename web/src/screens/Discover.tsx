@@ -11,10 +11,22 @@ import { useDragScroll } from "@/hooks/useDragScroll";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 
 const BUFFET_CATEGORY = "AYCE / Buffet";
+// Existing restaurants whose cuisine column is not "AYCE / Buffet" but
+// which offer a buffet/AYCE menu. New AYCE restaurants use cuisine="AYCE / Buffet"
+// directly and are matched by the cuisine check in the filter below.
 const BUFFET_IDS = new Set([
-  "e6f9a2b3-3a4d-4e7f-6c8b-9e1d3e5a8c1e", // Yauatcha
-  "a2b56d7e-8c9f-4a3b-2e4d-5a6f8a1c4e6a", // Happy Lamb
-  "a2b5c7d8-8c9f-4a3b-2e4d-5a6f8a1c4e6a", // Eat Tokyo
+  "e6f9a2b3-3a4d-4e7f-6c8b-9e1d3e5a8c1e", // Yauatcha — Soho
+  "a2b56d7e-8c9f-4a3b-2e4d-5a6f8a1c4e6a", // Happy Lamb — Bayswater
+  "a2b5c7d8-8c9f-4a3b-2e4d-5a6f8a1c4e6a", // Eat Tokyo — Soho
+  "fe3c6f9d-2a3b-4c5d-6e7f-8a9b0c1d2e3f", // Haidilao — O2
+  "7ffaadc0-1b2c-3d4e-5f6a-7b8c9d0e1f2a", // Haidilao — Piccadilly
+  "52a665e1-3c4d-5e6f-7a8b-9c0d1e2f3a4b", // Da Long Yi — Fitzrovia
+  "8833e03a-2c3e-4d5f-9a8b-1c2e3d4f5a6b", // Ning's — Chinatown
+  "105b7fbd-8a9b-4c5d-2e3f-6a7b8c9d0e1f", // Ning's — Tottenham Street
+  "fa0e7619-1234-5678-abcd-ef0123456789", // Ai Sushi — North Finchley
+  "098dcf82-4e5f-6a7b-8c9d-0e1f2a3b4c5d", // Mu Yang Ren — Shepherd's Bush
+  "75ce5b67-5f6a-7b8c-9d0e-1f2a3b4c5d6e", // Sumiya — Shoreditch
+  "7540f6f8-6a7b-8c9d-0e1f-2a3b4c5d6e7f", // Er Mei — Chinatown
 ]);
 const DEAL_KEYWORDS = ["優惠", "优惠", "买", "買", "送", "deal", "offer", "discount", "ayce", "buffet"];
 
@@ -58,14 +70,16 @@ export function Discover() {
 
   const cuisines = useMemo(() => {
     const list = Array.from(new Set((restaurants.data ?? []).map((r) => r.cuisine))).sort();
-    if ((restaurants.data ?? []).some((r) => BUFFET_IDS.has(r.id))) list.unshift(BUFFET_CATEGORY);
+    if ((restaurants.data ?? []).some((r) => BUFFET_IDS.has(r.id) || r.cuisine === BUFFET_CATEGORY)) list.unshift(BUFFET_CATEGORY);
     return list;
   }, [restaurants.data]);
 
   const filtered = useMemo(() => {
     let rows = restaurants.data ?? [];
     if (cuisine) {
-      rows = cuisine === BUFFET_CATEGORY ? rows.filter((r) => BUFFET_IDS.has(r.id)) : rows.filter((r) => r.cuisine === cuisine);
+      rows = cuisine === BUFFET_CATEGORY
+        ? rows.filter((r) => BUFFET_IDS.has(r.id) || r.cuisine === BUFFET_CATEGORY)
+        : rows.filter((r) => r.cuisine === cuisine);
     }
     if (search.trim()) {
       const q = search.toLowerCase();
