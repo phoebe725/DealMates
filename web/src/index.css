@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  /* Soft warm page behind the centered app column (no harsh grey gutter). */
+  background: #efe9df;
+  font-family: Inter, system-ui, sans-serif;
+  color: #2b2620;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The app lives in a centered, full-height column. On desktop it reads as a
+   focused web app (framed with a soft shadow); on mobile it's full-bleed. */
+@layer components {
+  .pin-shell {
+    @apply relative mx-auto flex h-dvh w-full max-w-phone flex-col overflow-hidden bg-cream;
+    box-shadow: 0 0 60px rgba(43, 38, 32, 0.08);
+  }
+  .pin-card {
+    @apply rounded-card bg-shell;
+  }
+  .pin-field {
+    @apply w-full rounded-pin bg-shell px-4 py-3.5 text-[16px] text-ink outline-none placeholder:text-inkMuted/70;
+  }
+  .pin-btn-primary {
+    @apply w-full rounded-full bg-clay py-3.5 text-center font-semibold text-cream active:bg-clayDeep disabled:opacity-50;
+  }
+  .pin-btn-secondary {
+    @apply w-full rounded-2xl bg-shell py-4 text-center font-semibold text-ink active:bg-fog;
+  }
+  .pin-chip {
+    @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-[12px] font-medium;
+  }
+}
