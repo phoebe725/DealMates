@@ -2,9 +2,9 @@
 // conversations and the user's plan group-chats, newest activity first.
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchConversations, fetchMyPlans, fetchLatestMessages } from "@/services/db";
-import type { DMConversation, Plan } from "@/types";
+import { restaurantName, type DMConversation, type Plan, type Restaurant } from "@/types";
 import { t, systemMessageText } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
 import { useUnread } from "@/unread/UnreadContext";
@@ -23,6 +23,10 @@ export function Messages() {
   const { unreadDMCount, isUnread } = useUnread();
   const [filter, setFilter] = useState<Filter>("all");
   const { ref: pullRef, refreshing } = usePullToRefresh(async () => { await q.refetch(); });
+  const qc = useQueryClient();
+  const restaurantMap = Object.fromEntries(
+    (qc.getQueryData<Restaurant[]>(["restaurants"]) ?? []).map((r) => [r.id, r])
+  );
 
   const q = useQuery({
     queryKey: ["messagesList", user?.id],
@@ -50,10 +54,13 @@ export function Messages() {
           ? systemMessageText(last.system_kind, last.system_args)
           : last.text
         : t("No messages yet");
+      const rName = restaurantMap[p.restaurant_id]
+        ? restaurantName(restaurantMap[p.restaurant_id])
+        : p.restaurant_name;
       out.push({
         kind: "plan",
         id: p.id,
-        title: p.restaurant_name,
+        title: rName,
         avatar: p.creator_avatar_url,
         preview,
         subtitle: t("Group · %lld/%lld", p.current_people, p.needed_people),

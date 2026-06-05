@@ -5,6 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchPlan,
+  fetchRestaurants,
   fetchMessages,
   fetchUsers,
   sendMessage,
@@ -13,7 +14,7 @@ import {
   listenToMessages,
   listenToPlan,
 } from "@/services/db";
-import { needsMorePeople, type ChatMessage, type Plan, type AppUser } from "@/types";
+import { restaurantName, needsMorePeople, type ChatMessage, type Plan, type AppUser, type Restaurant } from "@/types";
 import { t, systemMessageText } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
 import { useUnread } from "@/unread/UnreadContext";
@@ -35,6 +36,9 @@ export function PlanDetail() {
 
   const planQ = useQuery({ queryKey: ["plan", id], queryFn: () => fetchPlan(id), enabled: !!id });
   const plan = planQ.data ?? null;
+  // Ensure the restaurant list is in cache so we can look up the localized name.
+  const restaurantsQ = useQuery({ queryKey: ["restaurants"], queryFn: fetchRestaurants, staleTime: 5 * 60_000 });
+  const cachedRestaurant = (restaurantsQ.data ?? []).find((r) => r.id === plan?.restaurant_id);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [members, setMembers] = useState<AppUser[]>([]);
@@ -116,7 +120,9 @@ export function PlanDetail() {
       {/* Top bar */}
       <div className="flex items-center gap-2 border-b border-fog bg-shell px-4 py-3">
         <button onClick={() => nav(-1)} className="text-[22px] text-ink">‹</button>
-        <span className="flex-1 truncate text-center font-medium text-ink">{plan.restaurant_name}</span>
+        <span className="flex-1 truncate text-center font-medium text-ink">
+          {cachedRestaurant ? restaurantName(cachedRestaurant) : plan.restaurant_name}
+        </span>
         <button onClick={share} className="text-[18px] text-clay" aria-label={t("Share")}>⤴</button>
       </div>
 

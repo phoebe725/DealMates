@@ -3,12 +3,13 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchMyPlans, defaultPlanOrder } from "@/services/db";
-import { needsMorePeople, type Plan } from "@/types";
+import { fetchMyPlans, fetchRestaurants, defaultPlanOrder } from "@/services/db";
+import { restaurantName, needsMorePeople, type Plan, type Restaurant } from "@/types";
 import { t } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
 import { Chip, EmptyState, Segmented, Spinner } from "@/components/ui";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 
 type Bucket = "active" | "ready" | "completed";
 
@@ -41,6 +42,10 @@ export function MyPlans() {
   );
 
   const { ref: pullRef, refreshing } = usePullToRefresh(async () => { await q.refetch(); });
+  const qc = useQueryClient();
+  const restaurantMap = Object.fromEntries(
+    (qc.getQueryData<Restaurant[]>(["restaurants"]) ?? []).map((r) => [r.id, r])
+  );
 
   const counts = useMemo(() => {
     const c = { active: 0, ready: 0, completed: 0 };
@@ -82,7 +87,9 @@ export function MyPlans() {
             const need = needsMorePeople(p);
             return (
               <button key={p.id} onClick={() => nav(`/plan/${p.id}`)} className="block w-full rounded-card bg-shell p-4 text-left">
-                <div className="text-[16px] font-medium text-ink">{p.restaurant_name}</div>
+                <div className="text-[16px] font-medium text-ink">
+                  {restaurantMap[p.restaurant_id] ? restaurantName(restaurantMap[p.restaurant_id]) : p.restaurant_name}
+                </div>
                 <div className="mt-2 flex items-center">
                   <span className="text-[13px] text-inkMuted">🕐 {timeLabel(p)}</span>
                   <span className="ml-auto">

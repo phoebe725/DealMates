@@ -1,7 +1,7 @@
 // Mirrors DiscoverView.swift: Restaurants/Plans toggle, Featured section,
 // cuisine chips (incl. AYCE/Buffet), search, plan cards with Deal + joined.
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { fetchRestaurants, fetchAllActivePlans, defaultPlanOrder } from "@/services/db";
 import { restaurantName, restaurantDeals, needsMorePeople, type Plan, type Restaurant } from "@/types";
@@ -46,13 +46,15 @@ export function Discover() {
   const [mode, setMode] = useState<"restaurants" | "plans">("restaurants");
   const [search, setSearch] = useState("");
   const [cuisine, setCuisine] = useState<string | null>(null);
+  const restaurants = useQuery({ queryKey: ["restaurants"], queryFn: fetchRestaurants });
+  const plans = useQuery({ queryKey: ["activePlans"], queryFn: fetchAllActivePlans });
+
+  const restaurantMap = Object.fromEntries((restaurants.data ?? []).map((r) => [r.id, r]));
+
   const cuisineScroll = useDragScroll<HTMLDivElement>();
   const { ref: pullRef, refreshing } = usePullToRefresh(async () => {
     await Promise.all([restaurants.refetch(), plans.refetch()]);
   });
-
-  const restaurants = useQuery({ queryKey: ["restaurants"], queryFn: fetchRestaurants });
-  const plans = useQuery({ queryKey: ["activePlans"], queryFn: fetchAllActivePlans });
 
   const cuisines = useMemo(() => {
     const list = Array.from(new Set((restaurants.data ?? []).map((r) => r.cuisine))).sort();
@@ -161,7 +163,7 @@ export function Discover() {
       ) : (
         <div className="space-y-3 px-5 pb-6">
           {visiblePlans.map((p) => (
-            <PlanCard key={p.id} p={p} onClick={() => nav(`/plan/${p.id}`)} />
+            <PlanCard key={p.id} p={p} rmap={restaurantMap} onClick={() => nav(`/plan/${p.id}`)} />
           ))}
         </div>
       )}
@@ -211,12 +213,13 @@ function RestaurantCard({ r, onClick }: { r: Restaurant; onClick: () => void }) 
   );
 }
 
-function PlanCard({ p, onClick }: { p: Plan; onClick: () => void }) {
+function PlanCard({ p, rmap, onClick }: { p: Plan; rmap: Record<string, Restaurant>; onClick: () => void }) {
   const need = needsMorePeople(p);
+  const name = rmap[p.restaurant_id] ? restaurantName(rmap[p.restaurant_id]) : p.restaurant_name;
   return (
     <button onClick={onClick} className="block w-full rounded-card bg-shell p-3.5 text-left">
       <div className="flex items-center gap-2">
-        <span className="font-sans text-[15px] font-medium text-ink">{p.restaurant_name}</span>
+        <span className="font-sans text-[15px] font-medium text-ink">{name}</span>
         {planHasDeal(p) && <Chip text={t("Deal")} tint="sun" />}
         <span className="ml-auto text-[12px] text-inkMuted">{planTimeLabel(p)}</span>
       </div>
