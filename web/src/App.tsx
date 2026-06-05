@@ -27,7 +27,7 @@ function Shell() {
   const showTabs = ["/discover", "/plans", "/messages", "/profile"].includes(pathname);
   return (
     <div className="flex h-full flex-col">
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <Routes>
           <Route path="/" element={<Navigate to="/discover" replace />} />
           <Route path="/discover" element={<Discover />} />

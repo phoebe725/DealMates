@@ -104,7 +104,7 @@ export function Discover() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+            <div className="mt-3 flex flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch]">
               <CuisineChip label={t("All cuisines")} active={!cuisine} onClick={() => setCuisine(null)} />
               {cuisines.map((c) => (
                 <CuisineChip
@@ -163,7 +163,7 @@ function CuisineChip({ label, active, onClick }: { label: string; active: boolea
   return (
     <button
       onClick={onClick}
-      className={`whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-semibold ${
+      className={`shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-semibold ${
         active ? "bg-clay text-cream" : "bg-shell text-ink"
       }`}
     >
