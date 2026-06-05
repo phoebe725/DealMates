@@ -69,7 +69,7 @@ export function Discover() {
   });
 
   const cuisines = useMemo(() => {
-    const list = Array.from(new Set((restaurants.data ?? []).map((r) => r.cuisine))).sort();
+    const list = Array.from(new Set((restaurants.data ?? []).map((r) => r.cuisine))).filter((c) => c !== BUFFET_CATEGORY).sort();
     if ((restaurants.data ?? []).some((r) => BUFFET_IDS.has(r.id) || r.cuisine === BUFFET_CATEGORY)) list.unshift(BUFFET_CATEGORY);
     return list;
   }, [restaurants.data]);

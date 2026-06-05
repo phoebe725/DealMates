@@ -39,7 +39,7 @@ final class RestaurantViewModel: ObservableObject {
     /// `cuisine` values in the table (no client-side hiding). The "AYCE / Buffet"
     /// category is prepended when any loaded venue qualifies.
     var availableCuisines: [String] {
-        var cuisines = Array(Set(restaurants.map(\.cuisine))).sorted()
+        var cuisines = Array(Set(restaurants.map(\.cuisine))).filter { $0 != Self.buffetCategory }.sorted()
         if restaurants.contains(where: { Self.buffetRestaurantIDs.contains($0.id) || $0.cuisine == Self.buffetCategory }) {
             cuisines.insert(Self.buffetCategory, at: 0)
         }
