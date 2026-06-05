@@ -1,13 +1,15 @@
 // Mirrors MessagesView + MessagesListViewModel: one list combining DM
 // conversations and the user's plan group-chats, newest activity first.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchConversations, fetchMyActivePlans, fetchLatestMessages } from "@/services/db";
 import type { DMConversation, Plan } from "@/types";
 import { t, systemMessageText } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
-import { EmptyState, Spinner } from "@/components/ui";
+import { EmptyState, Segmented, Spinner } from "@/components/ui";
+
+type Filter = "all" | "dm" | "plan";
 
 type Item =
   | { kind: "dm"; id: string; title: string; avatar: string | null; preview: string; ts: string }
@@ -16,6 +18,7 @@ type Item =
 export function Messages() {
   const nav = useNavigate();
   const { user } = useAuth();
+  const [filter, setFilter] = useState<Filter>("all");
 
   const q = useQuery({
     queryKey: ["messagesList", user?.id],
@@ -56,15 +59,28 @@ export function Messages() {
     return out.sort((a, b) => b.ts.localeCompare(a.ts));
   }, [q.data]);
 
+  const visible = items.filter((it) => filter === "all" || it.kind === filter);
+
   return (
     <div className="flex flex-col">
-      <h1 className="px-5 pb-2 pt-3">
-        <span className="font-accent text-[38px] italic text-clayDeep">{t("Messages")}</span>
-      </h1>
+      <div className="px-5 pb-3 pt-3">
+        <h1 className="pb-3">
+          <span className="font-accent text-[38px] italic text-clayDeep">{t("Messages")}</span>
+        </h1>
+        <Segmented
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: "all", label: t("All") },
+            { value: "dm", label: t("DMs") },
+            { value: "plan", label: t("Plans") },
+          ]}
+        />
+      </div>
 
       {q.isLoading ? (
         <Spinner />
-      ) : items.length === 0 ? (
+      ) : visible.length === 0 ? (
         <EmptyState
           title={t("No messages yet")}
           message={t("Join a plan or message an organiser to start a thread.")}
@@ -72,7 +88,7 @@ export function Messages() {
         />
       ) : (
         <div className="divide-y divide-fog">
-          {items.map((it) => (
+          {visible.map((it) => (
             <button
               key={`${it.kind}-${it.id}`}
               onClick={() => nav(it.kind === "dm" ? `/dm/${it.id}` : `/plan/${it.id}`)}
