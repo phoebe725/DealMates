@@ -23,27 +23,35 @@ npm run build      # type-check + production bundle into dist/
 npm run preview    # serve the built bundle locally
 ```
 
-## Deploy (public link for testers — no TestFlight needed)
+## Deploy — Firebase Hosting (public `*.web.app` link, no custom domain)
 
-It's a static SPA + service worker, so any static host works. **Root directory = `web`.**
+`firebase.json` + `.firebaserc` are committed and point at the project
+**`pintable-london`** → the app goes live at **https://pintable-london.web.app**.
+All deploys are run manually from this `web/` folder.
 
-**Vercel** (recommended)
-1. Import the GitHub repo at vercel.com.
-2. Root Directory: `web` · Framework preset: **Vite** · Build: `npm run build` · Output: `dist`.
-3. (SPA routing) add `web/vercel.json`:
-   ```json
-   { "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
-   ```
-4. Deploy → public HTTPS URL, installable as a PWA on iOS/Android.
+**One-time setup**
+```bash
+npm install -g firebase-tools     # or use `npx firebase-tools` below
+firebase login                    # opens browser, sign in with the project's Google account
+# Create the Firebase project so the domain is pintable-london.web.app:
+firebase projects:create pintable-london
+```
+If `pintable-london` is taken, create any available id and update `default` in
+`web/.firebaserc` to match (the domain is always `<projectId>.web.app`). To force
+a specific subdomain regardless of project id, instead create a Hosting *site*:
+`firebase hosting:sites:create pintable-london` and add a deploy target.
 
-**Netlify**
-- Base directory `web`, build `npm run build`, publish `web/dist`.
-- Add `web/public/_redirects` containing: `/*  /index.html  200`.
+**Deploy (run from `web/`)**
+```bash
+cd web
+npm run build
+firebase deploy            # or: firebase deploy --only hosting
+```
+That uploads `web/dist` and prints the live URL (`https://pintable-london.web.app`).
+Re-run `npm run build && firebase deploy` any time to publish updates.
 
-**Firebase Hosting**
-- `firebase init hosting` → public dir `web/dist`, single-page app: **yes**, then `npm run build && firebase deploy`.
-
-CLI quick path (Vercel): `cd web && npx vercel --prod`.
+> `npx firebase-tools login` / `npx firebase-tools deploy` work without a global install.
+> The SPA rewrite + cache headers are already configured in `firebase.json`.
 
 ## Status (phased port)
 

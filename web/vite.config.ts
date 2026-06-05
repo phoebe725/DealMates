@@ -3,12 +3,11 @@ import react from "@vitejs/plugin-react";
 import path from "node:path";
 
 // PinTable web. Talks to the same Supabase project as the iOS app.
-// `base: "./"` makes the bundle work from any path — including the GitHub Pages
-// subfolder (/DealMates/app/) we deploy to. The app uses hash routing so SPA
-// routes resolve without server rewrites on Pages. (PWA service worker is
-// deferred to the dedicated public-site deploy.)
+// Deployed to Firebase Hosting at the domain root (e.g. pintable-london.web.app),
+// so base is "/" and the app uses normal routing (Firebase rewrites all paths
+// to index.html — see firebase.json). PWA service worker deferred for now.
 export default defineConfig({
-  base: "./",
+  base: "/",
   plugins: [react()],
   resolve: { alias: { "@": path.resolve(__dirname, "src") } },
 });
