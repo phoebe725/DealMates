@@ -39,6 +39,12 @@ export function MyPlans() {
     [q.data, bucket],
   );
 
+  const counts = useMemo(() => {
+    const c = { active: 0, ready: 0, completed: 0 };
+    for (const p of q.data ?? []) c[bucketOf(p)] += 1;
+    return c;
+  }, [q.data]);
+
   return (
     <div className="flex flex-col">
       <div className="px-5 pb-3 pt-3">
@@ -51,9 +57,9 @@ export function MyPlans() {
             value={bucket}
             onChange={setBucket}
             options={[
-              { value: "active", label: t("Active") },
-              { value: "ready", label: t("Ready to go") },
-              { value: "completed", label: t("Completed") },
+              { value: "active", label: t("Active"), badge: counts.active },
+              { value: "ready", label: t("Ready to go"), badge: counts.ready },
+              { value: "completed", label: t("Completed"), badge: counts.completed },
             ]}
           />
         </div>

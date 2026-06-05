@@ -10,12 +10,14 @@ import {
 import type { DirectMessage, AppUser } from "@/types";
 import { t } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
+import { useUnread } from "@/unread/UnreadContext";
 import { Spinner } from "@/components/ui";
 
 export function DMChat() {
   const { id: otherId = "" } = useParams();
   const nav = useNavigate();
   const { user } = useAuth();
+  const { markRead } = useUnread();
 
   const [messages, setMessages] = useState<DirectMessage[] | null>(null);
   const [other, setOther] = useState<AppUser | null>(null);
@@ -35,6 +37,11 @@ export function DMChat() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages?.length]);
+
+  // Mark this conversation as seen while it's open.
+  useEffect(() => {
+    if (otherId) markRead(`dm-${otherId}`);
+  }, [otherId, messages?.length, markRead]);
 
   async function send() {
     const text = draft.trim();

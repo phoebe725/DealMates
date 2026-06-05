@@ -72,7 +72,7 @@ export function Segmented<T extends string>({
   value,
   onChange,
 }: {
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; badge?: number }[];
   value: T;
   onChange: (v: T) => void;
 }) {
@@ -84,11 +84,16 @@ export function Segmented<T extends string>({
           <button
             key={o.value}
             onClick={() => onChange(o.value)}
-            className={`flex-1 rounded-xl py-2 text-[14px] font-semibold transition ${
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-[14px] font-semibold transition ${
               sel ? "bg-cream text-ink shadow-sm" : "text-inkMuted"
             }`}
           >
             {o.label}
+            {!!o.badge && (
+              <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-clay px-1 text-[11px] font-semibold leading-[18px] text-cream">
+                {o.badge}
+              </span>
+            )}
           </button>
         );
       })}

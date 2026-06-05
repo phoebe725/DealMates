@@ -16,6 +16,7 @@ import {
 import { needsMorePeople, type ChatMessage, type Plan, type AppUser } from "@/types";
 import { t, systemMessageText } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
+import { useUnread } from "@/unread/UnreadContext";
 import { Chip, Spinner } from "@/components/ui";
 
 function timeLabel(p: Plan) {
@@ -30,6 +31,7 @@ export function PlanDetail() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { markRead } = useUnread();
 
   const planQ = useQuery({ queryKey: ["plan", id], queryFn: () => fetchPlan(id), enabled: !!id });
   const plan = planQ.data ?? null;
@@ -56,6 +58,11 @@ export function PlanDetail() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages.length]);
+
+  // Mark this plan's chat + actions as seen while it's open.
+  useEffect(() => {
+    if (id) markRead(`plan-${id}`);
+  }, [id, messages.length, markRead]);
 
   if (planQ.isLoading) return <Spinner />;
   if (!plan) return <div className="p-6 text-inkMuted">Not found.</div>;

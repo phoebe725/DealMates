@@ -7,17 +7,19 @@ import { fetchConversations, fetchMyActivePlans, fetchLatestMessages } from "@/s
 import type { DMConversation, Plan } from "@/types";
 import { t, systemMessageText } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
+import { useUnread } from "@/unread/UnreadContext";
 import { EmptyState, Segmented, Spinner } from "@/components/ui";
 
 type Filter = "all" | "dm" | "plan";
 
 type Item =
-  | { kind: "dm"; id: string; title: string; avatar: string | null; preview: string; ts: string }
-  | { kind: "plan"; id: string; title: string; avatar: string | null; preview: string; subtitle: string; ts: string };
+  | { kind: "dm"; id: string; title: string; avatar: string | null; preview: string; ts: string; fromSelf: boolean }
+  | { kind: "plan"; id: string; title: string; avatar: string | null; preview: string; subtitle: string; ts: string; fromSelf: boolean };
 
 export function Messages() {
   const nav = useNavigate();
   const { user } = useAuth();
+  const { unreadDMCount, isUnread } = useUnread();
   const [filter, setFilter] = useState<Filter>("all");
 
   const q = useQuery({
@@ -37,7 +39,7 @@ export function Messages() {
     if (!q.data) return [];
     const out: Item[] = [];
     for (const d of q.data.dms as DMConversation[]) {
-      out.push({ kind: "dm", id: d.otherUserId, title: d.otherUserName, avatar: d.otherUserAvatarURL, preview: d.lastMessage, ts: d.lastTimestamp });
+      out.push({ kind: "dm", id: d.otherUserId, title: d.otherUserName, avatar: d.otherUserAvatarURL, preview: d.lastMessage, ts: d.lastTimestamp, fromSelf: d.lastSenderId === user!.id });
     }
     for (const p of q.data.plans as Plan[]) {
       const last = q.data.latest[p.id];
@@ -54,6 +56,7 @@ export function Messages() {
         preview,
         subtitle: t("Group · %lld/%lld", p.current_people, p.needed_people),
         ts: last?.timestamp ?? "0",
+        fromSelf: !last || last.sender_id === user!.id || last.is_system,
       });
     }
     return out.sort((a, b) => b.ts.localeCompare(a.ts));
@@ -72,7 +75,7 @@ export function Messages() {
           onChange={setFilter}
           options={[
             { value: "all", label: t("All") },
-            { value: "dm", label: t("DMs") },
+            { value: "dm", label: t("DMs"), badge: unreadDMCount },
             { value: "plan", label: t("Plans") },
           ]}
         />
@@ -88,22 +91,27 @@ export function Messages() {
         />
       ) : (
         <div className="divide-y divide-fog">
-          {visible.map((it) => (
-            <button
-              key={`${it.kind}-${it.id}`}
-              onClick={() => nav(it.kind === "dm" ? `/dm/${it.id}` : `/plan/${it.id}`)}
-              className="flex w-full items-center gap-3 px-5 py-3 text-left"
-            >
-              <Avatar name={it.title} url={it.avatar} plan={it.kind === "plan"} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="truncate font-medium text-ink">{it.title}</span>
-                  {it.kind === "plan" && <span className="text-[11px] text-inkMuted">{it.subtitle}</span>}
+          {visible.map((it) => {
+            const chatId = it.kind === "dm" ? `dm-${it.id}` : `plan-${it.id}`;
+            const unread = !it.fromSelf && isUnread(chatId, it.ts);
+            return (
+              <button
+                key={`${it.kind}-${it.id}`}
+                onClick={() => nav(it.kind === "dm" ? `/dm/${it.id}` : `/plan/${it.id}`)}
+                className="flex w-full items-center gap-3 px-5 py-3 text-left"
+              >
+                <Avatar name={it.title} url={it.avatar} plan={it.kind === "plan"} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`truncate ${unread ? "font-semibold text-ink" : "font-medium text-ink"}`}>{it.title}</span>
+                    {it.kind === "plan" && <span className="text-[11px] text-inkMuted">{it.subtitle}</span>}
+                  </div>
+                  <div className={`truncate text-[13px] ${unread ? "text-ink" : "text-inkMuted"}`}>{it.preview}</div>
                 </div>
-                <div className="truncate text-[13px] text-inkMuted">{it.preview}</div>
-              </div>
-            </button>
-          ))}
+                {unread && <span className="ml-1 h-2.5 w-2.5 shrink-0 rounded-full bg-clay" />}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

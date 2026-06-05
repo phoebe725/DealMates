@@ -104,6 +104,31 @@ export async function fetchMyActivePlans(userId: string): Promise<Plan[]> {
   return (data ?? []) as Plan[];
 }
 
+/** The user's plans whose attendance hasn't been confirmed yet — the same set
+ *  My Plans counts in its Active / Ready-to-go buckets. Drives unread badges. */
+export async function fetchMyOpenPlans(userId: string): Promise<Plan[]> {
+  const { data, error } = await supabase
+    .from("plans")
+    .select("*")
+    .contains("member_ids", [userId])
+    .is("attendance_confirmed_at", null);
+  if (error) throw error;
+  return (data ?? []) as Plan[];
+}
+
+/** System messages (joins/leaves/etc.) across the given plans — used to count
+ *  unread plan *actions* for the My Plans tab badge. */
+export async function fetchSystemMessages(planIds: string[]): Promise<ChatMessage[]> {
+  if (planIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("messages")
+    .select("*")
+    .in("plan_id", planIds)
+    .eq("is_system", true);
+  if (error) throw error;
+  return (data ?? []) as ChatMessage[];
+}
+
 /** Latest message per plan (for Messages subtitles). */
 export async function fetchLatestMessages(planIds: string[]): Promise<Record<string, ChatMessage>> {
   if (planIds.length === 0) return {};
@@ -292,6 +317,36 @@ export function listenToPlan(planId: string, onUpdate: (p: Plan) => void): () =>
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+// ----- Account-wide realtime (mirror listenToAll* — drive unread badges) -----
+
+/** Any new chat message anywhere. */
+export function listenToAllMessageInserts(onChange: () => void): () => void {
+  const channel = supabase
+    .channel(`all-messages:${crypto.randomUUID()}`)
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => onChange())
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+
+/** Any new direct message anywhere. */
+export function listenToAllDMInserts(onChange: () => void): () => void {
+  const channel = supabase
+    .channel(`all-dms:${crypto.randomUUID()}`)
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, () => onChange())
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+
+/** Any plan change (insert/update/delete) — e.g. a member joined or attendance
+ *  was confirmed — so badges repaint even from another tab. */
+export function listenToAllPlanChanges(onChange: () => void): () => void {
+  const channel = supabase
+    .channel(`all-plans:${crypto.randomUUID()}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "plans" }, () => onChange())
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
 }
 
 /** Default plan ordering (mirrors Plan.defaultOrder): timed plans soonest
