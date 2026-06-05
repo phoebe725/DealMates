@@ -60,6 +60,18 @@ export function PlanDetail() {
   if (planQ.isLoading) return <Spinner />;
   if (!plan) return <div className="p-6 text-inkMuted">Not found.</div>;
 
+  // System lines from iOS carry the member's UUID in system_args but a real
+  // sentence in `text`; web rebuilds (for localization) from args. Resolve any
+  // known member UUID to their name; if an arg is still an unresolved UUID,
+  // fall back to the stored sentence so we never show a raw id.
+  const nameById: Record<string, string> = Object.fromEntries(members.map((m) => [m.id, m.display_name]));
+  const renderSystem = (m: ChatMessage): string => {
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const args = (m.system_args ?? []).map((a) => nameById[a] ?? a);
+    if (args.some((a) => UUID.test(a))) return m.text || systemMessageText(m.system_kind, args);
+    return systemMessageText(m.system_kind, args);
+  };
+
   const isMember = !!user && plan.member_ids.includes(user.id);
   const need = needsMorePeople(plan);
 
@@ -120,10 +132,14 @@ export function PlanDetail() {
           <div className="text-[11px] font-medium uppercase tracking-wide text-sunDeep">⛵ {t("Your mates")}</div>
           <div className="mt-2 flex flex-wrap gap-2">
             {members.map((m) => (
-              <div key={m.id} className="flex items-center gap-1.5 rounded-full bg-shell px-2.5 py-1">
+              <button
+                key={m.id}
+                onClick={() => nav(`/user/${m.id}`)}
+                className="flex items-center gap-1.5 rounded-full bg-shell px-2.5 py-1 active:bg-fog"
+              >
                 <Avatar user={m} />
                 <span className="text-[13px] text-ink">{m.display_name}</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -133,7 +149,7 @@ export function PlanDetail() {
           {messages.map((m) =>
             m.is_system ? (
               <div key={m.id} className="text-center text-[12px] text-inkMuted">
-                {systemMessageText(m.system_kind, m.system_args)}
+                {renderSystem(m)}
               </div>
             ) : (
               <Bubble key={m.id} m={m} mine={m.sender_id === user?.id} />

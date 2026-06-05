@@ -7,6 +7,7 @@ import { fetchRestaurants, fetchAllActivePlans, defaultPlanOrder } from "@/servi
 import { restaurantName, restaurantDeals, needsMorePeople, type Plan, type Restaurant } from "@/types";
 import { t, localizedCuisine } from "@/i18n";
 import { Chip, EmptyState, Segmented, Spinner } from "@/components/ui";
+import { useDragScroll } from "@/hooks/useDragScroll";
 
 const BUFFET_CATEGORY = "AYCE / Buffet";
 const BUFFET_IDS = new Set([
@@ -44,6 +45,7 @@ export function Discover() {
   const [mode, setMode] = useState<"restaurants" | "plans">("restaurants");
   const [search, setSearch] = useState("");
   const [cuisine, setCuisine] = useState<string | null>(null);
+  const cuisineScroll = useDragScroll<HTMLDivElement>();
 
   const restaurants = useQuery({ queryKey: ["restaurants"], queryFn: fetchRestaurants });
   const plans = useQuery({ queryKey: ["activePlans"], queryFn: fetchAllActivePlans });
@@ -104,7 +106,10 @@ export function Discover() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <div className="mt-3 flex flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch]">
+            <div
+              ref={cuisineScroll}
+              className="mt-3 flex cursor-grab select-none flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] active:cursor-grabbing"
+            >
               <CuisineChip label={t("All cuisines")} active={!cuisine} onClick={() => setCuisine(null)} />
               {cuisines.map((c) => (
                 <CuisineChip

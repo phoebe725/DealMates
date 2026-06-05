@@ -47,7 +47,12 @@ export function DMChat() {
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-fog bg-shell px-4 py-3">
         <button onClick={() => nav(-1)} className="text-[22px] text-ink">‹</button>
-        <span className="flex-1 truncate text-center font-medium text-ink">{other?.display_name ?? ""}</span>
+        <button
+          onClick={() => otherId && nav(`/user/${otherId}`)}
+          className="flex-1 truncate text-center font-medium text-ink"
+        >
+          {other?.display_name ?? ""}
+        </button>
         <span className="w-6" />
       </div>
 

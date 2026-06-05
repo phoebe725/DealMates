@@ -11,6 +11,7 @@ import { MyPlans } from "@/screens/MyPlans";
 import { Messages } from "@/screens/Messages";
 import { DMChat } from "@/screens/DMChat";
 import { Profile } from "@/screens/Profile";
+import { UserProfile } from "@/screens/UserProfile";
 
 function Splash() {
   return (
@@ -37,6 +38,7 @@ function Shell() {
           <Route path="/restaurant/:id" element={<RestaurantBoard />} />
           <Route path="/plan/:id" element={<PlanDetail />} />
           <Route path="/dm/:id" element={<DMChat />} />
+          <Route path="/user/:id" element={<UserProfile />} />
           <Route path="/create" element={<CreatePlan />} />
           <Route path="*" element={<Navigate to="/discover" replace />} />
         </Routes>
