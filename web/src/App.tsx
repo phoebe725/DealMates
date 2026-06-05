@@ -40,6 +40,7 @@ function Shell() {
           <Route path="/dm/:id" element={<DMChat />} />
           <Route path="/user/:id" element={<UserProfile />} />
           <Route path="/create" element={<CreatePlan />} />
+          <Route path="/signin" element={<div className="h-full overflow-y-auto"><SignedOut /></div>} />
           <Route path="*" element={<Navigate to="/discover" replace />} />
         </Routes>
       </main>
@@ -49,12 +50,14 @@ function Shell() {
 }
 
 export default function App() {
-  const { loading, isSignedIn } = useAuth();
+  const { loading, user } = useAuth();
   return (
     <div className="pin-shell">
       {loading ? (
         <Splash />
-      ) : isSignedIn ? (
+      ) : user ? (
+        // Both anonymous guests and signed-in users get the full Shell.
+        // Action gates (join, create, DM) prompt sign-up inline when needed.
         <Shell />
       ) : (
         <div className="h-full overflow-y-auto">

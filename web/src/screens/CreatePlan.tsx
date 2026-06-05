@@ -38,6 +38,21 @@ export function CreatePlan() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Guest / anonymous user — prompt sign-up before creating a plan
+  if (user?.is_anonymous) {
+    return (
+      <div className="flex min-h-full flex-col items-center justify-center px-8 text-center">
+        <div className="text-[48px]">🍽️</div>
+        <h1 className="mt-4 font-sans text-[22px] font-light text-ink">Create a free account to start a plan</h1>
+        <p className="mt-2 text-[14px] text-inkMuted">It takes 20 seconds — no credit card needed.</p>
+        <button className="pin-btn-primary mt-8 w-full max-w-xs" onClick={() => nav("/signin")}>
+          {t("Sign up — it's free")}
+        </button>
+        <button className="mt-3 text-[14px] text-clay" onClick={() => nav(-1)}>{t("Cancel")}</button>
+      </div>
+    );
+  }
+
   if (r.isLoading) return <Spinner />;
   const rest = r.data;
   if (!rest || !user) return <div className="p-6 text-inkMuted">Pick a restaurant from Discover first.</div>;

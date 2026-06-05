@@ -1,12 +1,15 @@
 // Mirrors ProfileView.swift: header, avatar, bio, credits (attendance + hosted),
 // how-it-works, edit (name/bio/avatar), language, sign out.
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { updateProfile, uploadAvatar } from "@/services/db";
 import { useAuth } from "@/auth/AuthContext";
 import { t, currentLang, setLang } from "@/i18n";
+import { Wordmark } from "@/components/ui";
 
 export function Profile() {
-  const { user, refresh, signOut } = useAuth();
+  const { user, isSignedIn, refresh, signOut } = useAuth();
+  const nav = useNavigate();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.display_name ?? "");
   const [bio, setBio] = useState(user?.bio ?? "");
@@ -14,6 +17,44 @@ export function Profile() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   if (!user) return null;
+
+  // Guest / anonymous user — show sign-up prompt
+  if (!isSignedIn) {
+    return (
+      <div className="flex min-h-full flex-col items-center justify-center px-8 pb-16 pt-8 text-center">
+        <Wordmark size={36} />
+        <div className="mt-8 text-[48px]">👤</div>
+        <h1 className="mt-4 font-sans text-[22px] font-light text-ink">
+          {t("You're browsing as a guest")}
+        </h1>
+        <p className="mt-2 text-[14px] text-inkMuted">
+          {t("Create a free account to join plans, chat with mates, and track your dining history.")}
+        </p>
+        <div className="mt-8 w-full max-w-xs space-y-3">
+          <button className="pin-btn-primary" onClick={() => nav("/signin")}>
+            {t("Sign up — it's free")}
+          </button>
+          <button className="pin-btn-secondary" onClick={() => nav("/signin")}>
+            {t("I already have an account")}
+          </button>
+        </div>
+        <div className="mt-8 w-full max-w-xs">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-inkMuted">{t("Settings")}</div>
+          <div className="mt-2 flex gap-2">
+            {(["en", "zh-Hans", "zh-Hant"] as const).map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${currentLang() === l ? "bg-clay text-cream" : "bg-shell text-ink"}`}
+              >
+                {l === "en" ? "English" : l === "zh-Hans" ? "简体" : "繁體"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const rate = user.attendance_record_count && user.attendance_record_count > 0
     ? Math.round(((user.attended_count ?? 0) / user.attendance_record_count) * 100)
