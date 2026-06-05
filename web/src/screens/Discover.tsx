@@ -104,7 +104,12 @@ export function Discover() {
     }
     if (search.trim()) {
       const q = search.toLowerCase();
-      rows = rows.filter((r) => r.name.toLowerCase().includes(q) || r.cuisine.toLowerCase().includes(q));
+      rows = rows.filter((r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.cuisine.toLowerCase().includes(q) ||
+        (r.name_zh_hans ?? "").includes(q) ||
+        (r.name_zh_hant ?? "").includes(q)
+      );
     }
     return rows;
   }, [restaurants.data, cuisine, search]);
