@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchConversations, fetchMyActivePlans, fetchLatestMessages } from "@/services/db";
+import { fetchConversations, fetchMyPlans, fetchLatestMessages } from "@/services/db";
 import type { DMConversation, Plan } from "@/types";
 import { t, systemMessageText } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
@@ -30,7 +30,7 @@ export function Messages() {
     queryFn: async () => {
       const [dms, plans] = await Promise.all([
         fetchConversations(user!.id),
-        fetchMyActivePlans(user!.id),
+        fetchMyPlans(user!.id),
       ]);
       const latest = await fetchLatestMessages(plans.map((p) => p.id));
       return { dms, plans, latest };
