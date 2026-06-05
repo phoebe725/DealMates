@@ -41,6 +41,10 @@ export function PlanDetail() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Snapshot "last seen" at mount time so the divider stays put while reading.
+  const lastSeenAtMount = useRef<string>(
+    localStorage.getItem(`unread.lastSeen.plan-${id}`) ?? "1970-01-01T00:00:00.000Z"
+  );
 
   // Initial chat load + realtime subscriptions.
   useEffect(() => {
@@ -153,15 +157,27 @@ export function PlanDetail() {
 
         {/* Chat */}
         <div className="mt-5 space-y-2">
-          {messages.map((m) =>
-            m.is_system ? (
-              <div key={m.id} className="text-center text-[12px] text-inkMuted">
-                {renderSystem(m)}
+          {messages.map((m, i) => {
+            const isFirstUnread =
+              m.timestamp > lastSeenAtMount.current &&
+              (i === 0 || messages[i - 1].timestamp <= lastSeenAtMount.current);
+            return (
+              <div key={m.id}>
+                {isFirstUnread && (
+                  <div className="my-2 flex items-center gap-2">
+                    <div className="flex-1 border-t border-clay/40" />
+                    <span className="text-[11px] font-semibold text-clay">{t("New messages")}</span>
+                    <div className="flex-1 border-t border-clay/40" />
+                  </div>
+                )}
+                {m.is_system ? (
+                  <div className="text-center text-[12px] text-inkMuted">{renderSystem(m)}</div>
+                ) : (
+                  <Bubble m={m} mine={m.sender_id === user?.id} />
+                )}
               </div>
-            ) : (
-              <Bubble key={m.id} m={m} mine={m.sender_id === user?.id} />
-            ),
-          )}
+            );
+          })}
         </div>
       </div>
 

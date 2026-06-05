@@ -16,16 +16,31 @@ export function SignedOut() {
 
   if (stage === "launch") {
     return (
-      <div className="flex min-h-full flex-col items-center justify-center px-8 text-center">
-        <Wordmark size={40} />
-        <h1 className="mt-10 leading-tight">
-          <span className="font-sans text-[30px] font-light text-ink">{t("Find a ")}</span>
-          <span className="font-accent text-[40px] italic text-clayDeep">{t("Table")}</span>
-        </h1>
-        <p className="mt-2 font-subtitle text-[15px] text-inkMuted">
-          {t("Find people to share group dining deals.")}
-        </p>
-        <div className="mt-10 w-full space-y-3">
+      <div className="flex min-h-full flex-col items-center justify-between px-8 pb-10 pt-6 text-center">
+        {/* Hero illustration + wordmark */}
+        <div className="flex flex-col items-center">
+          <img
+            src="/launch-hero.png"
+            alt=""
+            className="w-48 max-w-[60vw] object-contain"
+            draggable={false}
+          />
+          <Wordmark size={44} />
+        </div>
+
+        {/* Tagline */}
+        <div className="space-y-2">
+          <h1 className="leading-tight">
+            <span className="font-sans text-[30px] font-light text-ink">{t("Find a ")}</span>
+            <span className="font-accent text-[40px] italic text-clayDeep">{t("Table")}</span>
+          </h1>
+          <p className="font-subtitle text-[15px] text-inkMuted">
+            {t("Find people to share group dining deals.")}
+          </p>
+        </div>
+
+        {/* CTAs */}
+        <div className="w-full space-y-3">
           <button className="pin-btn-primary" onClick={() => { setSignUp(true); setStage("form"); }}>
             {t("Sign up")}
           </button>

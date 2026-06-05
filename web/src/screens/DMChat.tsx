@@ -23,6 +23,9 @@ export function DMChat() {
   const [other, setOther] = useState<AppUser | null>(null);
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastSeenAtMount = useRef<string>(
+    localStorage.getItem(`unread.lastSeen.dm-${otherId}`) ?? "1970-01-01T00:00:00.000Z"
+  );
 
   useEffect(() => {
     if (!user || !otherId) return;
@@ -67,12 +70,24 @@ export function DMChat() {
         <Spinner />
       ) : (
         <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto px-5 py-4">
-          {messages.map((m) => {
+          {messages.map((m, i) => {
             const mine = m.sender_id === user?.id;
+            const isFirstUnread =
+              m.timestamp > lastSeenAtMount.current &&
+              (i === 0 || messages[i - 1].timestamp <= lastSeenAtMount.current);
             return (
-              <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[78%] rounded-2xl px-3 py-2 text-[14px] ${mine ? "bg-clay text-cream" : "bg-shell text-ink"}`}>
-                  {m.text}
+              <div key={m.id}>
+                {isFirstUnread && (
+                  <div className="my-2 flex items-center gap-2">
+                    <div className="flex-1 border-t border-clay/40" />
+                    <span className="text-[11px] font-semibold text-clay">{t("New messages")}</span>
+                    <div className="flex-1 border-t border-clay/40" />
+                  </div>
+                )}
+                <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[78%] rounded-2xl px-3 py-2 text-[14px] ${mine ? "bg-clay text-cream" : "bg-shell text-ink"}`}>
+                    {m.text}
+                  </div>
                 </div>
               </div>
             );
