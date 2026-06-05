@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchRestaurant, createPlan } from "@/services/db";
 import { restaurantName, type GenderPreference, type Plan, type TimeType } from "@/types";
+import { generateEventCode } from "@/lib/eventCode";
 import { t } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
 import { Segmented, Spinner } from "@/components/ui";
@@ -79,6 +80,7 @@ export function CreatePlan() {
         gender_preference: pref,
         attendance_confirmed_at: null,
         created_at: now.toISOString(),
+        event_code: generateEventCode(),
       };
       await createPlan(plan);
       nav(`/plan/${plan.id}`, { replace: true });

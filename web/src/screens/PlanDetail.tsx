@@ -44,6 +44,8 @@ export function PlanDetail() {
   const [members, setMembers] = useState<AppUser[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [guestName, setGuestName] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   // Snapshot "last seen" at mount time so the divider stays put while reading.
   const lastSeenAtMount = useRef<string>(
@@ -137,6 +139,20 @@ export function PlanDetail() {
             </span>
           </div>
           {plan.notes && <p className="mt-2 text-[13px] text-inkMuted">{plan.notes}</p>}
+          {plan.event_code && user?.id === plan.creator_id && (
+            <div className="mt-3 flex items-center justify-between rounded-xl bg-cream px-3 py-2">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-inkMuted">Event code</div>
+                <div className="font-mono text-[20px] font-bold tracking-widest text-clay">{plan.event_code}</div>
+              </div>
+              <button
+                onClick={() => navigator.clipboard?.writeText(plan.event_code!)}
+                className="rounded-full bg-clay/15 px-3 py-1 text-[12px] font-semibold text-clay"
+              >
+                Copy
+              </button>
+            </div>
+          )}
           {plan.created_at && (
             <p className="mt-2 text-[11px] text-inkMuted">
               {t("Created %@", new Date(plan.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }))}
@@ -189,6 +205,37 @@ export function PlanDetail() {
 
       {/* Join/leave + composer */}
       <div className="border-t border-fog bg-cream px-4 py-3">
+        {showNamePrompt && (
+          <div className="mb-3 rounded-card bg-shell p-3">
+            <div className="text-[13px] font-medium text-ink">What should we call you?</div>
+            <input
+              className="pin-field mt-2"
+              placeholder="Your name"
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              autoFocus
+            />
+            <div className="mt-2 flex gap-2">
+              <button
+                className="pin-btn-primary flex-1 py-2.5 text-[14px]"
+                disabled={guestName.trim().length < 2 || busy}
+                onClick={async () => {
+                  if (!user || guestName.trim().length < 2) return;
+                  const { updateProfile } = await import("@/services/db");
+                  await updateProfile(user.id, { display_name: guestName.trim() });
+                  user.display_name = guestName.trim();
+                  setShowNamePrompt(false);
+                  toggleMembership();
+                }}
+              >
+                Join
+              </button>
+              <button className="pin-btn-secondary py-2.5 text-[14px]" onClick={() => setShowNamePrompt(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         {isMember ? (
           <div className="flex items-center gap-2">
             <input
@@ -203,7 +250,11 @@ export function PlanDetail() {
             </button>
           </div>
         ) : (
-          <button className="pin-btn-primary" disabled={busy || need === 0} onClick={toggleMembership}>
+          <button
+            className="pin-btn-primary"
+            disabled={busy || need === 0}
+            onClick={() => user?.is_anonymous ? setShowNamePrompt(true) : toggleMembership()}
+          >
             {need === 0 ? t("Group is full") : t("Join this plan")}
           </button>
         )}

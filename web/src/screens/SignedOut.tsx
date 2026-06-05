@@ -31,11 +31,12 @@ export function SignedOut() {
         {/* Tagline */}
         <div className="space-y-2">
           <h1 className="leading-tight">
-            <span className="font-sans text-[30px] font-light text-ink">{t("Find a ")}</span>
-            <span className="font-accent text-[40px] italic text-clayDeep">{t("Table")}</span>
+            <span className="font-sans text-[30px] font-light text-ink">{t("Deals. Tables.")}</span>
+            <br />
+            <span className="font-accent text-[40px] italic text-clayDeep">{t("Together.")}</span>
           </h1>
           <p className="font-subtitle text-[15px] text-inkMuted">
-            {t("Find people to share group dining deals.")}
+            {t("Discover restaurant deals and build your table.")}
           </p>
         </div>
 

@@ -6,10 +6,12 @@ import { useNavigate } from "react-router-dom";
 import { fetchRestaurants, fetchAllActivePlans, defaultPlanOrder } from "@/services/db";
 import { restaurantName, restaurantDeals, needsMorePeople, type Plan, type Restaurant } from "@/types";
 import { t, localizedCuisine } from "@/i18n";
+import { fetchPlanByCode } from "@/services/db";
 import { Chip, EmptyState, Segmented, Spinner } from "@/components/ui";
 import { useDragScroll } from "@/hooks/useDragScroll";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 
+const DEALS_FILTER = "🔥 Deals";
 const BUFFET_CATEGORY = "AYCE / Buffet";
 // Existing restaurants whose cuisine column is not "AYCE / Buffet" but
 // which offer a buffet/AYCE menu. New AYCE restaurants use cuisine="AYCE / Buffet"
@@ -63,6 +65,21 @@ export function Discover() {
 
   const restaurantMap = Object.fromEntries((restaurants.data ?? []).map((r) => [r.id, r]));
 
+  const [codeInput, setCodeInput] = useState("");
+  const [codeBusy, setCodeBusy] = useState(false);
+
+  async function lookupCode() {
+    if (codeInput.trim().length < 3) return;
+    setCodeBusy(true);
+    try {
+      const plan = await fetchPlanByCode(codeInput.trim());
+      if (plan) nav(`/plan/${plan.id}`);
+      else alert("No plan found for that code.");
+    } finally {
+      setCodeBusy(false);
+    }
+  }
+
   const cuisineScroll = useDragScroll<HTMLDivElement>();
   const { ref: pullRef, refreshing } = usePullToRefresh(async () => {
     await Promise.all([restaurants.refetch(), plans.refetch()]);
@@ -71,15 +88,19 @@ export function Discover() {
   const cuisines = useMemo(() => {
     const list = Array.from(new Set((restaurants.data ?? []).map((r) => r.cuisine))).filter((c) => c !== BUFFET_CATEGORY).sort();
     if ((restaurants.data ?? []).some((r) => BUFFET_IDS.has(r.id) || r.cuisine === BUFFET_CATEGORY)) list.unshift(BUFFET_CATEGORY);
+    if ((restaurants.data ?? []).some((r) => restaurantDeals(r).length > 0)) list.unshift(DEALS_FILTER);
     return list;
   }, [restaurants.data]);
 
   const filtered = useMemo(() => {
     let rows = restaurants.data ?? [];
     if (cuisine) {
-      rows = cuisine === BUFFET_CATEGORY
-        ? rows.filter((r) => BUFFET_IDS.has(r.id) || r.cuisine === BUFFET_CATEGORY)
-        : rows.filter((r) => r.cuisine === cuisine);
+      if (cuisine === DEALS_FILTER)
+        rows = rows.filter((r) => restaurantDeals(r).length > 0);
+      else if (cuisine === BUFFET_CATEGORY)
+        rows = rows.filter((r) => BUFFET_IDS.has(r.id) || r.cuisine === BUFFET_CATEGORY);
+      else
+        rows = rows.filter((r) => r.cuisine === cuisine);
     }
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -104,11 +125,32 @@ export function Discover() {
       <div className="px-5 pb-4 pt-3">
         <h1 className="leading-tight">
           <span className="font-sans text-[28px] font-light text-ink">{t("Find a ")}</span>
-          <span className="font-accent text-[38px] italic text-clayDeep">{t("Table")}</span>
+          <span className="font-accent text-[38px] italic text-clayDeep">{t("Deal")}</span>
         </h1>
-        <p className="font-subtitle text-[13px] text-inkMuted">{t("Join dining plans nearby")}</p>
+        <p className="font-subtitle text-[13px] text-inkMuted">{t("Group dining offers near you")}</p>
 
-        <div className="mt-4">
+        <div className="mt-3 flex items-center gap-2">
+          <input
+            className="pin-field flex-1 py-2 text-[13px]"
+            placeholder="Have a code? e.g. PT482"
+            value={codeInput}
+            onChange={(e) => setCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+            onKeyDown={(e) => e.key === "Enter" && lookupCode()}
+            autoCapitalize="characters"
+            autoCorrect="off"
+          />
+          {codeInput.length >= 3 && (
+            <button
+              onClick={lookupCode}
+              disabled={codeBusy}
+              className="shrink-0 rounded-full bg-clay px-3 py-2 text-[12px] font-semibold text-cream"
+            >
+              {codeBusy ? "…" : "Go"}
+            </button>
+          )}
+        </div>
+
+        <div className="mt-3">
           <Segmented
             value={mode}
             onChange={setMode}
@@ -211,6 +253,7 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 function RestaurantCard({ r, onClick }: { r: Restaurant; onClick: () => void }) {
+  const deals = restaurantDeals(r);
   return (
     <button onClick={onClick} className="block w-full overflow-hidden rounded-card bg-shell text-left">
       {r.image_url && (
@@ -219,9 +262,14 @@ function RestaurantCard({ r, onClick }: { r: Restaurant; onClick: () => void }) 
       <div className="p-3.5">
         <div className="flex items-center gap-2">
           <span className="font-sans text-[16px] font-medium text-ink">{restaurantName(r)}</span>
-          {(restaurantDeals(r).length > 0) && <Chip text={t("Deal")} tint="sun" />}
+          {deals.length > 0 && <Chip text={t("Deal")} tint="sun" />}
         </div>
         <div className="text-[13px] text-inkMuted">{localizedCuisine(r.cuisine)}</div>
+        {deals.length > 0 && (
+          <div className="mt-1.5 text-[12px] font-medium text-sunDeep">
+            🔥 {deals[0].title}
+          </div>
+        )}
       </div>
     </button>
   );

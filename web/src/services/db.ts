@@ -225,6 +225,17 @@ export async function createPlan(plan: Plan): Promise<void> {
   if (error) throw error;
 }
 
+/** Look up a plan by its short event code (e.g. PT482). Case-insensitive. */
+export async function fetchPlanByCode(code: string): Promise<Plan | null> {
+  const { data, error } = await supabase
+    .from("plans")
+    .select("*")
+    .ilike("event_code", code.trim())
+    .limit(1);
+  if (error) throw error;
+  return ((data ?? [])[0] as Plan) ?? null;
+}
+
 // ----- Join / leave (mirror DatabaseService.joinPlan / leavePlan) -----
 
 export async function joinPlan(plan: Plan, userId: string, userName: string): Promise<void> {

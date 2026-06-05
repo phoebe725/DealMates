@@ -54,6 +54,7 @@ export interface Plan {
   gender_preference: GenderPreference;
   attendance_confirmed_at: string | null;
   created_at: string | null;
+  event_code: string | null;
 }
 
 export interface AppUser {
