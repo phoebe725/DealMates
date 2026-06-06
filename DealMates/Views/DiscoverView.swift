@@ -126,7 +126,7 @@ struct DiscoverView: View {
                             .foregroundStyle(Color.pinClayDeep)
                     )
                     .lineLimit(1)
-                    Text("Group dining offers near you")
+                    Text(authViewModel.isSignedIn ? "Group dining offers near me" : "Group dining offers near you")
                         .font(.pinSubtitle(13))
                         .foregroundStyle(Color.pinInkMuted)
                 }

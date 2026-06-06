@@ -2596,6 +2596,22 @@
         }
       }
     },
+    "Group dining offers near me" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附近的餐厅拼桌优惠"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附近的餐廳拼桌優惠"
+          }
+        }
+      }
+    },
     "Group dining offers near you" : {
       "localizations" : {
         "zh-Hans" : {

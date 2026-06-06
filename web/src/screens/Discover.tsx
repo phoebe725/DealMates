@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { fetchRestaurants, fetchAllActivePlans, fetchOffersMap, defaultPlanOrder } from "@/services/db";
 import { restaurantName, dealOffers, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
 import { t, localizedCuisine } from "@/i18n";
+import { useAuth } from "@/auth/AuthContext";
 import { fetchPlanByCode } from "@/services/db";
 import { Chip, EmptyState, RestaurantImage, Segmented, Spinner } from "@/components/ui";
 import { useDragScroll } from "@/hooks/useDragScroll";
@@ -42,6 +43,7 @@ function planTimeLabel(p: Plan): string {
 
 export function Discover() {
   const nav = useNavigate();
+  const { isSignedIn } = useAuth();
   const [mode, setMode] = useState<"restaurants" | "plans">("restaurants");
   const [search, setSearch] = useState("");
   const [dealFilter, setDealFilter] = useState<DealFilter | null>(null);
@@ -123,7 +125,7 @@ export function Discover() {
           <span className="font-sans text-[28px] font-light text-ink">{t("Find a ")}</span>
           <span className="font-accent text-[38px] italic text-clayDeep">{t("Deal")}</span>
         </h1>
-        <p className="font-subtitle text-[13px] text-inkMuted">{t("Group dining offers near you")}</p>
+        <p className="font-subtitle text-[13px] text-inkMuted">{t(isSignedIn ? "Group dining offers near me" : "Group dining offers near you")}</p>
 
         <div className="mt-3 flex items-center gap-2">
           <input
