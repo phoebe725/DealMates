@@ -13,12 +13,22 @@ final class RestaurantViewModel: ObservableObject {
     }
     @Published var isLoading = false
     @Published var errorMessage: String?
+    /// Active offers grouped by restaurant id (restaurant_offers table).
+    @Published var offersByRestaurant: [String: [RestaurantOffer]] = [:]
 
     /// Synthetic cross-cuisine filter chips. "AYCE / Buffet" is driven by the
     /// restaurant's `is_buffet` column (source of truth); "🔥 Deals" by whether
-    /// the restaurant has any deals.
+    /// the restaurant has any deal-like offer.
     static let dealsCategory  = "🔥 Deals"
     static let buffetCategory = "AYCE / Buffet"
+
+    /// Offers-first, with legacy displayDeals as fallback when a restaurant has
+    /// no rows in restaurant_offers (or the table isn't there yet).
+    func offers(for r: Restaurant) -> [RestaurantOffer] {
+        if let o = offersByRestaurant[r.id], !o.isEmpty { return o }
+        return r.displayDeals.enumerated().map { RestaurantOffer.fromDeal($1, restaurantId: r.id, index: $0) }
+    }
+    func hasDealLike(_ r: Restaurant) -> Bool { offers(for: r).contains { $0.isDealLike } }
 
     /// Sorted, unique cuisine list from loaded restaurants — reflects the actual
     /// `cuisine` values in the table (no client-side hiding). The "AYCE / Buffet"
@@ -28,7 +38,7 @@ final class RestaurantViewModel: ObservableObject {
         if restaurants.contains(where: { $0.isBuffet }) {
             cuisines.insert(Self.buffetCategory, at: 0)
         }
-        if restaurants.contains(where: { !$0.displayDeals.isEmpty }) {
+        if restaurants.contains(where: { hasDealLike($0) }) {
             cuisines.insert(Self.dealsCategory, at: 0)
         }
         return cuisines
@@ -47,6 +57,7 @@ final class RestaurantViewModel: ObservableObject {
         errorMessage = nil
         do {
             restaurants = try await service.fetchRestaurants()
+            offersByRestaurant = await service.fetchOffersMap()
             applyFilter()
         } catch {
             print("[DEBUG] Failed to load restaurants: \(error)")
@@ -69,7 +80,7 @@ final class RestaurantViewModel: ObservableObject {
         var result = restaurants
         if let cuisine = cuisineFilter, !cuisine.isEmpty {
             if cuisine == Self.dealsCategory {
-                result = result.filter { !$0.displayDeals.isEmpty }
+                result = result.filter { hasDealLike($0) }
             } else if cuisine == Self.buffetCategory {
                 result = result.filter { $0.isBuffet }
             } else {

@@ -2,6 +2,10 @@ import SwiftUI
 
 struct RestaurantCardView: View {
     let restaurant: Restaurant
+    var offers: [RestaurantOffer] = []
+
+    private var headline: RestaurantOffer? { offers.first(where: { $0.isDealLike }) }
+    private var groupBadge: String? { offers.first(where: { $0.isGroupGated })?.groupBadge }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -21,11 +25,20 @@ struct RestaurantCardView: View {
                     .font(.pinSubtitle(12))
                     .foregroundStyle(Color.pinInkMuted)
                     .lineLimit(1)
-                if let deal = restaurant.displayDeals.first {
-                    Label(deal.title, systemImage: "flame.fill")
-                        .font(.pinSubtitle(12).weight(.medium))
-                        .foregroundStyle(Color.pinSunDeep)
-                        .lineLimit(1)
+                if let headline {
+                    HStack(spacing: 6) {
+                        Label(headline.displayTitle, systemImage: "flame.fill")
+                            .font(.pinSubtitle(12).weight(.medium))
+                            .foregroundStyle(Color.pinSunDeep)
+                            .lineLimit(1)
+                        if let groupBadge {
+                            Text(groupBadge)
+                                .font(.pinSubtitle(11).weight(.semibold))
+                                .foregroundStyle(Color.pinClayDeep)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Color.pinClay.opacity(0.15), in: Capsule())
+                        }
+                    }
                 }
             }
 

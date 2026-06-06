@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 struct DMTarget: Identifiable, Hashable {
     let uid: String
@@ -16,6 +15,7 @@ enum PlanTimeFilter: String, CaseIterable, Identifiable {
 enum PlanSortMode: String, CaseIterable, Identifiable {
     case timeAsc = "Time: Earliest"
     case timeDesc = "Time: Latest"
+    case nameAsc = "Name (A–Z)"
     case distance = "Distance: Nearest"
     var id: String { rawValue }
 }
@@ -50,7 +50,15 @@ struct RestaurantBoardView: View {
     @State private var timeFilter: PlanTimeFilter = .all
     @State private var statusFilter: PlanStatusFilter = .all
     @State private var sortMode: PlanSortMode = .timeAsc
+    @State private var offers: [RestaurantOffer] = []
     @ObservedObject private var subs = SubscriptionsViewModel.shared
+
+    /// Offers-first; fall back to the legacy deals JSON when there are no rows.
+    private var displayOffers: [RestaurantOffer] {
+        offers.isEmpty
+            ? restaurant.displayDeals.enumerated().map { RestaurantOffer.fromDeal($1, restaurantId: restaurant.id, index: $0) }
+            : offers
+    }
 
     init(restaurant: Restaurant) {
         self.restaurant = restaurant
@@ -99,6 +107,7 @@ struct RestaurantBoardView: View {
             DMChatView(currentUid: authViewModel.uid, otherUid: target.uid)
         }
         .onAppear  { vm.startListening() }
+        .task { offers = await DatabaseService.shared.fetchOffers(restaurantId: restaurant.id) }
         .onDisappear { vm.stopListening() }
         .alert("Heads up", isPresented: Binding(
             get:  { vm.errorMessage != nil },
@@ -164,8 +173,8 @@ struct RestaurantBoardView: View {
 
     @ViewBuilder
     private var dealsBanner: some View {
-        let deals = restaurant.displayDeals
-        if !deals.isEmpty {
+        let shown = displayOffers
+        if !shown.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 6) {
                     Image(systemName: "tag.fill")
@@ -175,14 +184,31 @@ struct RestaurantBoardView: View {
                         .font(.pinBody(12, weight: .medium))
                         .foregroundStyle(Color.pinClayDeep)
                 }
-                ForEach(Array(deals.enumerated()), id: \.offset) { _, deal in
+                ForEach(shown) { offer in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(deal.title)
-                            .font(.pinBody(14, weight: .medium))
-                            .foregroundStyle(Color.pinInk)
-                        Text(deal.detail)
-                            .font(.pinSubtitle(12))
-                            .foregroundStyle(Color.pinInkMuted)
+                        HStack(spacing: 6) {
+                            Text(offer.displayTitle)
+                                .font(.pinBody(14, weight: .medium))
+                                .foregroundStyle(Color.pinInk)
+                            if let badge = offer.groupBadge {
+                                Text(badge)
+                                    .font(.pinSubtitle(11).weight(.semibold))
+                                    .foregroundStyle(Color.pinClayDeep)
+                                    .padding(.horizontal, 6).padding(.vertical, 2)
+                                    .background(Color.pinClay.opacity(0.18), in: Capsule())
+                            }
+                            if let pp = offer.pricePp {
+                                Spacer()
+                                Text("£\(pp, specifier: "%g")/pp")
+                                    .font(.pinSubtitle(12).weight(.semibold))
+                                    .foregroundStyle(Color.pinClayDeep)
+                            }
+                        }
+                        if !offer.displayDescription.isEmpty {
+                            Text(offer.displayDescription)
+                                .font(.pinSubtitle(12))
+                                .foregroundStyle(Color.pinInkMuted)
+                        }
                     }
                     .padding(.vertical, 4)
                 }
@@ -204,7 +230,7 @@ struct RestaurantBoardView: View {
                 restaurantHeader
                 dealsBanner
 
-                PinSectionHeader(title: "Active pins")
+                PinSectionHeader(title: "Active plans")
                     .padding(.top, 8)
 
                 ForEach(visiblePlans, id: \.id) { plan in
@@ -243,8 +269,11 @@ struct RestaurantBoardView: View {
             result = result.filter { statusFilter.matches($0) }
         }
         switch sortMode {
-        case .timeAsc:  result.sort { $0.scheduledAt < $1.scheduledAt }
+        case .timeAsc:  result.sort(by: Plan.defaultOrder)
         case .timeDesc: result.sort { $0.scheduledAt > $1.scheduledAt }
+        case .nameAsc:
+            // All plans share this restaurant, so A–Z sorts by organiser name.
+            result.sort { $0.creatorName.localizedCaseInsensitiveCompare($1.creatorName) == .orderedAscending }
         case .distance: break
         }
         return result
@@ -311,10 +340,9 @@ struct RestaurantBoardView: View {
 
     private var emptyBoard: some View {
         PinEmptyState(
-            title: "No active pins here yet",
-            message: "Be the first — pin a plan at \(restaurant.displayName).",
-            systemImage: "mappin",
-            action: ("Pin a plan", { showCreatePlan = true })
+            title: "No active plans here yet",
+            message: "Be the first to pin a plan.",
+            systemImage: "mappin"
         )
     }
 

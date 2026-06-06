@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { fetchRestaurants, fetchAllActivePlans, defaultPlanOrder } from "@/services/db";
-import { restaurantName, restaurantDeals, needsMorePeople, type Plan, type Restaurant } from "@/types";
+import { fetchRestaurants, fetchAllActivePlans, fetchOffersMap, defaultPlanOrder } from "@/services/db";
+import { restaurantName, restaurantDeals, dealToOffer, offerTitle, offerGroupBadge, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
 import { t, localizedCuisine } from "@/i18n";
 import { fetchPlanByCode } from "@/services/db";
 import { Chip, EmptyState, Segmented, Spinner } from "@/components/ui";
@@ -45,8 +45,19 @@ export function Discover() {
   const [cuisine, setCuisine] = useState<string | null>(null);
   const restaurants = useQuery({ queryKey: ["restaurants"], queryFn: fetchRestaurants });
   const plans = useQuery({ queryKey: ["activePlans"], queryFn: fetchAllActivePlans });
+  const offersQ = useQuery({ queryKey: ["offers"], queryFn: fetchOffersMap });
 
   const restaurantMap = Object.fromEntries((restaurants.data ?? []).map((r) => [r.id, r]));
+  const offersMap = offersQ.data ?? {};
+
+  // Offers-first, with legacy restaurants.deals as fallback when a restaurant
+  // has no rows in restaurant_offers (or the table isn't there yet).
+  const offersFor = (r: Restaurant): RestaurantOffer[] => {
+    const o = offersMap[r.id];
+    if (o && o.length) return o;
+    return restaurantDeals(r).map((d, i) => dealToOffer(d, r.id, i));
+  };
+  const hasDealLike = (r: Restaurant) => offersFor(r).some((o) => o.is_deal_like);
 
   const [codeInput, setCodeInput] = useState("");
   const [codeBusy, setCodeBusy] = useState(false);
@@ -65,21 +76,21 @@ export function Discover() {
 
   const cuisineScroll = useDragScroll<HTMLDivElement>();
   const { ref: pullRef, refreshing } = usePullToRefresh(async () => {
-    await Promise.all([restaurants.refetch(), plans.refetch()]);
+    await Promise.all([restaurants.refetch(), plans.refetch(), offersQ.refetch()]);
   });
 
   const cuisines = useMemo(() => {
     const list = Array.from(new Set((restaurants.data ?? []).map((r) => r.cuisine))).filter((c) => c !== BUFFET_CATEGORY).sort();
     if ((restaurants.data ?? []).some((r) => r.is_buffet)) list.unshift(BUFFET_CATEGORY);
-    if ((restaurants.data ?? []).some((r) => restaurantDeals(r).length > 0)) list.unshift(DEALS_FILTER);
+    if ((restaurants.data ?? []).some(hasDealLike)) list.unshift(DEALS_FILTER);
     return list;
-  }, [restaurants.data]);
+  }, [restaurants.data, offersMap]);
 
   const filtered = useMemo(() => {
     let rows = restaurants.data ?? [];
     if (cuisine) {
       if (cuisine === DEALS_FILTER)
-        rows = rows.filter((r) => restaurantDeals(r).length > 0);
+        rows = rows.filter(hasDealLike);
       else if (cuisine === BUFFET_CATEGORY)
         rows = rows.filter((r) => r.is_buffet);
       else
@@ -95,7 +106,7 @@ export function Discover() {
       );
     }
     return rows;
-  }, [restaurants.data, cuisine, search]);
+  }, [restaurants.data, cuisine, search, offersMap]);
 
   const showFeatured = !search.trim();
   const featured = showFeatured ? filtered.filter(featuredEligible) : [];
@@ -185,13 +196,13 @@ export function Discover() {
               <>
                 <SectionHeader title={t("Featured")} />
                 {featured.map((r) => (
-                  <RestaurantCard key={r.id} r={r} onClick={() => nav(`/restaurant/${r.id}`)} />
+                  <RestaurantCard key={r.id} r={r} offers={offersFor(r)} onClick={() => nav(`/restaurant/${r.id}`)} />
                 ))}
                 <SectionHeader title={t("All restaurants")} />
               </>
             )}
             {general.map((r) => (
-              <RestaurantCard key={r.id} r={r} onClick={() => nav(`/restaurant/${r.id}`)} />
+              <RestaurantCard key={r.id} r={r} offers={offersFor(r)} onClick={() => nav(`/restaurant/${r.id}`)} />
             ))}
             {filtered.length === 0 && <EmptyState title={t("No restaurants yet")} emoji="🔍" />}
           </div>
@@ -240,8 +251,11 @@ function SectionHeader({ title }: { title: string }) {
   return <div className="pt-1 text-[13px] font-semibold uppercase tracking-wide text-inkMuted">{title}</div>;
 }
 
-function RestaurantCard({ r, onClick }: { r: Restaurant; onClick: () => void }) {
-  const deals = restaurantDeals(r);
+function RestaurantCard({ r, offers, onClick }: { r: Restaurant; offers: RestaurantOffer[]; onClick: () => void }) {
+  const dealLike = offers.filter((o) => o.is_deal_like);
+  const headline = dealLike[0];
+  const groupOffer = offers.find((o) => o.is_group_gated);
+  const groupBadge = groupOffer ? offerGroupBadge(groupOffer) : null;
   return (
     <button onClick={onClick} className="block w-full overflow-hidden rounded-card bg-shell text-left">
       {r.image_url && (
@@ -250,12 +264,18 @@ function RestaurantCard({ r, onClick }: { r: Restaurant; onClick: () => void }) 
       <div className="p-3.5">
         <div className="flex items-center gap-2">
           <span className="font-sans text-[16px] font-medium text-ink">{restaurantName(r)}</span>
-          {deals.length > 0 && <Chip text={t("Deal")} tint="sun" />}
+          {dealLike.length > 0 && <Chip text={t("Deal")} tint="sun" />}
+          {/* Group-gate badge — only when min_people is set */}
+          {groupBadge && (
+            <span className="rounded-full bg-clay/15 px-2 py-0.5 text-[11px] font-semibold text-clayDeep">
+              {groupBadge}
+            </span>
+          )}
         </div>
         <div className="text-[13px] text-inkMuted">{localizedCuisine(r.cuisine)}</div>
-        {deals.length > 0 && (
+        {headline && (
           <div className="mt-1.5 text-[12px] font-medium text-sunDeep">
-            🔥 {deals[0].title}
+            🔥 {offerTitle(headline)}
           </div>
         )}
       </div>

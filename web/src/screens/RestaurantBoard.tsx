@@ -2,8 +2,8 @@
 // empty state, and the create-a-table CTA.
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchRestaurant, fetchActivePlans, defaultPlanOrder } from "@/services/db";
-import { restaurantName, restaurantDeals, needsMorePeople, type Plan } from "@/types";
+import { fetchRestaurant, fetchActivePlans, fetchRestaurantOffers, defaultPlanOrder } from "@/services/db";
+import { restaurantName, restaurantDeals, dealToOffer, offerTitle, offerDescription, offerGroupBadge, needsMorePeople, type Plan } from "@/types";
 import { t, localizedCuisine as cuisineLabel } from "@/i18n";
 import { Chip, EmptyState, Spinner } from "@/components/ui";
 
@@ -19,12 +19,16 @@ export function RestaurantBoard() {
   const nav = useNavigate();
   const r = useQuery({ queryKey: ["restaurant", id], queryFn: () => fetchRestaurant(id), enabled: !!id });
   const plansQ = useQuery({ queryKey: ["plans", id], queryFn: () => fetchActivePlans(id), enabled: !!id });
+  const offersQ = useQuery({ queryKey: ["offers", id], queryFn: () => fetchRestaurantOffers(id), enabled: !!id });
 
   if (r.isLoading) return <Spinner />;
   const rest = r.data;
   if (!rest) return <div className="p-6 text-inkMuted">Not found.</div>;
 
-  const deals = restaurantDeals(rest);
+  // Offers-first; fall back to the legacy deals JSON if there are no offer rows.
+  const offers = (offersQ.data && offersQ.data.length)
+    ? offersQ.data
+    : restaurantDeals(rest).map((d, i) => dealToOffer(d, rest.id, i));
   const plans = (plansQ.data ?? []).slice().sort(defaultPlanOrder);
 
   return (
@@ -39,14 +43,30 @@ export function RestaurantBoard() {
         <h1 className="font-sans text-[24px] font-medium text-ink">{restaurantName(rest)}</h1>
         <div className="text-[14px] text-inkMuted">{cuisineLabel(rest.cuisine)}{rest.address ? ` · ${rest.address}` : ""}</div>
 
-        {deals.length > 0 && (
+        {offers.length > 0 && (
           <div className="mt-4 space-y-2">
-            {deals.map((d, i) => (
-              <div key={i} className="rounded-card bg-clay/10 p-3">
-                <div className="text-[14px] font-semibold text-clayDeep">{d.title}</div>
-                {d.detail && <div className="text-[13px] text-ink">{d.detail}</div>}
-              </div>
-            ))}
+            {offers.map((o) => {
+              const badge = offerGroupBadge(o);
+              const desc = offerDescription(o);
+              return (
+                <div key={o.id} className="rounded-card bg-clay/10 p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[14px] font-semibold text-clayDeep">{offerTitle(o)}</span>
+                    {badge && (
+                      <span className="rounded-full bg-clay/20 px-2 py-0.5 text-[11px] font-semibold text-clayDeep">
+                        {badge}
+                      </span>
+                    )}
+                    {o.price_pp != null && (
+                      <span className="ml-auto text-[12px] font-semibold text-clayDeep">
+                        £{o.price_pp}/pp
+                      </span>
+                    )}
+                  </div>
+                  {desc && <div className="mt-0.5 text-[13px] text-ink">{desc}</div>}
+                </div>
+              );
+            })}
           </div>
         )}
 

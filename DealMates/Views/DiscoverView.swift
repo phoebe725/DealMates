@@ -247,7 +247,7 @@ struct DiscoverView: View {
         Button {
             selectedRestaurant = restaurant
         } label: {
-            RestaurantCardView(restaurant: restaurant)
+            RestaurantCardView(restaurant: restaurant, offers: vm.offers(for: restaurant))
         }
         .buttonStyle(.plain)
     }

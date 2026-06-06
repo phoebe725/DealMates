@@ -116,6 +116,30 @@ export interface Poll {
   created_at: string | null;
 }
 
+export type OfferType = "buy_x_get_y" | "group_set_menu" | "min_diners_discount" | "other";
+
+// Normalized offer (restaurant_offers table). Read in preference to the legacy
+// restaurants.deals* JSON, which remains as a fallback.
+export interface RestaurantOffer {
+  id: string;
+  restaurant_id: string;
+  offer_order: number;
+  title_en: string | null;
+  title_zh_hans: string | null;
+  title_zh_hant: string | null;
+  description_en: string | null;
+  description_zh_hans: string | null;
+  description_zh_hant: string | null;
+  offer_type: OfferType;
+  is_group_gated: boolean;
+  is_deal_like: boolean;
+  min_people: number | null;
+  max_people: number | null;
+  price_pp: number | null;
+  currency: string | null;
+  is_active: boolean;
+}
+
 // --- locale-aware accessors (mirror Restaurant.swift display* / AppLocale) ---
 
 import { currentLang } from "./i18n";
@@ -132,6 +156,44 @@ export function restaurantDeals(r: Restaurant): Deal[] {
   if (l === "zh-Hans") return r.deals_zh_hans || r.deals || [];
   if (l === "zh-Hant") return r.deals_zh_hant || r.deals || [];
   return r.deals || [];
+}
+
+export function offerTitle(o: RestaurantOffer): string {
+  const l = currentLang();
+  if (l === "zh-Hans") return o.title_zh_hans || o.title_en || "";
+  if (l === "zh-Hant") return o.title_zh_hant || o.title_en || "";
+  return o.title_en || "";
+}
+
+export function offerDescription(o: RestaurantOffer): string {
+  const l = currentLang();
+  if (l === "zh-Hans") return o.description_zh_hans || o.description_en || "";
+  if (l === "zh-Hant") return o.description_zh_hant || o.description_en || "";
+  return o.description_en || "";
+}
+
+/** Language-neutral group-gate badge (e.g. "👥 4+", "👥 2–4"), or null when the
+ *  offer isn't group-gated. People icon + number avoids new i18n strings. */
+export function offerGroupBadge(o: RestaurantOffer): string | null {
+  if (!o.is_group_gated || o.min_people == null) return null;
+  const { min_people: min, max_people: max } = o;
+  if (max != null && max !== min) return `👥 ${min}–${max}`;
+  if (max != null && max === min) return `👥 ${min}`;
+  return `👥 ${min}+`;
+}
+
+/** Convert a legacy Deal JSON entry to an offer-shaped object so the UI can
+ *  render old and new uniformly when falling back. */
+export function dealToOffer(d: Deal, restaurantId: string, i: number): RestaurantOffer {
+  return {
+    id: `legacy-${restaurantId}-${i}`,
+    restaurant_id: restaurantId,
+    offer_order: i,
+    title_en: d.title, title_zh_hans: null, title_zh_hant: null,
+    description_en: d.detail, description_zh_hans: null, description_zh_hant: null,
+    offer_type: "other", is_group_gated: false, is_deal_like: true,
+    min_people: null, max_people: null, price_pp: null, currency: "GBP", is_active: true,
+  };
 }
 
 export function needsMorePeople(p: Plan): number {

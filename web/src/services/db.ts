@@ -3,7 +3,7 @@
 // the matching screens are ported.
 
 import { supabase } from "@/lib/supabase";
-import type { AppUser, ChatMessage, DirectMessage, DMConversation, Plan, Restaurant } from "@/types";
+import type { AppUser, ChatMessage, DirectMessage, DMConversation, Plan, Restaurant, RestaurantOffer } from "@/types";
 
 export async function fetchRestaurants(): Promise<Restaurant[]> {
   const { data, error } = await supabase
@@ -12,6 +12,33 @@ export async function fetchRestaurants(): Promise<Restaurant[]> {
     .order("name", { ascending: true });
   if (error) throw error;
   return (data ?? []) as Restaurant[];
+}
+
+/** All active offers, grouped by restaurant_id and ordered. Returns {} if the
+ *  restaurant_offers table is missing or errors — callers fall back to the
+ *  legacy restaurants.deals JSON. */
+export async function fetchOffersMap(): Promise<Record<string, RestaurantOffer[]>> {
+  const { data, error } = await supabase
+    .from("restaurant_offers")
+    .select("*")
+    .eq("is_active", true)
+    .order("offer_order", { ascending: true });
+  if (error || !data) return {};
+  const map: Record<string, RestaurantOffer[]> = {};
+  for (const o of data as RestaurantOffer[]) (map[o.restaurant_id] ??= []).push(o);
+  return map;
+}
+
+/** Active offers for one restaurant (empty array if none / table missing). */
+export async function fetchRestaurantOffers(restaurantId: string): Promise<RestaurantOffer[]> {
+  const { data, error } = await supabase
+    .from("restaurant_offers")
+    .select("*")
+    .eq("restaurant_id", restaurantId)
+    .eq("is_active", true)
+    .order("offer_order", { ascending: true });
+  if (error || !data) return [];
+  return data as RestaurantOffer[];
 }
 
 export async function fetchRestaurant(id: string): Promise<Restaurant | null> {

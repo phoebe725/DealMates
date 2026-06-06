@@ -13,12 +13,7 @@ final class DatabaseService {
     // MARK: - Restaurants
 
     func fetchRestaurants() async throws -> [Restaurant] {
-        print("[DEBUG] Fetching restaurants...")
         let results: [Restaurant] = try await client.from("restaurants").select().order("name", ascending: true).execute().value
-        print("[DEBUG] Fetch returned \(results.count) restaurants")
-        for r in results {
-            print("[DEBUG] Restaurant: \(r.id) - \(r.name) - \(r.cuisine)")
-        }
         return results
     }
 
@@ -26,6 +21,126 @@ final class DatabaseService {
         let results: [Restaurant] = try await client
             .from("restaurants").select().eq("id", value: id).limit(1).execute().value
         return results.first
+    }
+
+    /// All active offers, grouped by restaurant_id. Returns [:] if the table is
+    /// missing or errors — callers fall back to Restaurant.displayDeals.
+    func fetchOffersMap() async -> [String: [RestaurantOffer]] {
+        do {
+            let rows: [RestaurantOffer] = try await client
+                .from("restaurant_offers").select()
+                .eq("is_active", value: true)
+                .order("offer_order", ascending: true)
+                .execute().value
+            return Dictionary(grouping: rows, by: { $0.restaurantId })
+        } catch {
+            print("[DEBUG] fetchOffersMap failed (falling back to deals JSON): \(error)")
+            return [:]
+        }
+    }
+
+    /// Active offers for one restaurant (empty if none / table missing).
+    func fetchOffers(restaurantId: String) async -> [RestaurantOffer] {
+        do {
+            return try await client
+                .from("restaurant_offers").select()
+                .eq("restaurant_id", value: restaurantId)
+                .eq("is_active", value: true)
+                .order("offer_order", ascending: true)
+                .execute().value
+        } catch {
+            return []
+        }
+    }
+
+    /// Upserts a restaurant by `id` and returns the canonical row. Used when a
+    /// user pins a plan at a MapKit search result that isn't in the curated set,
+    /// and by the admin "add restaurant" flow. Conflicts update in place so a
+    /// place added twice doesn't duplicate.
+    @discardableResult
+    func upsertRestaurant(_ restaurant: Restaurant) async throws -> Restaurant {
+        let rows: [Restaurant] = try await client
+            .from("restaurants")
+            .upsert(restaurant, onConflict: "id")
+            .select()
+            .execute()
+            .value
+        return rows.first ?? restaurant
+    }
+
+    // MARK: - Admin: deals & curation
+
+    /// Pending deals awaiting review, newest first.
+    func fetchPendingDeals() async throws -> [PendingDeal] {
+        try await client.from("pending_deals")
+            .select().eq("status", value: "pending")
+            .order("created_at", ascending: false)
+            .execute().value
+    }
+
+    /// Approves a pending deal: appends `{title, detail}` to the restaurant's
+    /// English `deals`, bumps freshness, and marks the queue row approved. The
+    /// title/detail are passed in so the founder can tweak before approving.
+    func approvePendingDeal(_ pending: PendingDeal, title: String, detail: String) async throws {
+        if let rid = pending.restaurantId, let restaurant = try await fetchRestaurant(id: rid) {
+            var deals = restaurant.deals
+            deals.append(Deal(title: title, detail: detail))
+            try await updateRestaurantDeals(id: rid, deals: deals)
+        }
+        try await setPendingDealStatus(id: pending.id, status: "approved")
+    }
+
+    func rejectPendingDeal(id: String) async throws {
+        try await setPendingDealStatus(id: id, status: "rejected")
+    }
+
+    private func setPendingDealStatus(id: String, status: String) async throws {
+        struct Patch: Encodable { let status: String }
+        try await client.from("pending_deals")
+            .update(Patch(status: status)).eq("id", value: id).execute()
+    }
+
+    /// Updates the English deals array (+ bumps last_deals_verified_at).
+    func updateRestaurantDeals(id: String, deals: [Deal]) async throws {
+        struct Patch: Encodable {
+            let deals: [Deal]
+            let lastDealsVerifiedAt: Date
+            enum CodingKeys: String, CodingKey {
+                case deals
+                case lastDealsVerifiedAt = "last_deals_verified_at"
+            }
+        }
+        try await client.from("restaurants")
+            .update(Patch(deals: deals, lastDealsVerifiedAt: Date()))
+            .eq("id", value: id).execute()
+    }
+
+    /// Manual editor save: English + both Chinese deal arrays (+ freshness).
+    func updateRestaurantDeals(id: String, deals: [Deal], zhHans: [Deal], zhHant: [Deal]) async throws {
+        struct Patch: Encodable {
+            let deals: [Deal]
+            let dealsZhHans: [Deal]
+            let dealsZhHant: [Deal]
+            let lastDealsVerifiedAt: Date
+            enum CodingKeys: String, CodingKey {
+                case deals
+                case dealsZhHans = "deals_zh_hans"
+                case dealsZhHant = "deals_zh_hant"
+                case lastDealsVerifiedAt = "last_deals_verified_at"
+            }
+        }
+        try await client.from("restaurants")
+            .update(Patch(deals: deals, dealsZhHans: zhHans, dealsZhHant: zhHant, lastDealsVerifiedAt: Date()))
+            .eq("id", value: id).execute()
+    }
+
+    func setRestaurantFeatured(id: String, isFeatured: Bool) async throws {
+        struct Patch: Encodable {
+            let isFeatured: Bool
+            enum CodingKeys: String, CodingKey { case isFeatured = "is_featured" }
+        }
+        try await client.from("restaurants")
+            .update(Patch(isFeatured: isFeatured)).eq("id", value: id).execute()
     }
 
     // MARK: - Plans
@@ -91,6 +206,13 @@ final class DatabaseService {
 
     func updatePlan(_ plan: Plan) async throws {
         try await client.from("plans").update(plan).eq("id", value: plan.id).execute()
+    }
+
+    /// Single plan by id — used to open a shared plan link (pintable://plan/<id>).
+    func fetchPlan(id: String) async throws -> Plan? {
+        let rows: [Plan] = try await client
+            .from("plans").select().eq("id", value: id).limit(1).execute().value
+        return rows.first
     }
 
     func deletePlan(planId: String) async throws {
@@ -658,6 +780,20 @@ final class DatabaseService {
             latest[msg.planId] = msg
         }
         return latest
+    }
+
+    /// All system (action) messages — joins/leaves/removals — for the given
+    /// plans, newest first. Used to count unread plan *actions* for the My Plans
+    /// badge (regular chat messages are counted separately for Messages).
+    func fetchSystemMessages(planIds: [String]) async throws -> [ChatMessage] {
+        guard !planIds.isEmpty else { return [] }
+        return try await client.from("messages")
+            .select()
+            .in("plan_id", values: planIds)
+            .eq("is_system", value: true)
+            .order("timestamp", ascending: false)
+            .execute()
+            .value
     }
 
     func sendMessage(_ message: ChatMessage) async throws {
