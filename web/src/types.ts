@@ -25,8 +25,6 @@ export interface Restaurant {
   is_buffet: boolean | null;
   last_deals_verified_at: string | null;
   plan_count: number | null;
-  instagram_handle: string | null;
-  website_url: string | null;
 }
 
 export type TimeType = "asap" | "scheduled" | "flexible";

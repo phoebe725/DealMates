@@ -28,10 +28,8 @@ struct Restaurant: Identifiable, Codable, Hashable {
     var isBuffet: Bool
     var lastDealsVerifiedAt: Date?
     var planCount: Int
-    var instagramHandle: String?
-    var websiteUrl: String?
 
-    init(id: String, name: String, cuisine: String, address: String, imageUrl: String? = nil, latitude: Double? = nil, longitude: Double? = nil, nameZhHans: String? = nil, nameZhHant: String? = nil, cuisineZhHans: String? = nil, cuisineZhHant: String? = nil, deals: [Deal] = [], dealsZhHans: [Deal]? = nil, dealsZhHant: [Deal]? = nil, isFeatured: Bool = false, isBuffet: Bool = false, lastDealsVerifiedAt: Date? = nil, planCount: Int = 0, instagramHandle: String? = nil, websiteUrl: String? = nil) {
+    init(id: String, name: String, cuisine: String, address: String, imageUrl: String? = nil, latitude: Double? = nil, longitude: Double? = nil, nameZhHans: String? = nil, nameZhHant: String? = nil, cuisineZhHans: String? = nil, cuisineZhHant: String? = nil, deals: [Deal] = [], dealsZhHans: [Deal]? = nil, dealsZhHant: [Deal]? = nil, isFeatured: Bool = false, isBuffet: Bool = false, lastDealsVerifiedAt: Date? = nil, planCount: Int = 0) {
         self.id = id
         self.name = name
         self.cuisine = cuisine
@@ -50,8 +48,6 @@ struct Restaurant: Identifiable, Codable, Hashable {
         self.isBuffet = isBuffet
         self.lastDealsVerifiedAt = lastDealsVerifiedAt
         self.planCount = planCount
-        self.instagramHandle = instagramHandle
-        self.websiteUrl = websiteUrl
     }
 
     init(from decoder: Decoder) throws {
@@ -74,8 +70,6 @@ struct Restaurant: Identifiable, Codable, Hashable {
         isBuffet            = (try? c.decodeIfPresent(Bool.self, forKey: .isBuffet)) ?? false
         lastDealsVerifiedAt = try? c.decodeIfPresent(Date.self, forKey: .lastDealsVerifiedAt)
         planCount           = (try? c.decodeIfPresent(Int.self, forKey: .planCount)) ?? 0
-        instagramHandle     = try? c.decodeIfPresent(String.self, forKey: .instagramHandle)
-        websiteUrl          = try? c.decodeIfPresent(String.self, forKey: .websiteUrl)
     }
 
     /// Eligible for the Discover "Featured" section: has at least one deal and
@@ -106,8 +100,6 @@ extension Restaurant {
         case isBuffet = "is_buffet"
         case lastDealsVerifiedAt = "last_deals_verified_at"
         case planCount = "plan_count"
-        case instagramHandle = "instagram_handle"
-        case websiteUrl = "website_url"
     }
 
     /// Returns name in the user's preferred app language (zh-Hans / zh-Hant) if available, else original.
