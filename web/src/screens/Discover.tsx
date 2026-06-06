@@ -64,7 +64,7 @@ export function Discover() {
     try {
       const plan = await fetchPlanByCode(codeInput.trim());
       if (plan) nav(`/plan/${plan.id}`);
-      else alert("No plan found for that code.");
+      else alert(t("No plan found for that code."));
     } finally {
       setCodeBusy(false);
     }
@@ -128,7 +128,7 @@ export function Discover() {
         <div className="mt-3 flex items-center gap-2">
           <input
             className="pin-field flex-1 py-2 text-[13px]"
-            placeholder="Have a code? e.g. PT482"
+            placeholder={t("Have a code? e.g. PT482")}
             value={codeInput}
             onChange={(e) => setCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
             onKeyDown={(e) => e.key === "Enter" && lookupCode()}
@@ -141,7 +141,7 @@ export function Discover() {
               disabled={codeBusy}
               className="shrink-0 rounded-full bg-clay px-3 py-2 text-[12px] font-semibold text-cream"
             >
-              {codeBusy ? "…" : "Go"}
+              {codeBusy ? "…" : t("Go")}
             </button>
           )}
         </div>

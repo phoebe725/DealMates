@@ -94,6 +94,20 @@ final class DatabaseService {
         return plans
     }
 
+    /// Look up a plan by its short event code (e.g. PT482). Case-insensitive.
+    /// Mirrors web's `fetchPlanByCode`.
+    func fetchPlanByCode(_ code: String) async throws -> Plan? {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        let results: [Plan] = try await client
+            .from("plans")
+            .select()
+            .ilike("event_code", value: trimmed)
+            .limit(1)
+            .execute()
+            .value
+        return results.first
+    }
+
     /// Returns plans where the current user is a member and which haven't expired.
     func fetchMyActivePlans(userId: String) async throws -> [Plan] {
         let now = ISO8601DateFormatter().string(from: Date())

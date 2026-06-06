@@ -30,6 +30,9 @@ struct DiscoverView: View {
     @State private var plansLoading: Bool = false
     @State private var showMap = false
     @State private var didInitialLoad = false
+    @State private var codeInput = ""
+    @State private var codeBusy = false
+    @State private var codeNotFound = false
 
     var body: some View {
         NavigationStack {
@@ -63,6 +66,9 @@ struct DiscoverView: View {
             }
             .navigationDestination(item: $selectedPlan) { plan in
                 PlanDetailView(plan: plan, planVM: PlanViewModel(restaurantId: plan.restaurantId))
+            }
+            .alert("No plan found for that code.", isPresented: $codeNotFound) {
+                Button("OK", role: .cancel) { }
             }
         }
         .onAppear {
@@ -128,6 +134,8 @@ struct DiscoverView: View {
                 headerActions
             }
 
+            codeSearchField
+
             PinSegmentedPicker(
                 options: [(value: DiscoverMode.restaurants, label: "Restaurants"),
                           (value: DiscoverMode.plans, label: "Plans")],
@@ -139,6 +147,48 @@ struct DiscoverView: View {
                 dealChips
                 cuisineChips
             }
+        }
+    }
+
+    // Join a specific plan by its short shareable code (e.g. PT482).
+    private var codeSearchField: some View {
+        HStack(spacing: 8) {
+            TextField("Have a code? e.g. PT482", text: $codeInput)
+                .font(.pinBody(14))
+                .foregroundStyle(Color.pinInk)
+                .tint(Color.pinClay)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.characters)
+                .submitLabel(.go)
+                .onSubmit { Task { await lookupCode() } }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.pinShell))
+            if codeInput.trimmingCharacters(in: .whitespaces).count >= 3 {
+                Button { Task { await lookupCode() } } label: {
+                    Text(codeBusy ? "…" : AppLocalization.string("Go"))
+                        .font(.pinButton(14))
+                        .foregroundStyle(Color.pinCream)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 11)
+                        .background(Capsule().fill(Color.pinClay))
+                }
+                .buttonStyle(.plain)
+                .disabled(codeBusy)
+            }
+        }
+    }
+
+    private func lookupCode() async {
+        let code = codeInput.trimmingCharacters(in: .whitespaces)
+        guard code.count >= 3, !codeBusy else { return }
+        codeBusy = true
+        defer { codeBusy = false }
+        if let plan = try? await DatabaseService.shared.fetchPlanByCode(code) {
+            codeInput = ""
+            selectedPlan = plan
+        } else {
+            codeNotFound = true
         }
     }
 
