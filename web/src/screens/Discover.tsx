@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { fetchRestaurants, fetchAllActivePlans, fetchOffersMap, defaultPlanOrder } from "@/services/db";
-import { restaurantName, restaurantDeals, dealToOffer, offerTitle, offerGroupBadge, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
+import { restaurantName, restaurantDeals, dealToOffer, offerTitle, offerGroupBadge, topOffer, dealOffers, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
 import { t, localizedCuisine } from "@/i18n";
 import { fetchPlanByCode } from "@/services/db";
 import { Chip, EmptyState, Segmented, Spinner } from "@/components/ui";
@@ -58,7 +58,7 @@ export function Discover() {
     if (o && o.length) return o;
     return restaurantDeals(r).map((d, i) => dealToOffer(d, r.id, i));
   };
-  const hasDealLike = (r: Restaurant) => offersFor(r).some((o) => o.is_deal_like);
+  const hasDealLike = (r: Restaurant) => dealOffers(offersFor(r)).length > 0;
 
   const [codeInput, setCodeInput] = useState("");
   const [codeBusy, setCodeBusy] = useState(false);
@@ -253,14 +253,14 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 function RestaurantCard({ r, offers, onClick }: { r: Restaurant; offers: RestaurantOffer[]; onClick: () => void }) {
-  const dealLike = offers.filter((o) => o.is_deal_like);
-  const headline = dealLike[0];
-  const groupOffer = offers.find((o) => o.is_group_gated);
-  const groupBadge = groupOffer ? offerGroupBadge(groupOffer) : null;
+  // The single most important offer: group-gated wins, then deal; highlights
+  // never surface on the card.
+  const top = topOffer(offers);
+  const isGroup = top?.category === "group_gated";
+  const groupBadge = isGroup ? offerGroupBadge(top) : null;
   const handleClick = () => {
     trackRestaurantClick(r.id);
-    // deal_click also fires when the card surfaces a deal.
-    if (headline) trackDealClick(headline.id, r.id, { offer_type: headline.offer_type });
+    if (top) trackDealClick(top.id, r.id, { offer_type: top.offer_type, category: top.category });
     onClick();
   };
   return (
@@ -271,8 +271,6 @@ function RestaurantCard({ r, offers, onClick }: { r: Restaurant; offers: Restaur
       <div className="p-3.5">
         <div className="flex items-center gap-2">
           <span className="font-sans text-[16px] font-medium text-ink">{restaurantName(r)}</span>
-          {dealLike.length > 0 && <Chip text={t("Deal")} tint="sun" />}
-          {/* Group-gate badge — only when min_people is set */}
           {groupBadge && (
             <span className="rounded-full bg-clay/15 px-2 py-0.5 text-[11px] font-semibold text-clayDeep">
               {groupBadge}
@@ -280,9 +278,9 @@ function RestaurantCard({ r, offers, onClick }: { r: Restaurant; offers: Restaur
           )}
         </div>
         <div className="text-[13px] text-inkMuted">{localizedCuisine(r.cuisine)}</div>
-        {headline && (
-          <div className="mt-1.5 text-[12px] font-medium text-sunDeep">
-            🔥 {offerTitle(headline)}
+        {top && (
+          <div className={`mt-1.5 text-[13px] font-semibold ${isGroup ? "text-clayDeep" : "text-sunDeep"}`}>
+            🔥 {offerTitle(top)}
           </div>
         )}
       </div>

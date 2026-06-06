@@ -13,6 +13,7 @@ struct RestaurantOffer: Identifiable, Codable, Hashable {
     var descriptionZhHans: String?
     var descriptionZhHant: String?
     var offerType: String
+    var category: String          // group_gated | deal | highlight
     var isGroupGated: Bool
     var isDealLike: Bool
     var minPeople: Int?
@@ -45,13 +46,23 @@ struct RestaurantOffer: Identifiable, Codable, Hashable {
         return "👥 \(min)+"
     }
 
+    /// Offers that belong in the Deals experience (everything but highlights).
+    static func deals(_ offers: [RestaurantOffer]) -> [RestaurantOffer] {
+        offers.filter { $0.category != "highlight" }
+    }
+
+    /// The single most important offer for a card: group-gated wins, then deal.
+    static func top(_ offers: [RestaurantOffer]) -> RestaurantOffer? {
+        offers.first { $0.category == "group_gated" } ?? offers.first { $0.category == "deal" }
+    }
+
     /// Build an offer-shaped value from a legacy Deal for fallback rendering.
     static func fromDeal(_ d: Deal, restaurantId: String, index: Int) -> RestaurantOffer {
         RestaurantOffer(
             id: "legacy-\(restaurantId)-\(index)", restaurantId: restaurantId, offerOrder: index,
             titleEn: d.title, titleZhHans: nil, titleZhHant: nil,
             descriptionEn: d.detail, descriptionZhHans: nil, descriptionZhHant: nil,
-            offerType: "other", isGroupGated: false, isDealLike: true,
+            offerType: "other", category: "deal", isGroupGated: false, isDealLike: true,
             minPeople: nil, maxPeople: nil, pricePp: nil, currency: "GBP", isActive: true
         )
     }
@@ -69,6 +80,7 @@ extension RestaurantOffer {
         case descriptionZhHans = "description_zh_hans"
         case descriptionZhHant = "description_zh_hant"
         case offerType = "offer_type"
+        case category
         case isGroupGated = "is_group_gated"
         case isDealLike = "is_deal_like"
         case minPeople = "min_people"
@@ -90,6 +102,7 @@ extension RestaurantOffer {
         descriptionZhHans = try? c.decodeIfPresent(String.self, forKey: .descriptionZhHans)
         descriptionZhHant = try? c.decodeIfPresent(String.self, forKey: .descriptionZhHant)
         offerType        = (try? c.decodeIfPresent(String.self, forKey: .offerType)) ?? "other"
+        category         = (try? c.decodeIfPresent(String.self, forKey: .category)) ?? "deal"
         isGroupGated     = (try? c.decodeIfPresent(Bool.self, forKey: .isGroupGated)) ?? false
         isDealLike       = (try? c.decodeIfPresent(Bool.self, forKey: .isDealLike)) ?? true
         minPeople        = try? c.decodeIfPresent(Int.self, forKey: .minPeople)

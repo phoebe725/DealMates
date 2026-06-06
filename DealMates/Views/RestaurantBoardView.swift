@@ -137,98 +137,146 @@ struct RestaurantBoardView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if vm.plans.isEmpty {
             ScrollView {
-                VStack(spacing: 18) {
-                    restaurantHeader
-                    dealsBanner
-                    emptyBoard
-                        .padding(.top, 24)
+                VStack(alignment: .leading, spacing: 18) {
+                    dealsSection
+                    VStack(spacing: 0) {
+                        PinSectionHeader(title: "Active plans")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        emptyBoard.padding(.top, 16)
+                    }
+                    infoSection
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
-                .padding(.bottom, 80)
+                .padding(.bottom, 96)
             }
         } else {
             planList
         }
     }
 
-    // MARK: - Restaurant header
+    // MARK: - Current deals (top of page)
 
-    private var restaurantHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            (
-                Text(restaurant.displayName)
-                    .font(.pinHero(28, weight: .light))
+    @ViewBuilder
+    private var dealsSection: some View {
+        let deals = RestaurantOffer.deals(displayOffers)   // group_gated + deal
+        if !deals.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                PinSectionHeader(title: "Current deals")
+                ForEach(deals) { offer in
+                    if offer.category == "group_gated" {
+                        groupDealCard(offer)
+                    } else {
+                        dealCard(offer)
+                    }
+                }
+            }
+        }
+    }
+
+    private func dealCard(_ offer: RestaurantOffer) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Text("🔥 " + offer.displayTitle)
+                    .font(.pinBody(14, weight: .semibold))
+                    .foregroundStyle(Color.pinClayDeep)
+                if let pp = offer.pricePp {
+                    Spacer()
+                    Text("£\(pp, specifier: "%g")/pp")
+                        .font(.pinSubtitle(12).weight(.semibold))
+                        .foregroundStyle(Color.pinClayDeep)
+                }
+            }
+            if !offer.displayDescription.isEmpty {
+                Text(offer.displayDescription)
+                    .font(.pinSubtitle(12))
                     .foregroundStyle(Color.pinInk)
-            )
-            .lineLimit(2)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.pinClay.opacity(0.10)))
+    }
+
+    private func groupDealCard(_ offer: RestaurantOffer) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text("🔥 " + AppLocalization.string("Group deal"))
+                    .font(.pinSubtitle(11, weight: .bold))
+                    .foregroundStyle(Color.pinClayDeep)
+                    .textCase(.uppercase)
+                if let badge = offer.groupBadge {
+                    Text(badge)
+                        .font(.pinSubtitle(11).weight(.semibold))
+                        .foregroundStyle(Color.pinClayDeep)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color.pinClay.opacity(0.25), in: Capsule())
+                }
+                if let pp = offer.pricePp {
+                    Spacer()
+                    Text("£\(pp, specifier: "%g")/pp")
+                        .font(.pinSubtitle(12).weight(.semibold))
+                        .foregroundStyle(Color.pinClayDeep)
+                }
+            }
+            if let min = offer.minPeople {
+                Text(String(format: AppLocalization.string("Requires %lld people"), min))
+                    .font(.pinSubtitle(12))
+                    .foregroundStyle(Color.pinClayDeep)
+            }
+            Text(offer.displayTitle)
+                .font(.pinBody(15, weight: .semibold))
+                .foregroundStyle(Color.pinInk)
+            if !offer.displayDescription.isEmpty {
+                Text(offer.displayDescription)
+                    .font(.pinSubtitle(12))
+                    .foregroundStyle(Color.pinInk)
+            }
+            Button { showCreatePlan = true } label: {
+                Text("Create table for this deal")
+                    .font(.pinButton(14))
+                    .foregroundStyle(Color.pinCream)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color.pinClay, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.pinClay.opacity(0.15)))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.pinClay.opacity(0.4), lineWidth: 2))
+    }
+
+    // MARK: - Restaurant info (bottom of page)
+
+    @ViewBuilder
+    private var infoSection: some View {
+        let highlights = displayOffers.filter { $0.category == "highlight" }
+        VStack(alignment: .leading, spacing: 6) {
+            PinSectionHeader(title: "Restaurant info")
+            Text(restaurant.displayName)
+                .font(.pinBody(18, weight: .medium))
+                .foregroundStyle(Color.pinInk)
             Text(restaurant.displayCuisine + " · " + restaurant.address)
                 .font(.pinSubtitle(13))
                 .foregroundStyle(Color.pinInkMuted)
+            ForEach(highlights) { h in
+                Text("· " + h.displayTitle + (h.displayDescription.isEmpty ? "" : " — " + h.displayDescription))
+                    .font(.pinSubtitle(12))
+                    .foregroundStyle(Color.pinInk)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: - Deals banner
-
-    @ViewBuilder
-    private var dealsBanner: some View {
-        let shown = displayOffers
-        if !shown.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 6) {
-                    Image(systemName: "tag.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color.pinClay)
-                    Text("Deals at this spot")
-                        .font(.pinBody(12, weight: .medium))
-                        .foregroundStyle(Color.pinClayDeep)
-                }
-                ForEach(shown) { offer in
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(offer.displayTitle)
-                                .font(.pinBody(14, weight: .medium))
-                                .foregroundStyle(Color.pinInk)
-                            if let badge = offer.groupBadge {
-                                Text(badge)
-                                    .font(.pinSubtitle(11).weight(.semibold))
-                                    .foregroundStyle(Color.pinClayDeep)
-                                    .padding(.horizontal, 6).padding(.vertical, 2)
-                                    .background(Color.pinClay.opacity(0.18), in: Capsule())
-                            }
-                            if let pp = offer.pricePp {
-                                Spacer()
-                                Text("£\(pp, specifier: "%g")/pp")
-                                    .font(.pinSubtitle(12).weight(.semibold))
-                                    .foregroundStyle(Color.pinClayDeep)
-                            }
-                        }
-                        if !offer.displayDescription.isEmpty {
-                            Text(offer.displayDescription)
-                                .font(.pinSubtitle(12))
-                                .foregroundStyle(Color.pinInkMuted)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color.pinClay.opacity(0.10))
-            )
-        }
     }
 
     // MARK: - Plan list
 
     private var planList: some View {
         ScrollView {
-            LazyVStack(spacing: 14) {
-                restaurantHeader
-                dealsBanner
+            LazyVStack(alignment: .leading, spacing: 14) {
+                dealsSection
 
                 PinSectionHeader(title: "Active plans")
                     .padding(.top, 8)
@@ -244,6 +292,8 @@ struct RestaurantBoardView: View {
                         onOrganiserTap: { uid in profileTarget = UserProfileSheetTarget(id: uid) }
                     )
                 }
+
+                infoSection.padding(.top, 8)
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)

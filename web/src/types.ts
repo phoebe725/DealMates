@@ -117,6 +117,7 @@ export interface Poll {
 }
 
 export type OfferType = "buy_x_get_y" | "group_set_menu" | "min_diners_discount" | "other";
+export type OfferCategory = "group_gated" | "deal" | "highlight";
 
 // Normalized offer (restaurant_offers table). Read in preference to the legacy
 // restaurants.deals* JSON, which remains as a fallback.
@@ -131,6 +132,7 @@ export interface RestaurantOffer {
   description_zh_hans: string | null;
   description_zh_hant: string | null;
   offer_type: OfferType;
+  category: OfferCategory;
   is_group_gated: boolean;
   is_deal_like: boolean;
   min_people: number | null;
@@ -191,9 +193,22 @@ export function dealToOffer(d: Deal, restaurantId: string, i: number): Restauran
     offer_order: i,
     title_en: d.title, title_zh_hans: null, title_zh_hant: null,
     description_en: d.detail, description_zh_hans: null, description_zh_hant: null,
-    offer_type: "other", is_group_gated: false, is_deal_like: true,
+    offer_type: "other", category: "deal", is_group_gated: false, is_deal_like: true,
     min_people: null, max_people: null, price_pp: null, currency: "GBP", is_active: true,
   };
+}
+
+/** Offers that belong in the Deals experience (everything except highlights). */
+export function dealOffers(offers: RestaurantOffer[]): RestaurantOffer[] {
+  return offers.filter((o) => o.category !== "highlight");
+}
+
+/** The single most important offer for a restaurant card: a group-gated offer
+ *  wins, then any deal; highlights never surface here. Null if none. */
+export function topOffer(offers: RestaurantOffer[]): RestaurantOffer | null {
+  return offers.find((o) => o.category === "group_gated")
+    ?? offers.find((o) => o.category === "deal")
+    ?? null;
 }
 
 export function needsMorePeople(p: Plan): number {

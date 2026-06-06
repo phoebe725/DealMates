@@ -4,8 +4,8 @@ struct RestaurantCardView: View {
     let restaurant: Restaurant
     var offers: [RestaurantOffer] = []
 
-    private var headline: RestaurantOffer? { offers.first(where: { $0.isDealLike }) }
-    private var groupBadge: String? { offers.first(where: { $0.isGroupGated })?.groupBadge }
+    private var top: RestaurantOffer? { RestaurantOffer.top(offers) }
+    private var groupBadge: String? { top?.category == "group_gated" ? top?.groupBadge : nil }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -25,11 +25,11 @@ struct RestaurantCardView: View {
                     .font(.pinSubtitle(12))
                     .foregroundStyle(Color.pinInkMuted)
                     .lineLimit(1)
-                if let headline {
+                if let top {
                     HStack(spacing: 6) {
-                        Label(headline.displayTitle, systemImage: "flame.fill")
-                            .font(.pinSubtitle(12).weight(.medium))
-                            .foregroundStyle(Color.pinSunDeep)
+                        Label(top.displayTitle, systemImage: "flame.fill")
+                            .font(.pinSubtitle(12).weight(.semibold))
+                            .foregroundStyle(top.category == "group_gated" ? Color.pinClayDeep : Color.pinSunDeep)
                             .lineLimit(1)
                         if let groupBadge {
                             Text(groupBadge)

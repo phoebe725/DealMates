@@ -3,7 +3,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchRestaurant, fetchActivePlans, fetchRestaurantOffers, defaultPlanOrder } from "@/services/db";
-import { restaurantName, restaurantDeals, dealToOffer, offerTitle, offerDescription, offerGroupBadge, needsMorePeople, type Plan } from "@/types";
+import { restaurantName, restaurantDeals, dealToOffer, offerTitle, offerDescription, offerGroupBadge, dealOffers, needsMorePeople, type Plan, type RestaurantOffer } from "@/types";
 import { t, localizedCuisine as cuisineLabel } from "@/i18n";
 import { trackCreatePlanClick } from "@/lib/analytics";
 import { Chip, EmptyState, Spinner } from "@/components/ui";
@@ -27,51 +27,39 @@ export function RestaurantBoard() {
   if (!rest) return <div className="p-6 text-inkMuted">Not found.</div>;
 
   // Offers-first; fall back to the legacy deals JSON if there are no offer rows.
-  const offers = (offersQ.data && offersQ.data.length)
+  const allOffers = (offersQ.data && offersQ.data.length)
     ? offersQ.data
     : restaurantDeals(rest).map((d, i) => dealToOffer(d, rest.id, i));
+  const deals = dealOffers(allOffers);                                  // group_gated + deal
+  const highlights = allOffers.filter((o) => o.category === "highlight"); // info only
   const plans = (plansQ.data ?? []).slice().sort(defaultPlanOrder);
+
+  const startTable = () => { trackCreatePlanClick(rest.id); nav(`/create?restaurant=${rest.id}`); };
 
   return (
     <div className="relative min-h-screen pb-24">
       <div className="flex items-center gap-2 px-4 py-3">
         <button onClick={() => nav(-1)} className="text-[22px] text-ink">‹</button>
+        <span className="truncate font-medium text-ink">{restaurantName(rest)}</span>
       </div>
 
-      {rest.image_url && <img src={rest.image_url} alt="" className="h-44 w-full object-cover" />}
-
-      <div className="px-5 pt-4">
-        <h1 className="font-sans text-[24px] font-medium text-ink">{restaurantName(rest)}</h1>
-        <div className="text-[14px] text-inkMuted">{cuisineLabel(rest.cuisine)}{rest.address ? ` · ${rest.address}` : ""}</div>
-
-        {offers.length > 0 && (
-          <div className="mt-4 space-y-2">
-            {offers.map((o) => {
-              const badge = offerGroupBadge(o);
-              const desc = offerDescription(o);
-              return (
-                <div key={o.id} className="rounded-card bg-clay/10 p-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[14px] font-semibold text-clayDeep">{offerTitle(o)}</span>
-                    {badge && (
-                      <span className="rounded-full bg-clay/20 px-2 py-0.5 text-[11px] font-semibold text-clayDeep">
-                        {badge}
-                      </span>
-                    )}
-                    {o.price_pp != null && (
-                      <span className="ml-auto text-[12px] font-semibold text-clayDeep">
-                        £{o.price_pp}/pp
-                      </span>
-                    )}
-                  </div>
-                  {desc && <div className="mt-0.5 text-[13px] text-ink">{desc}</div>}
-                </div>
-              );
-            })}
-          </div>
+      <div className="px-5 pt-1">
+        {/* 1. CURRENT DEALS — top of the page */}
+        {deals.length > 0 && (
+          <>
+            <SectionHeader title={t("Current deals")} />
+            <div className="mt-3 space-y-2">
+              {deals.map((o) =>
+                o.category === "group_gated"
+                  ? <GroupDealCard key={o.id} o={o} onCreate={startTable} />
+                  : <DealCard key={o.id} o={o} />,
+              )}
+            </div>
+          </>
         )}
 
-        <div className="mt-6 text-[13px] font-semibold uppercase tracking-wide text-inkMuted">{t("Active plans")}</div>
+        {/* 2. ACTIVE TABLES / PLANS */}
+        <div className="mt-7"><SectionHeader title={t("Active plans")} /></div>
         {plansQ.isLoading ? (
           <Spinner />
         ) : plans.length === 0 ? (
@@ -98,14 +86,75 @@ export function RestaurantBoard() {
             })}
           </div>
         )}
+
+        {/* 3. RESTAURANT INFORMATION */}
+        <div className="mt-7"><SectionHeader title={t("Restaurant info")} /></div>
+        {rest.image_url && <img src={rest.image_url} alt="" className="mt-3 h-44 w-full rounded-card object-cover" />}
+        <div className="mt-2 text-[14px] text-inkMuted">
+          {cuisineLabel(rest.cuisine)}{rest.address ? ` · ${rest.address}` : ""}
+        </div>
+        {highlights.length > 0 && (
+          <ul className="mt-2 space-y-1">
+            {highlights.map((h) => (
+              <li key={h.id} className="text-[13px] text-ink">
+                · {offerTitle(h)}{offerDescription(h) ? ` — ${offerDescription(h)}` : ""}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
-      {/* Create-a-table CTA (create flow is the next phase). */}
+      {/* Persistent create-a-table CTA */}
       <button
-        onClick={() => { trackCreatePlanClick(rest.id); nav(`/create?restaurant=${rest.id}`); }}
+        onClick={startTable}
         className="fixed bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-full bg-clay px-6 py-3 font-semibold text-cream shadow-lg"
       >
         + {t("Create a table")}
+      </button>
+    </div>
+  );
+}
+
+function SectionHeader({ title }: { title: string }) {
+  return <div className="text-[13px] font-semibold uppercase tracking-wide text-inkMuted">{title}</div>;
+}
+
+function DealCard({ o }: { o: RestaurantOffer }) {
+  const desc = offerDescription(o);
+  return (
+    <div className="rounded-card bg-clay/10 p-3">
+      <div className="flex items-center gap-2">
+        <span className="text-[14px] font-semibold text-clayDeep">🔥 {offerTitle(o)}</span>
+        {o.price_pp != null && (
+          <span className="ml-auto text-[12px] font-semibold text-clayDeep">£{o.price_pp}/pp</span>
+        )}
+      </div>
+      {desc && <div className="mt-0.5 text-[13px] text-ink">{desc}</div>}
+    </div>
+  );
+}
+
+function GroupDealCard({ o, onCreate }: { o: RestaurantOffer; onCreate: () => void }) {
+  const desc = offerDescription(o);
+  const badge = offerGroupBadge(o);
+  return (
+    <div className="rounded-card border-2 border-clay/40 bg-clay/15 p-3.5">
+      <div className="flex items-center gap-2">
+        <span className="text-[12px] font-bold uppercase tracking-wide text-clayDeep">🔥 {t("Group deal")}</span>
+        {badge && (
+          <span className="rounded-full bg-clay/25 px-2 py-0.5 text-[11px] font-semibold text-clayDeep">{badge}</span>
+        )}
+        {o.price_pp != null && (
+          <span className="ml-auto text-[12px] font-semibold text-clayDeep">£{o.price_pp}/pp</span>
+        )}
+      </div>
+      {o.min_people != null && (
+        <div className="mt-1 text-[12px] text-clayDeep">{t("Requires %lld people", o.min_people)}</div>
+      )}
+      <div className="mt-1 text-[15px] font-semibold text-ink">{offerTitle(o)}</div>
+      {desc && <div className="mt-0.5 text-[13px] text-ink">{desc}</div>}
+      <button onClick={onCreate} className="mt-3 w-full rounded-full bg-clay py-2.5 text-[14px] font-semibold text-cream">
+        {t("Create table for this deal")}
       </button>
     </div>
   );

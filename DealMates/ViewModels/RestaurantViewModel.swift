@@ -28,7 +28,7 @@ final class RestaurantViewModel: ObservableObject {
         if let o = offersByRestaurant[r.id], !o.isEmpty { return o }
         return r.displayDeals.enumerated().map { RestaurantOffer.fromDeal($1, restaurantId: r.id, index: $0) }
     }
-    func hasDealLike(_ r: Restaurant) -> Bool { offers(for: r).contains { $0.isDealLike } }
+    func hasDealLike(_ r: Restaurant) -> Bool { offers(for: r).contains { $0.category != "highlight" } }
 
     /// Sorted, unique cuisine list from loaded restaurants — reflects the actual
     /// `cuisine` values in the table (no client-side hiding). The "AYCE / Buffet"
