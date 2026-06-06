@@ -76,19 +76,21 @@ export function Messages() {
     <div ref={pullRef} className="flex flex-col">
       {refreshing && <div className="flex justify-center py-3"><div className="h-5 w-5 animate-spin rounded-full border-2 border-clay/30 border-t-clay" /></div>}
       <div className="px-5 pb-3 pt-3">
-        <h1 className="pb-3">
+        <h1 className="leading-tight">
           <span className="font-sans text-[28px] font-light text-ink">{t("My ")}</span>
           <span className="font-accent text-[38px] italic text-clayDeep">{t("messages.")}</span>
         </h1>
-        <Segmented
-          value={filter}
-          onChange={setFilter}
-          options={[
-            { value: "all", label: t("All") },
-            { value: "dm", label: t("DMs"), badge: unreadDMCount },
-            { value: "plan", label: t("Plans") },
-          ]}
-        />
+        <div className="mt-4">
+          <Segmented
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: "all", label: t("All") },
+              { value: "dm", label: t("DMs"), badge: unreadDMCount },
+              { value: "plan", label: t("Plans") },
+            ]}
+          />
+        </div>
       </div>
 
       {q.isLoading ? (
