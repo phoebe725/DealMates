@@ -25,7 +25,11 @@ body {
    focused web app (framed with a soft shadow); on mobile it's full-bleed. */
 @layer components {
   .pin-shell {
-    @apply relative mx-auto flex h-dvh w-full max-w-phone flex-col overflow-hidden bg-cream;
+    @apply relative mx-auto flex w-full max-w-phone flex-col overflow-hidden bg-cream;
+    /* Driven from window.visualViewport in App so the on-screen keyboard shrinks
+       the shell (iOS Safari won't shrink dvh/vh for it) and inputs stay visible
+       above the keyboard. Falls back to 100dvh before JS runs / without support. */
+    height: var(--app-height, 100dvh);
     box-shadow: 0 0 60px rgba(43, 38, 32, 0.08);
   }
   .pin-card {

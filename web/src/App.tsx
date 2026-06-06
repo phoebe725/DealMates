@@ -71,6 +71,35 @@ export default function App() {
     trackPageView(pathname);
   }, [pathname]);
 
+  // Keep the shell sized to the *visual* viewport so the on-screen keyboard
+  // shrinks it (iOS Safari doesn't shrink dvh/vh for the keyboard), and scroll a
+  // newly-focused input into view once the keyboard has animated in — so the
+  // field is never hidden behind it.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const root = document.documentElement;
+    const setH = () => root.style.setProperty("--app-height", `${vv ? vv.height : window.innerHeight}px`);
+    setH();
+    vv?.addEventListener("resize", setH);
+    vv?.addEventListener("scroll", setH);
+    window.addEventListener("resize", setH);
+
+    const onFocusIn = (e: FocusEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) {
+        setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 250);
+      }
+    };
+    document.addEventListener("focusin", onFocusIn);
+
+    return () => {
+      vv?.removeEventListener("resize", setH);
+      vv?.removeEventListener("scroll", setH);
+      window.removeEventListener("resize", setH);
+      document.removeEventListener("focusin", onFocusIn);
+    };
+  }, []);
+
   return (
     <div className="pin-shell">
       {loading ? (
