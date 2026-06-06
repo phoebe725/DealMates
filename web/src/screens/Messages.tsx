@@ -100,7 +100,7 @@ export function Messages() {
           emoji="💬"
         />
       ) : (
-        <div className="divide-y divide-fog">
+        <div className="space-y-2 px-5 pb-4">
           {visible.map((it) => {
             const chatId = it.kind === "dm" ? `dm-${it.id}` : `plan-${it.id}`;
             const unread = !it.fromSelf && isUnread(chatId, it.ts);
@@ -108,17 +108,30 @@ export function Messages() {
               <button
                 key={`${it.kind}-${it.id}`}
                 onClick={() => nav(it.kind === "dm" ? `/dm/${it.id}` : `/plan/${it.id}`)}
-                className="flex w-full items-center gap-3 px-5 py-3 text-left"
+                className={`flex w-full items-center gap-3 rounded-card p-3.5 text-left ${
+                  unread ? "bg-clay/8" : "bg-shell"
+                }`}
               >
                 <Avatar name={it.title} url={it.avatar} plan={it.kind === "plan"} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className={`truncate ${unread ? "font-semibold text-ink" : "font-medium text-ink"}`}>{it.title}</span>
-                    {it.kind === "plan" && <span className="text-[11px] text-inkMuted">{it.subtitle}</span>}
+                    <span className={`truncate text-[15px] ${unread ? "font-semibold text-ink" : "font-medium text-ink"}`}>
+                      {it.title}
+                    </span>
+                    {it.kind === "plan" && (
+                      <span className="shrink-0 rounded-full bg-sunDeep/15 px-2 py-0.5 text-[11px] font-medium text-sunDeep">
+                        {t("Plans")}
+                      </span>
+                    )}
                   </div>
-                  <div className={`truncate text-[13px] ${unread ? "text-ink" : "text-inkMuted"}`}>{it.preview}</div>
+                  <div className={`mt-0.5 truncate text-[13px] ${unread ? "text-ink" : "text-inkMuted"}`}>
+                    {it.preview}
+                  </div>
                 </div>
-                {unread && <span className="ml-1 h-2.5 w-2.5 shrink-0 rounded-full bg-clay" />}
+                {unread
+                  ? <span className="ml-1 h-2 w-2 shrink-0 rounded-full bg-clay" />
+                  : <span className="text-[11px] text-inkMuted">{new Date(it.ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</span>
+                }
               </button>
             );
           })}
