@@ -58,6 +58,29 @@ export function EmptyState({
   );
 }
 
+/** Restaurant photo/logo. Logos (image_fit="contain") render contained on a
+ *  brand background so they aren't cropped; food photos fill (cover). */
+export function RestaurantImage({
+  r,
+  className = "",
+}: {
+  r: { image_url: string | null; image_fit?: "cover" | "contain" | null; image_bg?: string | null };
+  className?: string;
+}) {
+  if (!r.image_url) return null;
+  const contain = r.image_fit === "contain";
+  return (
+    <div className={`overflow-hidden ${className}`} style={contain ? { backgroundColor: r.image_bg ?? "#ffffff" } : undefined}>
+      <img
+        src={r.image_url}
+        alt=""
+        loading="lazy"
+        className={`h-full w-full ${contain ? "object-contain p-4" : "object-cover"}`}
+      />
+    </div>
+  );
+}
+
 export function Spinner({ label }: { label?: string }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 py-20 text-inkMuted">

@@ -7,7 +7,7 @@ import { fetchRestaurants, fetchAllActivePlans, fetchOffersMap, defaultPlanOrder
 import { restaurantName, restaurantDeals, dealToOffer, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
 import { t, localizedCuisine } from "@/i18n";
 import { fetchPlanByCode } from "@/services/db";
-import { Chip, EmptyState, Segmented, Spinner } from "@/components/ui";
+import { Chip, EmptyState, RestaurantImage, Segmented, Spinner } from "@/components/ui";
 import { useDragScroll } from "@/hooks/useDragScroll";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { trackDealClick, trackRestaurantClick } from "@/lib/analytics";
@@ -281,9 +281,7 @@ function RestaurantCard({ r, offers, onClick }: { r: Restaurant; offers: Restaur
   };
   return (
     <button onClick={handleClick} className="block w-full overflow-hidden rounded-card bg-shell text-left">
-      {r.image_url && (
-        <img src={r.image_url} alt="" className="h-32 w-full object-cover" loading="lazy" />
-      )}
+      <RestaurantImage r={r} className="h-32 w-full" />
       <div className="p-3.5">
         <span className="font-sans text-[16px] font-medium text-ink">{restaurantName(r)}</span>
         <div className="text-[13px] text-inkMuted">{localizedCuisine(r.cuisine)}</div>

@@ -42,13 +42,18 @@ struct RestaurantCardView: View {
     // MARK: - Thumbnail
 
     @ViewBuilder
+    @ViewBuilder
     private var thumbnail: some View {
         let url = restaurant.imageUrl.flatMap { URL(string: $0) }
-        CachedAsyncImage(
-            url: url,
-            placeholder: { loadingPlaceholder },
-            failure: { placeholderBubble }
-        )
+        if restaurant.imageFit == "contain" {
+            // Logo: contain on the brand background so it isn't cropped.
+            CachedAsyncImage(url: url, contentMode: .fit, placeholder: { loadingPlaceholder }, failure: { placeholderBubble })
+                .padding(6)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(hex: restaurant.imageBg ?? "FFFFFF"))
+        } else {
+            CachedAsyncImage(url: url, placeholder: { loadingPlaceholder }, failure: { placeholderBubble })
+        }
     }
 
     private var loadingPlaceholder: some View {

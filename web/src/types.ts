@@ -23,6 +23,8 @@ export interface Restaurant {
   deals_zh_hant: Deal[] | null;
   is_featured: boolean | null;
   is_buffet: boolean | null;
+  image_fit: "cover" | "contain" | null;
+  image_bg: string | null;
   last_deals_verified_at: string | null;
   plan_count: number | null;
 }

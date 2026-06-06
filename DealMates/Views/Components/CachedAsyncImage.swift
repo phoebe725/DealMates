@@ -23,6 +23,7 @@ final class ImageCache {
 /// it never flashes a placeholder again on subsequent appearances.
 struct CachedAsyncImage<Placeholder: View, Failure: View>: View {
     let url: URL?
+    var contentMode: ContentMode = .fill
     @ViewBuilder let placeholder: () -> Placeholder
     @ViewBuilder let failure: () -> Failure
     @State private var uiImage: UIImage?
@@ -30,10 +31,12 @@ struct CachedAsyncImage<Placeholder: View, Failure: View>: View {
 
     init(
         url: URL?,
+        contentMode: ContentMode = .fill,
         @ViewBuilder placeholder: @escaping () -> Placeholder,
         @ViewBuilder failure: @escaping () -> Failure
     ) {
         self.url = url
+        self.contentMode = contentMode
         self.placeholder = placeholder
         self.failure = failure
         if let url, let cached = ImageCache.shared.image(for: url) {
@@ -46,7 +49,7 @@ struct CachedAsyncImage<Placeholder: View, Failure: View>: View {
             if let uiImage {
                 Image(uiImage: uiImage)
                     .resizable()
-                    .scaledToFill()
+                    .aspectRatio(contentMode: contentMode)
             } else if didFail {
                 failure()
             } else {

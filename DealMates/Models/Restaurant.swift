@@ -26,10 +26,13 @@ struct Restaurant: Identifiable, Codable, Hashable {
     /// Whether the restaurant offers an all-you-can-eat / buffet menu.
     /// Source of truth for the "AYCE / Buffet" filter (the `is_buffet` column).
     var isBuffet: Bool
+    /// "cover" (default, food photos) or "contain" (logos shown on image_bg).
+    var imageFit: String
+    var imageBg: String?
     var lastDealsVerifiedAt: Date?
     var planCount: Int
 
-    init(id: String, name: String, cuisine: String, address: String, imageUrl: String? = nil, latitude: Double? = nil, longitude: Double? = nil, nameZhHans: String? = nil, nameZhHant: String? = nil, cuisineZhHans: String? = nil, cuisineZhHant: String? = nil, deals: [Deal] = [], dealsZhHans: [Deal]? = nil, dealsZhHant: [Deal]? = nil, isFeatured: Bool = false, isBuffet: Bool = false, lastDealsVerifiedAt: Date? = nil, planCount: Int = 0) {
+    init(id: String, name: String, cuisine: String, address: String, imageUrl: String? = nil, latitude: Double? = nil, longitude: Double? = nil, nameZhHans: String? = nil, nameZhHant: String? = nil, cuisineZhHans: String? = nil, cuisineZhHant: String? = nil, deals: [Deal] = [], dealsZhHans: [Deal]? = nil, dealsZhHant: [Deal]? = nil, isFeatured: Bool = false, isBuffet: Bool = false, imageFit: String = "cover", imageBg: String? = nil, lastDealsVerifiedAt: Date? = nil, planCount: Int = 0) {
         self.id = id
         self.name = name
         self.cuisine = cuisine
@@ -46,6 +49,8 @@ struct Restaurant: Identifiable, Codable, Hashable {
         self.dealsZhHant = dealsZhHant
         self.isFeatured = isFeatured
         self.isBuffet = isBuffet
+        self.imageFit = imageFit
+        self.imageBg = imageBg
         self.lastDealsVerifiedAt = lastDealsVerifiedAt
         self.planCount = planCount
     }
@@ -68,6 +73,8 @@ struct Restaurant: Identifiable, Codable, Hashable {
         dealsZhHant = try? c.decodeIfPresent([Deal].self, forKey: .dealsZhHant)
         isFeatured          = (try? c.decodeIfPresent(Bool.self, forKey: .isFeatured)) ?? false
         isBuffet            = (try? c.decodeIfPresent(Bool.self, forKey: .isBuffet)) ?? false
+        imageFit            = (try? c.decodeIfPresent(String.self, forKey: .imageFit)) ?? "cover"
+        imageBg             = try? c.decodeIfPresent(String.self, forKey: .imageBg)
         lastDealsVerifiedAt = try? c.decodeIfPresent(Date.self, forKey: .lastDealsVerifiedAt)
         planCount           = (try? c.decodeIfPresent(Int.self, forKey: .planCount)) ?? 0
     }
@@ -98,6 +105,8 @@ extension Restaurant {
         case dealsZhHant = "deals_zh_hant"
         case isFeatured = "is_featured"
         case isBuffet = "is_buffet"
+        case imageFit = "image_fit"
+        case imageBg = "image_bg"
         case lastDealsVerifiedAt = "last_deals_verified_at"
         case planCount = "plan_count"
     }

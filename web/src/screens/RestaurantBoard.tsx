@@ -7,7 +7,7 @@ import { restaurantName, restaurantDeals, dealToOffer, offerTitle, offerDescript
 import { t, localizedCuisine as cuisineLabel } from "@/i18n";
 import { trackCreatePlanClick } from "@/lib/analytics";
 import { offerShortLabel } from "@/lib/dealDisplay";
-import { Chip, EmptyState, Spinner } from "@/components/ui";
+import { Chip, EmptyState, RestaurantImage, Spinner } from "@/components/ui";
 
 function timeLabel(p: Plan) {
   if (p.time_type === "asap") return t("ASAP");
@@ -90,7 +90,7 @@ export function RestaurantBoard() {
 
         {/* 3. RESTAURANT INFORMATION */}
         <div className="mt-7"><SectionHeader title={t("Restaurant info")} /></div>
-        {rest.image_url && <img src={rest.image_url} alt="" className="mt-3 h-44 w-full rounded-card object-cover" />}
+        <RestaurantImage r={rest} className="mt-3 h-44 w-full rounded-card" />
         <div className="mt-2 text-[14px] text-inkMuted">
           {cuisineLabel(rest.cuisine)}{rest.address ? ` · ${rest.address}` : ""}
         </div>
