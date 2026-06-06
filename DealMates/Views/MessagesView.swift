@@ -3,7 +3,7 @@ import SwiftUI
 enum MessagesFilter: String, CaseIterable, Identifiable {
     case all = "All"
     case dm = "DMs"
-    case group = "Rafts"
+    case group = "Plans"
     var id: String { rawValue }
 }
 
@@ -73,7 +73,7 @@ struct MessagesView: View {
             PinSegmentedPicker(
                 options: [(value: MessagesFilter.all, label: "All"),
                           (value: MessagesFilter.dm, label: "DMs"),
-                          (value: MessagesFilter.group, label: "Rafts")],
+                          (value: MessagesFilter.group, label: "Plans")],
                 counts: filterCounts,
                 selection: $filter
             )
@@ -92,52 +92,62 @@ struct MessagesView: View {
 
     // MARK: - List
     //
-    // The ONE ScrollView for this whole tab. The LazyVStack's children are
-    // always: [header, ForEach(items), placeholder]. None of those slots ever
-    // disappear — the ForEach just renders zero rows when items is empty, and
-    // the placeholder is an empty view when items exist. Keeping the shape
-    // constant is what stops `.refreshable` from breaking after a data update.
+    // Populated state uses a single ScrollView so `.refreshable` stays anchored
+    // across data refreshes (e.g. returning from DMChatView). The empty and
+    // loading states are rendered OUTSIDE the scroll — header pinned to the top,
+    // artwork filling the remaining height — so they sit at the exact same
+    // height/format as MyPlansView's empty state. (Pull-to-refresh isn't needed
+    // on an empty list; `.onAppear` already refreshes on tab landing.)
 
+    @ViewBuilder
     private var list: some View {
-        ScrollView {
-            LazyVStack(spacing: 10) {
-                header
-                    .padding(.top, 12)
-                    .padding(.bottom, 16)
-
-                ForEach(visibleItems) { item in
-                    NavigationLink {
-                        destination(for: item)
-                    } label: {
-                        row(for: item)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                placeholder
+        if vm.isLoading && vm.items.isEmpty {
+            VStack(spacing: 0) {
+                headerBlock
+                ScrollView { loadingState.containerRelativeFrame(.vertical) }
+                    .refreshable { await refresh() }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 24)
-        }
-        .refreshable {
-            await vm.load(currentUid: authViewModel.uid)
-            await UnreadManager.shared.refresh(currentUid: authViewModel.uid)
+        } else if visibleItems.isEmpty {
+            VStack(spacing: 0) {
+                headerBlock
+                ScrollView { emptyState.containerRelativeFrame(.vertical) }
+                    .refreshable { await refresh() }
+            }
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 10) {
+                    header
+                        .padding(.top, 12)
+                        .padding(.bottom, 16)
+
+                    ForEach(visibleItems) { item in
+                        NavigationLink {
+                            destination(for: item)
+                        } label: {
+                            row(for: item)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
+            }
+            .refreshable { await refresh() }
         }
     }
 
-    /// Renders the empty / loading state below an empty ForEach. The view is
-    /// always present in the LazyVStack — it just becomes a zero-height
-    /// `EmptyView`-equivalent when there's a real list to show. The container
-    /// `VStack` keeps the SwiftUI slot type stable across the three states.
-    @ViewBuilder
-    private var placeholder: some View {
-        VStack(spacing: 0) {
-            if vm.isLoading && vm.items.isEmpty {
-                loadingState.frame(minHeight: 220)
-            } else if visibleItems.isEmpty {
-                emptyState.frame(minHeight: 320)
-            }
-        }
+    private func refresh() async {
+        await vm.load(currentUid: authViewModel.uid)
+        await UnreadManager.shared.refresh(currentUid: authViewModel.uid)
+    }
+
+    /// Header with the standard tab insets — used by the empty / loading states
+    /// where the header sits outside the scroll (matching MyPlansView).
+    private var headerBlock: some View {
+        header
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 16)
     }
 
     @ViewBuilder
@@ -152,7 +162,9 @@ struct MessagesView: View {
 
     private func row(for item: ConversationItem) -> some View {
         let isSystem = item.lastIsSystem
-        let notMine = item.lastSenderId != authViewModel.uid && !isSystem
+        // System messages (joins/leaves) count as unread activity — only
+        // messages the current user sent themselves are excluded.
+        let notMine = item.lastSenderId != authViewModel.uid
         let isUnread = notMine && unread.isUnread(chatId: item.chatId, lastActivity: item.lastTimestamp)
 
         let liveTitle: String
@@ -214,9 +226,9 @@ struct MessagesView: View {
                         .font(.pinBody(15, weight: .medium))
                         .foregroundStyle(Color.pinInk)
                     if case .plan = item.kind {
-                        // Sun-yellow chip so plan/raft chats are visually distinct
+                        // Sun-yellow chip so plan chats are visually distinct
                         // from one-on-one DMs in the list.
-                        PinChip(text: "Raft", tint: .pinSunDeep)
+                        PinChip(text: "Plan", tint: .pinSunDeep)
                     }
                     Spacer()
                     Text(item.lastTimestamp, style: .time)
