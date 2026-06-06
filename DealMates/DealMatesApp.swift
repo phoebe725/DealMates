@@ -48,6 +48,7 @@ struct DealMatesApp: App {
     // the root view tree. The user keeps whichever tab they were on when they
     // switch language.
     @StateObject private var tabState = TabStateStore()
+    @StateObject private var deepLink = DeepLinkRouter()
     @AppStorage("preferredLanguageCode") private var languageCode: String = Locale.current.language.languageCode?.identifier ?? "en"
     @AppStorage("preferredRegionCode") private var regionCode: String = "GB"
 
@@ -73,6 +74,21 @@ struct DealMatesApp: App {
                 // Force the entire view tree to rebuild when the user changes language —
                 // AppleLanguages alone updates Bundle.main but doesn't refresh cached Text views.
                 .id(languageCode)
+                // Shared plan links (pintable://plan/<id>) open the plan from the root,
+                // so they work whether the user is browsing, signed in, or signed out.
+                .onOpenURL { deepLink.handle($0) }
+                .fullScreenCover(item: $deepLink.plan) { plan in
+                    NavigationStack {
+                        PlanDetailView(plan: plan, planVM: PlanViewModel(restaurantId: plan.restaurantId))
+                            .environmentObject(authViewModel)
+                            .toolbar {
+                                ToolbarItem(placement: .topBarLeading) {
+                                    Button("Close") { deepLink.plan = nil }
+                                }
+                            }
+                    }
+                    .environment(\.locale, locale)
+                }
                 .task {
                     // Mirror all `users` table changes into the cache so name/avatar updates
                     // propagate everywhere (historical chats, plan rows, DM headers).
@@ -91,10 +107,10 @@ struct DealMatesApp: App {
     private var rootView: some View {
         if authViewModel.isLoading {
             SplashView()
-        } else if !authViewModel.isSignedIn {
-            SignedOutFlow()
-                .environmentObject(authViewModel)
         } else {
+            // Guest-first, like the web: everyone (anonymous guests included) drops
+            // straight into the app and browses. Account-required actions (create a
+            // plan, DM) gate to LoginView, reached explicitly from Profile too.
             ContentView()
                 .environmentObject(authViewModel)
                 .environmentObject(tabState)

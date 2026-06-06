@@ -34,20 +34,24 @@ struct CreatePlanView: View {
             ZStack {
                 Color.pinCream.ignoresSafeArea()
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        header
+                if authViewModel.isSignedIn {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 24) {
+                            header
 
-                        section("When") { timeSection }
-                        section("Group size") { sizeSection }
-                        section("Open to") { preferenceSection }
-                        section("Notes (optional)") { notesSection }
+                            section("When") { timeSection }
+                            section("Group size") { sizeSection }
+                            section("Open to") { preferenceSection }
+                            section("Notes (optional)") { notesSection }
 
-                        if let err = errorMessage { errorBanner(err) }
+                            if let err = errorMessage { errorBanner(err) }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
+                        .padding(.bottom, 96)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 96)
+                } else {
+                    guestGate
                 }
             }
             .toolbar {
@@ -56,13 +60,15 @@ struct CreatePlanView: View {
                         .font(.pinButton(15))
                         .foregroundStyle(Color.pinInk)
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    if isSubmitting {
-                        ProgressView().tint(Color.pinClay)
-                    } else {
-                        Button(isEditing ? "Save" : "Pin it") { submit() }
-                            .font(.pinButton(15))
-                            .foregroundStyle(Color.pinClay)
+                if authViewModel.isSignedIn {
+                    ToolbarItem(placement: .confirmationAction) {
+                        if isSubmitting {
+                            ProgressView().tint(Color.pinClay)
+                        } else {
+                            Button(isEditing ? "Save" : "Pin it") { submit() }
+                                .font(.pinButton(15))
+                                .foregroundStyle(Color.pinClay)
+                        }
                     }
                 }
             }
@@ -70,6 +76,35 @@ struct CreatePlanView: View {
             .toolbarBackground(.visible, for: .navigationBar)
             .onAppear { prefillIfEditing() }
         }
+    }
+
+    // MARK: - Guest gate (mirrors web — guests browse & join, but creating needs an account)
+
+    private var guestGate: some View {
+        VStack(spacing: 16) {
+            Text("🍽️").font(.system(size: 52))
+            Text("Create a free account to start a plan")
+                .font(.pinHero(22, weight: .light))
+                .foregroundStyle(Color.pinInk)
+                .multilineTextAlignment(.center)
+            Text("You can still join plans as a guest — no account needed for that.")
+                .font(.pinSubtitle(14))
+                .foregroundStyle(Color.pinInkMuted)
+                .multilineTextAlignment(.center)
+            NavigationLink {
+                LoginView(startInSignUp: true)
+            } label: {
+                Text("Sign up or log in")
+                    .font(.pinButton(16))
+                    .foregroundStyle(Color.pinCream)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.pinClay, in: Capsule())
+            }
+            .padding(.top, 4)
+        }
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Header

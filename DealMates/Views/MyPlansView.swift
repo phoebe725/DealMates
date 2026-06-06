@@ -481,7 +481,8 @@ struct MyPlansView: View {
     // MARK: - Load
 
     private func load() async {
-        guard authViewModel.isSignedIn else { return }
+        // Guests can join plans too, so load whenever there's a user (anon or real).
+        guard !authViewModel.uid.isEmpty else { return }
         let isFirstLoad = plans.isEmpty
         if isFirstLoad { isLoading = true }
         locationManager.requestPermissionAndStart()

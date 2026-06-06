@@ -84,6 +84,11 @@ struct LoginView: View {
             authViewModel.cancelPendingConfirmation()
         }
         .onChange(of: isSignUpMode) { _, _ in authViewModel.errorMessage = nil }
+        // Presented/pushed (from Profile or the create-plan gate) rather than the
+        // root now, so pop back to the app once the account is real & confirmed.
+        .onChange(of: authViewModel.isSignedIn) { _, signedIn in
+            if signedIn { dismiss() }
+        }
     }
 
     // MARK: - Header

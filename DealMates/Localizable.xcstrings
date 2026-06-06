@@ -1566,6 +1566,54 @@
         }
       }
     },
+    "Create a free account to start a plan" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "注册免费账号以发起饭局"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "註冊免費帳號以發起飯局"
+          }
+        }
+      }
+    },
+    "You can still join plans as a guest — no account needed for that." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你仍可以访客身份加入饭局 — 无需注册账号。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你仍可以訪客身份加入飯局 — 無需註冊帳號。"
+          }
+        }
+      }
+    },
+    "Sign up or log in" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "注册或登录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "註冊或登入"
+          }
+        }
+      }
+    },
     "Created %@" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2099,54 +2147,6 @@
         }
       }
     },
-    "Forgot password?" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "忘记密码？"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "忘記密碼？"
-          }
-        }
-      }
-    },
-    "Enter your email first to reset your password." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请先输入邮箱以重置密码。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "請先輸入電郵以重設密碼。"
-          }
-        }
-      }
-    },
-    "Reset link sent — check your inbox." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重置链接已发送 — 请查看收件箱。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重設連結已寄出 — 請查看收件匣。"
-          }
-        }
-      }
-    },
     "Email sent — check your inbox." : {
       "comment" : "Confirmation shown after the user taps Resend.",
       "extractionState" : "stale",
@@ -2167,6 +2167,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "郵件已發送，請查看收件匣。"
+          }
+        }
+      }
+    },
+    "Enter your email first to reset your password." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先输入邮箱以重置密码。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請先輸入電郵以重設密碼。"
           }
         }
       }
@@ -2471,6 +2488,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "彈性"
+          }
+        }
+      }
+    },
+    "Forgot password?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "忘记密码？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "忘記密碼？"
           }
         }
       }
@@ -5668,6 +5701,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重新發送"
+          }
+        }
+      }
+    },
+    "Reset link sent — check your inbox." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置链接已发送 — 请查看收件箱。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重設連結已寄出 — 請查看收件匣。"
           }
         }
       }
