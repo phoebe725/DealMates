@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { trackPageView } from "@/lib/analytics";
 import { TabBar } from "@/components/TabBar";
 import { Wordmark } from "@/components/ui";
 import { SignedOut } from "@/screens/SignedOut";
@@ -51,6 +53,13 @@ function Shell() {
 
 export default function App() {
   const { loading, user } = useAuth();
+  const { pathname } = useLocation();
+
+  // page_view on every route change.
+  useEffect(() => {
+    trackPageView(pathname);
+  }, [pathname]);
+
   return (
     <div className="pin-shell">
       {loading ? (

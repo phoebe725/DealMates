@@ -10,6 +10,7 @@ import { fetchPlanByCode } from "@/services/db";
 import { Chip, EmptyState, Segmented, Spinner } from "@/components/ui";
 import { useDragScroll } from "@/hooks/useDragScroll";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { trackDealClick } from "@/lib/analytics";
 
 const DEALS_FILTER = "🔥 Deals";
 const BUFFET_CATEGORY = "AYCE / Buffet";
@@ -256,8 +257,15 @@ function RestaurantCard({ r, offers, onClick }: { r: Restaurant; offers: Restaur
   const headline = dealLike[0];
   const groupOffer = offers.find((o) => o.is_group_gated);
   const groupBadge = groupOffer ? offerGroupBadge(groupOffer) : null;
+  const handleClick = () => {
+    // deal_click: only when the card surfaces a deal.
+    if (headline) {
+      trackDealClick(headline.id, { restaurant_id: r.id, offer_type: headline.offer_type });
+    }
+    onClick();
+  };
   return (
-    <button onClick={onClick} className="block w-full overflow-hidden rounded-card bg-shell text-left">
+    <button onClick={handleClick} className="block w-full overflow-hidden rounded-card bg-shell text-left">
       {r.image_url && (
         <img src={r.image_url} alt="" className="h-32 w-full object-cover" loading="lazy" />
       )}
