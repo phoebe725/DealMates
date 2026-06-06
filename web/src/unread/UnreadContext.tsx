@@ -25,6 +25,8 @@ interface UnreadState {
   /** Open plans still recruiting / full-but-unconfirmed. */
   activeCount: number;
   readyToGoCount: number;
+  /** Plan IDs that have unread chat messages or system actions since last seen. */
+  unreadPlanIds: Set<string>;
   /** chatId is `plan-<planId>` or `dm-<otherUserId>`. */
   isUnread: (chatId: string, lastActivityISO: string) => boolean;
   markRead: (chatId: string) => void;
@@ -50,6 +52,7 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
     unreadActionCount: 0,
     activeCount: 0,
     readyToGoCount: 0,
+    unreadPlanIds: new Set<string>(),
   });
   // Bump to force isUnread consumers to recompute after markRead.
   const [, setTick] = useState(0);
@@ -71,16 +74,23 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
       let unreadActions = 0;
       let active = 0;
       let ready = 0;
+      const unreadPlanIds = new Set<string>();
 
       for (const m of systemMsgs) {
-        if (m.timestamp > lastSeen(`plan-${m.plan_id}`)) unreadActions += 1;
+        if (m.timestamp > lastSeen(`plan-${m.plan_id}`)) {
+          unreadActions += 1;
+          unreadPlanIds.add(m.plan_id);
+        }
       }
       for (const p of openPlans) {
         if (needsMorePeople(p) > 0) active += 1;
         else ready += 1;
         const m = latest[p.id];
         if (!m || m.sender_id === uid || m.is_system) continue;
-        if (m.timestamp > lastSeen(`plan-${p.id}`)) unreadPlans += 1;
+        if (m.timestamp > lastSeen(`plan-${p.id}`)) {
+          unreadPlans += 1;
+          unreadPlanIds.add(p.id);
+        }
       }
       for (const d of dms) {
         if (d.lastSenderId === uid) continue;
@@ -93,6 +103,7 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
         unreadActionCount: unreadActions,
         activeCount: active,
         readyToGoCount: ready,
+        unreadPlanIds,
       });
     } catch {
       // Keep previous counts on a network blip — never flash to zero.

@@ -14,18 +14,27 @@ final class UnreadManager: ObservableObject {
     /// MessagesView.
     @Published private(set) var unreadDMCount: Int = 0
 
-    /// Unread plan/raft chats only — shown next to the "Rafts" filter chip
-    /// on MessagesView.
+    /// Unread plan group-chat messages only — counted toward `totalUnread`
+    /// (the Messages tab badge) alongside DMs.
     @Published private(set) var unreadPlanCount: Int = 0
 
+    /// Unread plan *actions* (system messages — someone joined/left/was
+    /// removed) across the user's open plans. Drives the My Plans tab badge.
+    @Published private(set) var unreadActionCount: Int = 0
+
     /// Count of the signed-in user's plans still recruiting (group not yet
-    /// full, attendance not confirmed). Combined with `readyToGoCount` to
-    /// produce the My Plans tab badge.
+    /// full, attendance not confirmed). Surfaced as bucket counts on the My
+    /// Plans segmented control.
     @Published private(set) var activeCount: Int = 0
 
     /// Count of the signed-in user's plans that are full but not yet
     /// attendance-confirmed.
     @Published private(set) var readyToGoCount: Int = 0
+
+    /// Plan IDs that have unread chat messages or system actions (joins/leaves)
+    /// since the user last viewed them. Drives per-row dots in MyPlansView and
+    /// MessagesView.
+    @Published private(set) var unreadPlanIds: Set<String> = []
 
     private let defaults = UserDefaults.standard
     private let service = DatabaseService.shared
@@ -101,13 +110,25 @@ final class UnreadManager: ObservableObject {
         }
         if Task.isCancelled { return }
 
-        let latestByPlan = (try? await service.fetchLatestMessages(planIds: openPlans.map(\.id))) ?? [:]
+        let planIds = openPlans.map(\.id)
+        let latestByPlan = (try? await service.fetchLatestMessages(planIds: planIds)) ?? [:]
+        let systemMsgs = (try? await service.fetchSystemMessages(planIds: planIds)) ?? []
         if Task.isCancelled { return }
 
         var unreadPlans = 0
         var unreadDMs = 0
+        var unreadActions = 0
         var active = 0
         var ready = 0
+        var newUnreadPlanIds = Set<String>()
+
+        // Unread plan *actions*: system join/leave/removal messages newer than
+        // the last time the user opened that plan's chat.
+        for msg in systemMsgs where msg.timestamp > lastSeen(for: "plan-\(msg.planId)") {
+            unreadActions += 1
+            newUnreadPlanIds.insert(msg.planId)
+        }
+
         for plan in openPlans {
             // Active: still recruiting. Ready: group is full but attendance
             // hasn't been recorded. Completed plans were filtered above.
@@ -122,6 +143,7 @@ final class UnreadManager: ObservableObject {
             if msg.isSystem { continue }
             if msg.timestamp > lastSeen(for: "plan-\(plan.id)") {
                 unreadPlans += 1
+                newUnreadPlanIds.insert(plan.id)
             }
         }
         for dm in dms {
@@ -132,15 +154,17 @@ final class UnreadManager: ObservableObject {
         }
         let unread = unreadPlans + unreadDMs
 
-        print("[DEBUG] UnreadManager.doRefresh: dms=\(unreadDMs) plans=\(unreadPlans) total=\(unread) active=\(active) ready=\(ready)")
+        print("[DEBUG] UnreadManager.doRefresh: dms=\(unreadDMs) plans=\(unreadPlans) actions=\(unreadActions) total=\(unread) active=\(active) ready=\(ready)")
 
         // Only assign when the value actually changed — avoids a published
         // event that re-renders ContentView for nothing.
         if totalUnread != unread { totalUnread = unread }
         if unreadDMCount != unreadDMs { unreadDMCount = unreadDMs }
         if unreadPlanCount != unreadPlans { unreadPlanCount = unreadPlans }
+        if unreadActionCount != unreadActions { unreadActionCount = unreadActions }
         if activeCount != active { activeCount = active }
         if readyToGoCount != ready { readyToGoCount = ready }
+        if unreadPlanIds != newUnreadPlanIds { unreadPlanIds = newUnreadPlanIds }
     }
 
     /// Fires a refresh immediately. Coalescing is already handled by

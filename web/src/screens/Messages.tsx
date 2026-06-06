@@ -65,7 +65,7 @@ export function Messages() {
         preview,
         subtitle: t("Group · %lld/%lld", p.current_people, p.needed_people),
         ts: last?.timestamp ?? "0",
-        fromSelf: !last || last.sender_id === user!.id || last.is_system,
+        fromSelf: !last || last.sender_id === user!.id,
       });
     }
     return out.sort((a, b) => b.ts.localeCompare(a.ts));

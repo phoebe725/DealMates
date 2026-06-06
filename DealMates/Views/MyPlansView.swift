@@ -3,6 +3,7 @@ import CoreLocation
 
 struct MyPlansView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @ObservedObject private var unread = UnreadManager.shared
     @ObservedObject private var locationManager = LocationManager.shared
     @ObservedObject private var userCache = UserCache.shared
     @ObservedObject private var restaurantCache = RestaurantCache.shared
@@ -42,16 +43,23 @@ struct MyPlansView: View {
                         .padding(.bottom, 16)
 
                     if isLoading {
-                        loadingState
+                        // Wrapped in a ScrollView so pull-to-refresh works here
+                        // too; containerRelativeFrame fills the area so the
+                        // spinner/artwork centers like the populated list.
+                        ScrollView { loadingState.containerRelativeFrame(.vertical) }
                     } else if visiblePlans.isEmpty {
-                        emptyState
+                        ScrollView { emptyState.containerRelativeFrame(.vertical) }
                     } else {
                         planList
                     }
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
-            .onAppear { Task { await load() } }
+            .onAppear {
+                Task { await load() }
+                startListening()
+            }
+            .onDisappear { stopListening() }
             .refreshable {
                 await load()
                 // Keep the tab-bar unread badge fresh on any pull-to-refresh,
@@ -64,6 +72,25 @@ struct MyPlansView: View {
         }
     }
 
+    // MARK: - Realtime
+    //
+    // Keep My Plans live: any insert/update/delete on `plans` re-fetches so a
+    // newly created or joined plan shows up without leaving and re-entering the
+    // tab. Cancelled on disappear.
+    @State private var listenerTask: Task<Void, Never>?
+
+    private func startListening() {
+        guard listenerTask == nil else { return }
+        listenerTask = DatabaseService.shared.listenToAllPlanChanges {
+            Task { @MainActor in await load() }
+        }
+    }
+
+    private func stopListening() {
+        listenerTask?.cancel()
+        listenerTask = nil
+    }
+
     // MARK: - Header
 
     private var header: some View {
@@ -71,7 +98,7 @@ struct MyPlansView: View {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     (
-                        Text("Your ")
+                        Text("My ")
                             .font(.pinHero(28, weight: .light))
                             .foregroundStyle(Color.pinInk)
                         +
@@ -198,14 +225,21 @@ struct MyPlansView: View {
             result = result.filter { statusFilter.matches($0) }
         }
         switch sortMode {
-        case .timeAsc:  result.sort { $0.scheduledAt < $1.scheduledAt }
+        case .timeAsc:  result.sort(by: Plan.defaultOrder)
         case .timeDesc: result.sort { $0.scheduledAt > $1.scheduledAt }
+        case .nameAsc:
+            result.sort {
+                let a = restaurantById[$0.restaurantId]?.displayName ?? $0.restaurantName
+                let b = restaurantById[$1.restaurantId]?.displayName ?? $1.restaurantName
+                return a.localizedCaseInsensitiveCompare(b) == .orderedAscending
+            }
         case .distance:
             guard let userLoc = locationManager.currentLocation else { break }
             result.sort { distance(to: $0, from: userLoc) < distance(to: $1, from: userLoc) }
         }
         return result
     }
+
 
     private func distance(to plan: Plan, from user: CLLocation) -> CLLocationDistance {
         guard let r = restaurantById[plan.restaurantId],
@@ -315,10 +349,22 @@ struct MyPlansView: View {
     private typealias ChipOverride = (text: LocalizedStringKey, systemImage: String, tint: Color)
 
     private func planRow(_ plan: Plan, chipOverride: ChipOverride? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(restaurantCache.displayName(for: plan.restaurantId, fallback: plan.restaurantName))
-                .font(.pinBody(16, weight: .medium))
-                .foregroundStyle(Color.pinInk)
+        let hasUnread = UnreadManager.shared.unreadPlanIds.contains(plan.id)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Text(restaurantCache.displayName(for: plan.restaurantId, fallback: plan.restaurantName))
+                    .font(.pinBody(16, weight: .medium))
+                    .foregroundStyle(Color.pinInk)
+                if hasUnread {
+                    Circle()
+                        .fill(Color.pinClay)
+                        .frame(width: 8, height: 8)
+                }
+                if plan.hasDeal {
+                    PinChip(text: "Deal", systemImage: "tag.fill", tint: .pinSunDeep)
+                }
+                Spacer(minLength: 0)
+            }
 
             HStack(spacing: 8) {
                 Button {
@@ -356,6 +402,12 @@ struct MyPlansView: View {
                     statusChip(for: plan)
                 }
             }
+
+            if let created = plan.createdDisplay {
+                Text(verbatim: String(format: AppLocalization.string("Created %@"), created))
+                    .font(.pinSubtitle(11))
+                    .foregroundStyle(Color.pinInkMuted)
+            }
         }
         .padding(16)
         .pinCard()
@@ -369,7 +421,7 @@ struct MyPlansView: View {
         if plan.attendanceConfirmedAt != nil {
             PinChip(text: "Done", systemImage: "checkmark.seal.fill", tint: .pinSageDeep)
         } else if plan.needsMorePeople > 0 {
-            PinChip(text: "Needs \(plan.needsMorePeople)", systemImage: "person.3.fill", tint: .pinClay)
+            PinChip(text: "\(plan.currentPeople)/\(plan.neededPeople) joined", systemImage: "person.2.fill", tint: .pinClay)
         } else if plan.timeType != .scheduled {
             // Full but the organiser hasn't locked a time — flexible / ASAP
             // plans can't be confirmed until a specific time is set.

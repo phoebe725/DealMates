@@ -7,6 +7,7 @@ import { fetchMyPlans, fetchRestaurants, defaultPlanOrder } from "@/services/db"
 import { restaurantName, needsMorePeople, type Plan, type Restaurant } from "@/types";
 import { t } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
+import { useUnread } from "@/unread/UnreadContext";
 import { Chip, EmptyState, Segmented, Spinner } from "@/components/ui";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
@@ -42,6 +43,7 @@ export function MyPlans() {
   );
 
   const { ref: pullRef, refreshing } = usePullToRefresh(async () => { await q.refetch(); });
+  const { unreadPlanIds } = useUnread();
   const qc = useQueryClient();
   const restaurantMap = Object.fromEntries(
     (qc.getQueryData<Restaurant[]>(["restaurants"]) ?? []).map((r) => [r.id, r])
@@ -87,8 +89,13 @@ export function MyPlans() {
             const need = needsMorePeople(p);
             return (
               <button key={p.id} onClick={() => nav(`/plan/${p.id}`)} className="block w-full rounded-card bg-shell p-4 text-left">
-                <div className="text-[16px] font-medium text-ink">
-                  {restaurantMap[p.restaurant_id] ? restaurantName(restaurantMap[p.restaurant_id]) : p.restaurant_name}
+                <div className="flex items-center gap-2">
+                  <span className="text-[16px] font-medium text-ink">
+                    {restaurantMap[p.restaurant_id] ? restaurantName(restaurantMap[p.restaurant_id]) : p.restaurant_name}
+                  </span>
+                  {unreadPlanIds.has(p.id) && (
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-clay" />
+                  )}
                 </div>
                 <div className="mt-2 flex items-center">
                   <span className="text-[13px] text-inkMuted">🕐 {timeLabel(p)}</span>
