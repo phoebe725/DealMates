@@ -110,13 +110,7 @@ export function Profile() {
       {/* Profile card */}
       <div className="mt-5 flex items-center gap-4 rounded-card bg-shell p-4">
         <button onClick={() => editing && fileRef.current?.click()} className="relative">
-          {user.avatar_url ? (
-            <img src={user.avatar_url} alt="" className="h-16 w-16 rounded-full object-cover" />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-clay text-2xl text-cream">
-              {user.display_name.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <img src={user.avatar_url || "/icon.png"} alt="" className="h-16 w-16 rounded-full object-cover" />
           {editing && <span className="absolute -bottom-1 -right-1 rounded-full bg-clay px-1.5 text-[11px] text-cream">✎</span>}
         </button>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickAvatar} />

@@ -2,17 +2,14 @@ import SwiftUI
 import UIKit
 
 /// Circular avatar that renders the remote image when `urlString` is set,
-/// otherwise falls back to a coloured circle with the user's initial.
+/// otherwise falls back to the app's puffin mark (the default for guests and
+/// anyone without a photo). `name`/`fontSize` are kept for call-site API
+/// compatibility but no longer drive a letter avatar.
 struct AvatarImage: View {
     let urlString: String?
     let name: String
     let size: CGFloat
     let fontSize: CGFloat
-
-    private var initial: String {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "?" : String(trimmed.prefix(1)).uppercased()
-    }
 
     var body: some View {
         if let urlString, let url = URL(string: urlString) {
@@ -43,10 +40,10 @@ struct AvatarImage: View {
             Circle()
                 .fill(Color.pinSage.opacity(0.25))
                 .frame(width: size, height: size)
-            Text(initial)
-                .font(.pinButton(fontSize))
-                .foregroundStyle(Color.pinSageDeep)
+            PuffinMark(size: size * 0.72)
         }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
     }
 
     /// Downscale (longest side ≤ 512px) and JPEG-compress at 0.8 for upload.

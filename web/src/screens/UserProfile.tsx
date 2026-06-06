@@ -94,12 +94,8 @@ export function UserProfile() {
 }
 
 function Avatar({ user }: { user: AppUser }) {
-  if (user.avatar_url) return <img src={user.avatar_url} alt="" className="h-[72px] w-[72px] rounded-full object-cover" />;
-  return (
-    <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-clay text-[32px] text-cream">
-      {user.display_name.charAt(0).toUpperCase()}
-    </div>
-  );
+  // Default to the app logo (puffin) when there's no photo.
+  return <img src={user.avatar_url || "/icon.png"} alt="" className="h-[72px] w-[72px] rounded-full object-cover" />;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

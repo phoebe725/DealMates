@@ -281,12 +281,8 @@ export function PlanDetail() {
 }
 
 function Avatar({ user }: { user: AppUser }) {
-  if (user.avatar_url) return <img src={user.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />;
-  return (
-    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-clay text-[10px] text-cream">
-      {user.display_name.charAt(0).toUpperCase()}
-    </div>
-  );
+  // Default to the app logo (puffin) when there's no photo.
+  return <img src={user.avatar_url || "/icon.png"} alt="" className="h-5 w-5 rounded-full object-cover" />;
 }
 
 function Bubble({ m, mine }: { m: ChatMessage; mine: boolean }) {

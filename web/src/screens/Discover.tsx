@@ -207,15 +207,11 @@ export function Discover() {
           <Spinner label={t("Finding restaurants nearby…")} />
         ) : (
           <div className="space-y-3 px-5 pb-6">
-            {showFeatured && featured.length > 0 && (
-              <>
-                <SectionHeader title={t("Featured")} />
-                {featured.map((r) => (
-                  <RestaurantCard key={r.id} r={r} offers={offersFor(r)} onClick={() => nav(`/restaurant/${r.id}`)} />
-                ))}
-                <SectionHeader title={t("All restaurants")} />
-              </>
-            )}
+            {/* One continuous list, no section titles — featured deals sort to the top. */}
+            {showFeatured &&
+              featured.map((r) => (
+                <RestaurantCard key={r.id} r={r} offers={offersFor(r)} onClick={() => nav(`/restaurant/${r.id}`)} />
+              ))}
             {general.map((r) => (
               <RestaurantCard key={r.id} r={r} offers={offersFor(r)} onClick={() => nav(`/restaurant/${r.id}`)} />
             ))}
@@ -262,9 +258,6 @@ function CuisineChip({ label, active, onClick }: { label: string; active: boolea
   );
 }
 
-function SectionHeader({ title }: { title: string }) {
-  return <div className="pt-1 text-[13px] font-semibold uppercase tracking-wide text-inkMuted">{title}</div>;
-}
 
 function RestaurantCard({ r, offers, onClick }: { r: Restaurant; offers: RestaurantOffer[]; onClick: () => void }) {
   // Strongest offer (for click tracking), plus every deal to show as pills.

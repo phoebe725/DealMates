@@ -289,15 +289,12 @@ struct DiscoverView: View {
     private var restaurantList: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
+                // One continuous list, no section titles — featured deals just
+                // sort to the top while browsing.
                 if showFeatured {
-                    PinSectionHeader(title: "Featured")
                     ForEach(featuredRestaurants) { restaurantCardButton($0) }
                 }
-
-                if !generalRestaurants.isEmpty {
-                    if showFeatured { PinSectionHeader(title: "All restaurants") }
-                    ForEach(generalRestaurants) { restaurantCardButton($0) }
-                }
+                ForEach(generalRestaurants) { restaurantCardButton($0) }
 
                 if visibleRestaurants.isEmpty {
                     emptyRestaurants.padding(.top, 40)

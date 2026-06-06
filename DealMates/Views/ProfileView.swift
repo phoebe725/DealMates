@@ -20,33 +20,40 @@ struct ProfileView: View {
                 Color.pinCream.ignoresSafeArea()
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        header
-                            .padding(.horizontal, 20)
-                            .padding(.top, 12)
-
-                        profileCard
-                            .padding(.horizontal, 20)
-
-                        if !authViewModel.bio.isEmpty {
-                            bioCard
+                    if authViewModel.isSignedIn {
+                        VStack(alignment: .leading, spacing: 20) {
+                            header
                                 .padding(.horizontal, 20)
+                                .padding(.top, 12)
+
+                            profileCard
+                                .padding(.horizontal, 20)
+
+                            if !authViewModel.bio.isEmpty {
+                                bioCard
+                                    .padding(.horizontal, 20)
+                            }
+
+                            creditsSection
+                                .padding(.horizontal, 20)
+
+                            accountSection
+                                .padding(.horizontal, 20)
+
+                            settingsLink
+                                .padding(.horizontal, 20)
+
+                            howItWorksSection
+                                .padding(.horizontal, 20)
+
+                            aboutSection
+                                .padding(.horizontal, 20)
+                                .padding(.bottom, 32)
                         }
-
-                        creditsSection
+                    } else {
+                        guestProfile
                             .padding(.horizontal, 20)
-
-                        accountSection
-                            .padding(.horizontal, 20)
-
-                        settingsLink
-                            .padding(.horizontal, 20)
-
-                        howItWorksSection
-                            .padding(.horizontal, 20)
-
-                        aboutSection
-                            .padding(.horizontal, 20)
+                            .padding(.top, 20)
                             .padding(.bottom, 32)
                     }
                 }
@@ -62,6 +69,66 @@ struct ProfileView: View {
             }
             .sheet(isPresented: $showAdmin) { AdminView() }
         }
+    }
+
+    // MARK: - Guest profile (mirrors web's guest screen)
+
+    private var guestProfile: some View {
+        VStack(spacing: 16) {
+            PintableWordmark(size: 22)
+                .onLongPressGesture(minimumDuration: 0.6) { if isFounder { showAdmin = true } }
+            Text("👤").font(.system(size: 44)).padding(.top, 4)
+            Text("You're browsing as a guest")
+                .font(.pinHero(22, weight: .light))
+                .foregroundStyle(Color.pinInk)
+                .multilineTextAlignment(.center)
+
+            guestCard(titleKey: "✓ Available as guest", tint: .pinSageDeep, items: [
+                "Browse restaurants and deals",
+                "View and join dining plans",
+                "Chat inside plans you've joined",
+            ])
+            guestCard(titleKey: "↑ With a free account", tint: .pinClay, items: [
+                "Create your own dining plans",
+                "Send direct messages",
+                "Track attendance and history",
+            ])
+
+            VStack(spacing: 12) {
+                NavigationLink { LoginView(startInSignUp: true) } label: {
+                    Text("Sign up — it's free")
+                }
+                .buttonStyle(PinPrimaryButtonStyle())
+                NavigationLink { LoginView(startInSignUp: false) } label: {
+                    Text("I already have an account")
+                }
+                .buttonStyle(PinSecondaryButtonStyle())
+            }
+            .padding(.top, 4)
+
+            settingsLink.padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func guestCard(titleKey: LocalizedStringKey, tint: Color, items: [LocalizedStringKey]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(titleKey)
+                .font(.pinSubtitle(12).weight(.semibold))
+                .foregroundStyle(tint)
+                .textCase(.uppercase)
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                Text(item)
+                    .font(.pinBody(14))
+                    .foregroundStyle(Color.pinInk)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.pinShell)
+        )
     }
 
     // MARK: - Header
