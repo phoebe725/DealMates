@@ -18,6 +18,7 @@ import { restaurantName, needsMorePeople, type ChatMessage, type Plan, type AppU
 import { t, systemMessageText } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
 import { useUnread } from "@/unread/UnreadContext";
+import { trackJoinClick, trackGuestJoinSuccess } from "@/lib/analytics";
 import { Chip, Spinner } from "@/components/ui";
 
 function timeLabel(p: Plan) {
@@ -228,6 +229,7 @@ export function PlanDetail() {
                   await updateProfile(user.id, { display_name: guestName.trim() });
                   user.display_name = guestName.trim();
                   setShowNamePrompt(false);
+                  trackGuestJoinSuccess(id, plan.restaurant_id);
                   toggleMembership();
                 }}
               >
@@ -259,7 +261,11 @@ export function PlanDetail() {
           <button
             className="pin-btn-primary"
             disabled={busy || need === 0}
-            onClick={() => user?.is_anonymous ? setShowNamePrompt(true) : toggleMembership()}
+            onClick={() => {
+              trackJoinClick(id, plan.restaurant_id);
+              if (user?.is_anonymous) setShowNamePrompt(true);
+              else toggleMembership();
+            }}
           >
             {need === 0 ? t("Group is full") : t("Join this plan")}
           </button>

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchRestaurant, fetchActivePlans, fetchRestaurantOffers, defaultPlanOrder } from "@/services/db";
 import { restaurantName, restaurantDeals, dealToOffer, offerTitle, offerDescription, offerGroupBadge, needsMorePeople, type Plan } from "@/types";
 import { t, localizedCuisine as cuisineLabel } from "@/i18n";
+import { trackCreatePlanClick } from "@/lib/analytics";
 import { Chip, EmptyState, Spinner } from "@/components/ui";
 
 function timeLabel(p: Plan) {
@@ -101,7 +102,7 @@ export function RestaurantBoard() {
 
       {/* Create-a-table CTA (create flow is the next phase). */}
       <button
-        onClick={() => nav(`/create?restaurant=${rest.id}`)}
+        onClick={() => { trackCreatePlanClick(rest.id); nav(`/create?restaurant=${rest.id}`); }}
         className="fixed bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-full bg-clay px-6 py-3 font-semibold text-cream shadow-lg"
       >
         + {t("Create a table")}
