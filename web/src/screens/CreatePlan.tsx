@@ -50,7 +50,7 @@ export function CreatePlan() {
           {t("You can still join plans as a guest — no account needed for that.")}
         </p>
         <button className="pin-btn-primary mt-8 w-full max-w-xs" onClick={() => nav("/signin")}>
-          {t("Sign up — it's free")}
+          {t("Sign up or log in")}
         </button>
         <button className="mt-3 text-[14px] text-clay" onClick={() => nav(-1)}>
           {t("Cancel")}

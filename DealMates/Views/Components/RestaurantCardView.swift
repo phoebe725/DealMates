@@ -6,8 +6,7 @@ struct RestaurantCardView: View {
     let restaurant: Restaurant
     var offers: [RestaurantOffer] = []
 
-    private var top: RestaurantOffer? { RestaurantOffer.best(offers) }
-    private var isGroup: Bool { top?.dealKind == "group" }
+    private var deals: [RestaurantOffer] { RestaurantOffer.deals(offers) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -24,12 +23,14 @@ struct RestaurantCardView: View {
                 Text(restaurant.displayCuisine)
                     .font(.pinSubtitle(13))
                     .foregroundStyle(Color.pinInkMuted)
-                if let top {
-                    Text(top.shortLabel.emoji + " " + top.shortLabel.text)
-                        .font(.pinSubtitle(13).weight(.semibold))
-                        .foregroundStyle(isGroup ? Color.pinClayDeep : Color.pinSunDeep)
-                        .lineLimit(1)
+                if !deals.isEmpty {
+                    // Every deal on one row, each in a tinted pill; swipe to see more.
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(deals) { dealPill($0) }
+                        }
                         .padding(.top, 2)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -38,6 +39,17 @@ struct RestaurantCardView: View {
         .background(Color.pinShell)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .shadow(color: Color.pinInk.opacity(0.04), radius: 10, x: 0, y: 4)
+    }
+
+    private func dealPill(_ offer: RestaurantOffer) -> some View {
+        let group = offer.dealKind == "group"
+        return Text(offer.shortLabel.emoji + " " + offer.shortLabel.text)
+            .font(.pinSubtitle(12).weight(.semibold))
+            .foregroundStyle(group ? Color.pinClayDeep : Color.pinSunDeep)
+            .lineLimit(1)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill((group ? Color.pinClay : Color.pinSun).opacity(0.16)))
     }
 
     // MARK: - Image

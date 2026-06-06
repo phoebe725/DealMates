@@ -267,10 +267,9 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 function RestaurantCard({ r, offers, onClick }: { r: Restaurant; offers: RestaurantOffer[]; onClick: () => void }) {
-  // Strongest offer by priority (group > AYCE > discount > student > member > lunch).
+  // Strongest offer (for click tracking), plus every deal to show as pills.
   const top = bestOffer(offers);
-  const label = top ? offerShortLabel(top) : null;
-  const isGroup = top ? dealKind(top) === "group" : false;
+  const deals = dealOffers(offers);
   const handleClick = () => {
     trackRestaurantClick(r.id);
     if (top) trackDealClick(top.id, r.id, { offer_type: top.offer_type, category: top.category });
@@ -282,9 +281,23 @@ function RestaurantCard({ r, offers, onClick }: { r: Restaurant; offers: Restaur
       <div className="p-3.5">
         <span className="font-sans text-[16px] font-medium text-ink">{restaurantName(r)}</span>
         <div className="text-[13px] text-inkMuted">{localizedCuisine(r.cuisine)}</div>
-        {label && (
-          <div className={`mt-1.5 text-[13px] font-semibold ${isGroup ? "text-clayDeep" : "text-sunDeep"}`}>
-            {label.emoji} {label.text}
+        {deals.length > 0 && (
+          // All deals on one row, each in a tinted pill; swipe horizontally if they overflow.
+          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {deals.map((o) => {
+              const l = offerShortLabel(o);
+              const group = dealKind(o) === "group";
+              return (
+                <span
+                  key={o.id}
+                  className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-semibold ${
+                    group ? "bg-clay/15 text-clayDeep" : "bg-sun/20 text-sunDeep"
+                  }`}
+                >
+                  {l.emoji} {l.text}
+                </span>
+              );
+            })}
           </div>
         )}
       </div>
