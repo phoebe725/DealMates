@@ -56,6 +56,12 @@ struct Plan: Identifiable, Codable, Hashable {
     var flexMeal: FlexMeal?
     var genderPreference: GenderPreference
     var attendanceConfirmedAt: Date?
+    /// Server insert time. Optional so older rows and local inserts (where the
+    /// DB default fills it) still decode. Tie-breaker for plan ordering.
+    var createdAt: Date?
+    /// Short shareable code, e.g. PT482. Shown on plan detail so anyone
+    /// can share the plan without needing a link.
+    var eventCode: String?
 
     // MARK: Computed
 
@@ -84,6 +90,38 @@ struct Plan: Identifiable, Codable, Hashable {
     }
 
     func isMember(uid: String) -> Bool { memberIds.contains(uid) }
+
+    /// Locale-aware "created" date + time, or nil if the row predates the
+    /// created_at column. Shown on plan cards and the plan detail screen.
+    var createdDisplay: String? {
+        guard let createdAt else { return nil }
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        if let lang = UserDefaults.standard.string(forKey: "preferredLanguageCode") {
+            f.locale = Locale(identifier: lang)
+        }
+        return f.string(from: createdAt)
+    }
+
+    /// Inferred (no DB field) — true when the plan's notes or restaurant name
+    /// mention a dining deal. Drives the "Deal" badge on plan cards.
+    var hasDeal: Bool {
+        let haystack = (notes + " " + restaurantName).lowercased()
+        let keywords = ["優惠", "优惠", "买", "買", "送", "deal", "offer", "discount", "ayce", "buffet"]
+        return keywords.contains { haystack.contains($0) }
+    }
+
+    /// Default list ordering. Plans with a specific meeting date/time come
+    /// first, soonest at the top; plans without one (ASAP / flexible) follow,
+    /// most-recently-created at the top.
+    static func defaultOrder(_ a: Plan, _ b: Plan) -> Bool {
+        let aTimed = a.timeType == .scheduled
+        let bTimed = b.timeType == .scheduled
+        if aTimed != bTimed { return aTimed }
+        if aTimed { return a.scheduledAt < b.scheduledAt }
+        return (a.createdAt ?? .distantPast) > (b.createdAt ?? .distantPast)
+    }
 }
 
 extension Plan {
@@ -107,5 +145,7 @@ extension Plan {
         case flexMeal = "flex_meal"
         case genderPreference = "gender_preference"
         case attendanceConfirmedAt = "attendance_confirmed_at"
+        case createdAt = "created_at"
+        case eventCode = "event_code"
     }
 }

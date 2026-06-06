@@ -36,6 +36,8 @@ struct PlanDetailView: View {
     @State private var showLockTimeSheet = false
     @State private var lockedTime: Date = Date().addingTimeInterval(3600)
     @State private var isBusy = false
+    @State private var addedToCalendar = false
+    @State private var calendarErrorMessage: String?
     @State private var pendingRemoval: AppUser?
     @State private var profileTarget: UserProfileSheetTarget?
     @ObservedObject private var userCache = UserCache.shared
@@ -92,6 +94,18 @@ struct PlanDetailView: View {
                     .foregroundStyle(Color.pinInk)
                     .lineLimit(1)
             }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                // Share a link that invites others to this plan (and points
+                // people without the app to download it).
+                ShareLink(
+                    item: DeepLinkRouter.shareURL(for: livePlan),
+                    subject: Text("Join my plan on PinTable"),
+                    message: Text("Come share this dining plan with me on PinTable.")
+                ) {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundStyle(Color.pinClay)
+                }
+            }
             reportToolbarItem
         }
         .toolbarBackground(Color.pinShell, for: .navigationBar)
@@ -107,11 +121,7 @@ struct PlanDetailView: View {
             )
             .environmentObject(authViewModel)
         }
-        .confirmationDialog(
-            "Cancel this pin?",
-            isPresented: $showCancelConfirm,
-            titleVisibility: .visible
-        ) {
+        .alert("Cancel this pin?", isPresented: $showCancelConfirm) {
             Button("Cancel pin", role: .destructive) {
                 Task {
                     await planVM.cancelPlan(livePlan)
@@ -120,7 +130,7 @@ struct PlanDetailView: View {
             }
             Button("Keep pin", role: .cancel) {}
         } message: {
-            Text("Everyone in the raft loses access and the chat goes away.")
+            Text("Your mates lose access and the chat goes away.")
         }
         .onAppear {
             chatVM.startListening()
@@ -149,7 +159,7 @@ struct PlanDetailView: View {
             }
         }
         .confirmationDialog(
-            pendingRemoval.map { "Remove \($0.displayName) from the raft?" } ?? "",
+            pendingRemoval.map { "Remove \($0.displayName) from the group?" } ?? "",
             isPresented: Binding(
                 get: { pendingRemoval != nil },
                 set: { if !$0 { pendingRemoval = nil } }
@@ -184,6 +194,12 @@ struct PlanDetailView: View {
         )) {
             Button("OK", role: .cancel) { pollsVM.errorMessage = nil }
         } message: { Text(pollsVM.errorMessage ?? "") }
+        .alert("Heads up", isPresented: Binding(
+            get: { calendarErrorMessage != nil },
+            set: { if !$0 { calendarErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { calendarErrorMessage = nil }
+        } message: { Text(calendarErrorMessage ?? "") }
         .sheet(isPresented: $showAttendanceSheet) {
             ConfirmAttendanceSheet(
                 plan: livePlan,
@@ -205,14 +221,14 @@ struct PlanDetailView: View {
                     .font(.pinBody(15, weight: .medium))
                     .foregroundStyle(Color.pinInk)
                 Spacer()
-                Text("\(livePlan.currentPeople)/\(livePlan.neededPeople)")
+                Label("\(livePlan.currentPeople)/\(livePlan.neededPeople) joined", systemImage: "person.2.fill")
                     .font(.pinBody(13, weight: .medium).monospacedDigit())
                     .foregroundStyle(Color.pinInkMuted)
             }
 
             HStack(spacing: 8) {
                 if livePlan.needsMorePeople > 0 {
-                    PinChip(text: "Needs \(livePlan.needsMorePeople) more",
+                    PinChip(text: "Need \(livePlan.needsMorePeople) more",
                             systemImage: "person.3.fill", tint: .pinClay)
                 } else {
                     PinChip(text: "Group is full",
@@ -232,11 +248,51 @@ struct PlanDetailView: View {
                 }
             }
 
+            if let created = livePlan.createdDisplay {
+                HStack(spacing: 5) {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.pinInkMuted)
+                    Text(verbatim: String(format: AppLocalization.string("Created %@"), created))
+                        .font(.pinSubtitle(12))
+                        .foregroundStyle(Color.pinInkMuted)
+                }
+            }
+
             if !livePlan.notes.isEmpty {
                 Text(livePlan.notes)
                     .font(.pinBody(13))
                     .foregroundStyle(Color.pinInkMuted)
                     .padding(.top, 2)
+            }
+
+            if let code = livePlan.eventCode {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Event code")
+                            .font(.pinSubtitle(10))
+                            .foregroundStyle(Color.pinInkMuted)
+                            .textCase(.uppercase)
+                        Text(verbatim: code)
+                            .font(.system(.title3, design: .monospaced).weight(.bold))
+                            .tracking(2)
+                            .foregroundStyle(Color.pinClay)
+                    }
+                    Spacer()
+                    Button {
+                        UIPasteboard.general.string = code
+                    } label: {
+                        Text("Copy")
+                            .font(.pinButton(12))
+                            .foregroundStyle(Color.pinClay)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.pinClay.opacity(0.15), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(12)
+                .background(Color.pinCream, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
 
             primaryActions
@@ -266,23 +322,42 @@ struct PlanDetailView: View {
             }
 
             if canAddToCalendar {
-                Button {
-                    Task {
-                        do { try await CalendarService.shared.addPlanToCalendar(plan: livePlan) }
-                        catch { print("[DEBUG] calendar add failed: \(error)") }
-                    }
-                } label: {
-                    Label("Add to calendar", systemImage: "calendar.badge.plus")
+                if addedToCalendar {
+                    // Confirmed indicator once the event has been added.
+                    Label("Added to calendar", systemImage: "calendar.badge.checkmark")
                         .font(.pinButton(13))
-                        .foregroundStyle(Color.pinClayDeep)
+                        .foregroundStyle(Color.pinSageDeep)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color.pinClay.opacity(0.12))
+                                .fill(Color.pinSageDeep.opacity(0.12))
                         )
+                } else {
+                    Button {
+                        Task {
+                            do {
+                                try await CalendarService.shared.addPlanToCalendar(plan: livePlan)
+                                addedToCalendar = true
+                                planVM.successMessage = AppLocalization.string("Added to your calendar.")
+                            } catch {
+                                calendarErrorMessage = (error as? LocalizedError)?.errorDescription
+                                    ?? AppLocalization.string("Could not add to calendar.")
+                            }
+                        }
+                    } label: {
+                        Label("Add to calendar", systemImage: "calendar.badge.plus")
+                            .font(.pinButton(13))
+                            .foregroundStyle(Color.pinClayDeep)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.pinClay.opacity(0.12))
+                            )
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
         .padding(.top, livePlan.needsMorePeople == 0 || canConfirmAttendance || canLockTime || canAddToCalendar ? 4 : 0)
@@ -290,13 +365,13 @@ struct PlanDetailView: View {
 
     private var membersStrip: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Sun-yellow accent — "raft" is the group concept; tinting the label
-            // ties this section to the Raft chip in the Messages list.
+            // Sun-yellow accent — the "mates" group concept; tinting the label
+            // ties this section to the plan-chat chip in the Messages list.
             HStack(spacing: 5) {
                 Image(systemName: "sailboat.fill")
                     .font(.system(size: 10))
                     .foregroundStyle(Color.pinSunDeep)
-                Text("Your raft")
+                Text("Your mates")
                     .font(.pinBody(11, weight: .medium))
                     .foregroundStyle(Color.pinSunDeep)
             }

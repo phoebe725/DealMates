@@ -175,16 +175,22 @@ struct CreatePlanView: View {
             Text(title)
                 .font(.pinBody(14))
                 .foregroundStyle(Color.pinInk)
-            Spacer()
+                .lineLimit(1)
+            Spacer(minLength: 8)
             HStack(spacing: 6) {
                 // Concat two Text views so the number stays a number and the
-                // suffix gets localized via the catalog.
+                // suffix gets localized via the catalog. Pin it to one line and
+                // let it keep its intrinsic width so "3 people" never wraps on
+                // narrower devices.
                 (Text(verbatim: "\(value.wrappedValue) ") + Text(suffix))
                     .font(.pinBody(14, weight: .medium).monospacedDigit())
                     .foregroundStyle(Color.pinInk)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                 Stepper("", value: value, in: range)
                     .labelsHidden()
                     .tint(Color.pinClay)
+                    .fixedSize()
             }
         }
     }
@@ -233,6 +239,14 @@ struct CreatePlanView: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.pinClay.opacity(0.12))
         )
+    }
+
+    // MARK: - Helpers
+
+    private static func generateEventCode() -> String {
+        let chars = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+        let suffix = String((0..<3).map { _ in chars[Int.random(in: 0..<chars.count)] })
+        return "PT\(suffix)"
     }
 
     // MARK: - Submit
@@ -293,7 +307,8 @@ struct CreatePlanView: View {
                 flexDay: storedFlexDay,
                 flexMeal: storedFlexMeal,
                 genderPreference: genderPreference,
-                attendanceConfirmedAt: existing.attendanceConfirmedAt
+                attendanceConfirmedAt: existing.attendanceConfirmedAt,
+                eventCode: existing.eventCode ?? Self.generateEventCode()
             )
         } else {
             plan = Plan(
@@ -315,7 +330,8 @@ struct CreatePlanView: View {
                 flexDay: storedFlexDay,
                 flexMeal: storedFlexMeal,
                 genderPreference: genderPreference,
-                attendanceConfirmedAt: nil
+                attendanceConfirmedAt: nil,
+                eventCode: Self.generateEventCode()
             )
         }
 

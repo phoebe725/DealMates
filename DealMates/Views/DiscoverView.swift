@@ -26,6 +26,7 @@ struct DiscoverView: View {
     @State private var mode: DiscoverMode = .restaurants
     @State private var subscribedOnly: Bool = false
     @State private var allPlans: [Plan] = []
+    @State private var planListenerTask: Task<Void, Never>?
     @State private var plansLoading: Bool = false
     @State private var showMap = false
     @State private var didInitialLoad = false
@@ -45,7 +46,6 @@ struct DiscoverView: View {
                         switch mode {
                         case .restaurants:
                             if vm.isLoading && vm.restaurants.isEmpty { loadingState }
-                            else if visibleRestaurants.isEmpty { emptyRestaurants }
                             else { restaurantList }
                         case .plans:
                             if plansLoading && allPlans.isEmpty { loadingState }
@@ -79,12 +79,28 @@ struct DiscoverView: View {
                 await loadAllPlans()
                 await subs.load(currentUid: authViewModel.uid)
             }
+            startListening()
         }
+        .onDisappear { stopListening() }
         .sheet(isPresented: $showMap) {
             RestaurantMapView()
                 .environmentObject(vm)
                 .environmentObject(authViewModel)
         }
+    }
+
+    // Realtime: any plan insert/update/delete refreshes the Plans tab so a plan
+    // someone else just created shows up within a second, not on next refresh.
+    private func startListening() {
+        guard planListenerTask == nil else { return }
+        planListenerTask = DatabaseService.shared.listenToAllPlanChanges {
+            Task { @MainActor in await loadAllPlans() }
+        }
+    }
+
+    private func stopListening() {
+        planListenerTask?.cancel()
+        planListenerTask = nil
     }
 
     // MARK: - Header (greeting + segmented mode + filters + search)
@@ -95,16 +111,16 @@ struct DiscoverView: View {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     (
-                        Text("Find your ")
+                        Text("Find a ")
                             .font(.pinHero(28, weight: .light))
                             .foregroundStyle(Color.pinInk)
                         +
-                        Text("raft.")
+                        Text("Deal")
                             .font(.pinAccent(38))
                             .foregroundStyle(Color.pinClayDeep)
                     )
                     .lineLimit(1)
-                    Text("Restaurants and pins near you.")
+                    Text("Group dining offers near you")
                         .font(.pinSubtitle(13))
                         .foregroundStyle(Color.pinInkMuted)
                 }
@@ -114,14 +130,48 @@ struct DiscoverView: View {
 
             PinSegmentedPicker(
                 options: [(value: DiscoverMode.restaurants, label: "Restaurants"),
-                          (value: DiscoverMode.plans, label: "Pins")],
+                          (value: DiscoverMode.plans, label: "Plans")],
                 selection: $mode
             )
 
             if mode == .restaurants {
                 PinSearchField(text: $vm.searchText, placeholder: "Search restaurants or cuisine")
+                cuisineChips
             }
         }
+    }
+
+    // Horizontal, single-select cuisine chips. Labels run through
+    // AppLocale.localizedCuisine so Chinese users see 火锅 / 點心 etc.
+    private var cuisineChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                chip(label: "All cuisines", selected: vm.cuisineFilter == nil) {
+                    vm.cuisineFilter = nil
+                }
+                ForEach(vm.availableCuisines, id: \.self) { cuisine in
+                    chip(label: AppLocale.localizedCuisine(cuisine),
+                         selected: vm.cuisineFilter == cuisine) {
+                        vm.cuisineFilter = (vm.cuisineFilter == cuisine) ? nil : cuisine
+                    }
+                }
+            }
+            .padding(.horizontal, 1)
+        }
+    }
+
+    private func chip(label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.pinButton(13))
+                .foregroundStyle(selected ? Color.pinCream : Color.pinInk)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule().fill(selected ? Color.pinClay : Color.pinShell)
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -136,28 +186,13 @@ struct DiscoverView: View {
             }
             .buttonStyle(.plain)
 
-            cuisineFilterMenu
+            sortMenu
         }
     }
 
-    private var cuisineFilterMenu: some View {
+    // Cuisine selection now lives in the chip row; this menu is sort-only.
+    private var sortMenu: some View {
         Menu {
-            Section("Cuisine") {
-                Button {
-                    vm.cuisineFilter = nil
-                } label: {
-                    if vm.cuisineFilter == nil { Label("All cuisines", systemImage: "checkmark") }
-                    else { Text("All cuisines") }
-                }
-                ForEach(vm.availableCuisines, id: \.self) { cuisine in
-                    Button {
-                        vm.cuisineFilter = cuisine
-                    } label: {
-                        if vm.cuisineFilter == cuisine { Label(AppLocale.localizedCuisine(cuisine), systemImage: "checkmark") }
-                        else { Text(AppLocale.localizedCuisine(cuisine)) }
-                    }
-                }
-            }
             Section("Sort") {
                 ForEach(RestaurantSortMode.allCases) { mode in
                     Button {
@@ -169,9 +204,9 @@ struct DiscoverView: View {
                 }
             }
         } label: {
-            Image(systemName: (vm.cuisineFilter != nil || sortMode != .name)
-                  ? "line.3.horizontal.decrease.circle.fill"
-                  : "line.3.horizontal.decrease.circle")
+            Image(systemName: sortMode != .name
+                  ? "arrow.up.arrow.down.circle.fill"
+                  : "arrow.up.arrow.down.circle")
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(Color.pinClay)
                 .frame(width: 40, height: 40)
@@ -183,14 +218,19 @@ struct DiscoverView: View {
 
     private var restaurantList: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
-                ForEach(visibleRestaurants) { restaurant in
-                    Button {
-                        selectedRestaurant = restaurant
-                    } label: {
-                        RestaurantCardView(restaurant: restaurant)
-                    }
-                    .buttonStyle(.plain)
+            LazyVStack(alignment: .leading, spacing: 12) {
+                if showFeatured {
+                    PinSectionHeader(title: "Featured")
+                    ForEach(featuredRestaurants) { restaurantCardButton($0) }
+                }
+
+                if !generalRestaurants.isEmpty {
+                    if showFeatured { PinSectionHeader(title: "All restaurants") }
+                    ForEach(generalRestaurants) { restaurantCardButton($0) }
+                }
+
+                if visibleRestaurants.isEmpty {
+                    emptyRestaurants.padding(.top, 40)
                 }
             }
             .padding(.horizontal, 20)
@@ -201,7 +241,30 @@ struct DiscoverView: View {
             await vm.load()
             await UnreadManager.shared.refresh(currentUid: authViewModel.uid)
         }
-        .animation(nil, value: visibleRestaurants.map(\.id))
+    }
+
+    private func restaurantCardButton(_ restaurant: Restaurant) -> some View {
+        Button {
+            selectedRestaurant = restaurant
+        } label: {
+            RestaurantCardView(restaurant: restaurant)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Featured / general split
+
+    private var featuredRestaurants: [Restaurant] {
+        visibleRestaurants.filter { $0.isFeaturedEligible }
+    }
+
+    /// Show Featured only while browsing (no active text search).
+    private var showFeatured: Bool {
+        vm.searchText.isEmpty && !featuredRestaurants.isEmpty
+    }
+
+    private var generalRestaurants: [Restaurant] {
+        showFeatured ? visibleRestaurants.filter { !$0.isFeaturedEligible } : visibleRestaurants
     }
 
     private var visibleRestaurants: [Restaurant] {
@@ -229,8 +292,8 @@ struct DiscoverView: View {
         let filtered = subscribedOnly
             ? active.filter { subs.subscribedRestaurantIds.contains($0.restaurantId) }
             : active
-        // Soonest meet-up at the top.
-        return filtered.sorted { $0.scheduledAt < $1.scheduledAt }
+        // Timed plans (soonest) first, then untimed newest-created first.
+        return filtered.sorted(by: Plan.defaultOrder)
     }
 
     private var plansScroll: some View {
@@ -285,6 +348,9 @@ struct DiscoverView: View {
                 Text(restaurantCache.displayName(for: plan.restaurantId, fallback: plan.restaurantName))
                     .font(.pinBody(15, weight: .medium))
                     .foregroundStyle(Color.pinInk)
+                if plan.hasDeal {
+                    PinChip(text: "Deal", systemImage: "tag.fill", tint: .pinSunDeep)
+                }
                 Spacer()
                 Label(plan.timeDisplay, systemImage: "clock")
                     .font(.pinSubtitle(12))
@@ -303,10 +369,15 @@ struct DiscoverView: View {
                     .foregroundStyle(Color.pinInkMuted)
                 Spacer()
                 if plan.needsMorePeople > 0 {
-                    PinChip(text: "Needs \(plan.needsMorePeople)", systemImage: "person.3.fill", tint: .pinClay)
+                    PinChip(text: "\(plan.currentPeople)/\(plan.neededPeople) joined", systemImage: "person.2.fill", tint: .pinClay)
                 } else {
                     PinChip(text: "Full", systemImage: "checkmark.seal.fill", tint: .pinSageDeep)
                 }
+            }
+            if let created = plan.createdDisplay {
+                Text(verbatim: String(format: AppLocalization.string("Created %@"), created))
+                    .font(.pinSubtitle(11))
+                    .foregroundStyle(Color.pinInkMuted)
             }
         }
         .padding(14)
@@ -322,10 +393,10 @@ struct DiscoverView: View {
             ))
         } else {
             return AnyView(PinEmptyState(
-                title: subscribedOnly ? "Nothing pinned here yet" : "No live pins right now",
+                title: subscribedOnly ? "Nothing pinned here yet" : "No active tables yet",
                 message: subscribedOnly
                     ? "Try unticking the toggle to see all active pins."
-                    : "Be the first — pin a plan at a restaurant.",
+                    : "Start a table and find people to share a meal or deal.",
                 systemImage: "mappin"
             ))
         }

@@ -21,6 +21,12 @@ struct RestaurantCardView: View {
                     .font(.pinSubtitle(12))
                     .foregroundStyle(Color.pinInkMuted)
                     .lineLimit(1)
+                if let deal = restaurant.displayDeals.first {
+                    Label(deal.title, systemImage: "flame.fill")
+                        .font(.pinSubtitle(12).weight(.medium))
+                        .foregroundStyle(Color.pinSunDeep)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 4)

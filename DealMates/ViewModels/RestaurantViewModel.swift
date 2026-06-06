@@ -17,6 +17,7 @@ final class RestaurantViewModel: ObservableObject {
     /// Synthetic cross-cuisine category for venues with a real all-you-can-eat
     /// / buffet menu (researched, curated by id — not a stored field). Shown as
     /// its own filter chip.
+    static let dealsCategory  = "🔥 Deals"
     static let buffetCategory = "AYCE / Buffet"
     static let buffetRestaurantIDs: Set<String> = [
         // Existing restaurants — real UUIDs from the database
@@ -59,6 +60,9 @@ final class RestaurantViewModel: ObservableObject {
         if restaurants.contains(where: { Self.buffetRestaurantIDs.contains($0.id) || $0.cuisine == Self.buffetCategory }) {
             cuisines.insert(Self.buffetCategory, at: 0)
         }
+        if restaurants.contains(where: { !$0.displayDeals.isEmpty }) {
+            cuisines.insert(Self.dealsCategory, at: 0)
+        }
         return cuisines
     }
 
@@ -96,7 +100,9 @@ final class RestaurantViewModel: ObservableObject {
     private func applyFilter() {
         var result = restaurants
         if let cuisine = cuisineFilter, !cuisine.isEmpty {
-            if cuisine == Self.buffetCategory {
+            if cuisine == Self.dealsCategory {
+                result = result.filter { !$0.displayDeals.isEmpty }
+            } else if cuisine == Self.buffetCategory {
                 result = result.filter { Self.buffetRestaurantIDs.contains($0.id) || $0.cuisine == Self.buffetCategory }
             } else {
                 result = result.filter { $0.cuisine == cuisine }
@@ -106,7 +112,9 @@ final class RestaurantViewModel: ObservableObject {
             let q = searchText.lowercased()
             result = result.filter {
                 $0.name.lowercased().contains(q) ||
-                $0.cuisine.lowercased().contains(q)
+                $0.cuisine.lowercased().contains(q) ||
+                ($0.nameZhHans ?? "").contains(q) ||
+                ($0.nameZhHant ?? "").contains(q)
             }
         }
         filteredRestaurants = result
