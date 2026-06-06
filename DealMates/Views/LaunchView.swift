@@ -34,7 +34,7 @@ struct LaunchView: View {
                 // 3. + 4. Tagline + sub-tagline, vertically grouped.
                 VStack(spacing: 10) {
                     tagline
-                    Text("Build your raft.")
+                    Text("Find people to share group dining deals.")
                         .font(.pinSubtitle(15))
                         .foregroundStyle(Color.pinInkMuted)
                 }
@@ -78,11 +78,11 @@ struct LaunchView: View {
 
     private var tagline: some View {
         (
-            Text("Plan something ")
+            Text("Find your ")
                 .font(.pinHero(26, weight: .light))
                 .foregroundStyle(Color.pinInk)
             +
-            Text("together.")
+            Text("mates.")
                 .font(.pinAccent(36))
                 .foregroundStyle(Color.pinClayDeep)
         )

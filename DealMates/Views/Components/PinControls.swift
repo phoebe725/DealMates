@@ -60,7 +60,11 @@ struct PinEmptyState: View {
                 .padding(.top, 4)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Top-anchor the artwork at a fixed offset so the icon lands at the same
+        // height across every empty state, regardless of how many lines the
+        // message wraps to (centering used to drift the icon up for longer copy).
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.top, 56)
     }
 
     @ViewBuilder

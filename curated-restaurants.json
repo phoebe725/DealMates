@@ -1,0 +1,1183 @@
+{
+  "_notes": [
+    "41 London venues for Pintable MVP (was 42, removed Mala Project — it's a New York restaurant, no London location exists).",
+    "Format mirrors existing Restaurant model (Models/Restaurant.swift) and existing Supabase seed.",
+    "Mix: ~75% Chinese/Asian (anchor wedge), ~25% Western/Other (inclusivity).",
+    "Neighborhood spread across central London + key Chinese diaspora areas.",
+    "Hey Tea (喜茶): 6 confirmed London branches included as casual social venues."
+  ],
+  "_deals_disclaimer": [
+    "Deals populated from open-web research (restaurant websites, TimeOut, TheFork, press) on 2026-06-01.",
+    "Specific prices/conditions verified as of that date — verify weekly via agent + Xiaohongshu/Buymeego/Instagram pulls.",
+    "Many smaller Chinatown places have empty deals[] — they don't advertise online. These need Xiaohongshu / WeChat / manual curation."
+  ],
+  "_corrections_from_v1": [
+    "REMOVED: Mala Project (NYC-only, no London location)",
+    "RENAMED: Pop Up Hot Pot Bayswater → Happy Lamb Hot Pot Bayswater (correct restaurant)",
+    "CORRECTED: Yori Korean BBQ is NOT all-you-can-eat (had this wrong); located 6 Panton St near Piccadilly, not Coventry St",
+    "CORRECTED: Liu Xiaomian Soho is in Kingly Court, not Old Compton St",
+    "CORRECTED: Murger Han branches are Euston / Mayfair / City / Elephant & Castle — there is no Bloomsbury branch; updated to Euston as flagship"
+  ],
+  "restaurants": [
+    {
+      "id": "b7c19f2a-3e5d-4a8b-9c12-1f4e7d9a3b5c",
+      "name": "Shuang Shuang — Chinatown",
+      "cuisine": "Hot Pot",
+      "address": "64 Shaftesbury Ave, London W1D 6LU",
+      "latitude": 51.5114,
+      "longitude": -0.131,
+      "name_zh_hans": "双双 — 唐人街",
+      "name_zh_hant": "雙雙 — 唐人街",
+      "deals": [
+        {
+          "title": "Conveyor belt hotpot set £9.30",
+          "detail": "Broth + dipping sauce + noodles + 3 green-plate items. Conveyor belt format, individual ingredients £1–£9.90."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "传送带火锅套餐 £9.30",
+          "detail": "汤底+蘸料+面条+3份绿盘菜。传送带形式，单点食材£1–£9.90"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "傳送帶火鍋套餐 £9.30",
+          "detail": "湯底+蘸料+麵條+3份綠盤菜。傳送帶形式，單點食材£1–£9.90"
+        }
+      ]
+    },
+    {
+      "id": "d8e23a4b-5f6c-4d9e-8b1a-2e3f5c7d9b1d",
+      "name": "Liu Xiaomian — Soho",
+      "cuisine": "Sichuan",
+      "address": "Kingly Court, Carnaby, London W1B 5PW",
+      "latitude": 51.5128,
+      "longitude": -0.1395,
+      "name_zh_hans": "刘小面 — 苏豪",
+      "name_zh_hant": "劉小麵 — 蘇豪",
+      "deals": [
+        {
+          "title": "Chongqing xiaomian noodles £10–20",
+          "detail": "London's first Chongqing noodle bar. Pork/beef/vegan xiaomian or hot-and-sour glass noodles, customisable spice levels."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "重庆小面 £10–20/人",
+          "detail": "伦敦首家重庆小面馆。猪肉/牛肉/素小面或酸辣粉，辣度可调。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "重慶小麵 £10–20/人",
+          "detail": "倫敦首家重慶小麵館。豬肉/牛肉/素小麵或酸辣粉，辣度可調。"
+        }
+      ]
+    },
+    {
+      "id": "e9f34b5c-6a7d-4e1f-9c2b-3f4d6e8a2c4e",
+      "name": "Lao Wai — Bayswater",
+      "cuisine": "Northern Chinese",
+      "address": "Queensway, London W2",
+      "latitude": 51.5125,
+      "longitude": -0.1875,
+      "name_zh_hans": "老外 — 贝斯沃特",
+      "name_zh_hant": "老外 — 貝斯沃特",
+      "deals": [],
+      "deals_zh_hans": [],
+      "deals_zh_hant": []
+    },
+    {
+      "id": "a2b56d7e-8c9f-4a3b-2e4d-5a6f8a1c4e6a",
+      "name": "Happy Lamb Hot Pot — Bayswater",
+      "cuisine": "Hot Pot",
+      "address": "104 Queensway, London W2 3RR",
+      "latitude": 51.5126,
+      "longitude": -0.1872,
+      "name_zh_hans": "快乐小羊 — 贝斯沃特",
+      "name_zh_hant": "快樂小羊 — 貝斯沃特",
+      "deals": [
+        {
+          "title": "Famous Mongolian lamb hotpot",
+          "detail": "Renowned for hand-cut lamb hotpot; long queues, walk-in only"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "招牌内蒙古羊肉火锅",
+          "detail": "手切羊肉火锅闻名，需排队，仅接受现场"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "招牌內蒙古羊肉火鍋",
+          "detail": "手切羊肉火鍋聞名，需排隊，僅接受現場"
+        }
+      ]
+    },
+    {
+      "id": "b3c67e8f-9d1a-4b4c-3f5e-6b7a9b2d5f7b",
+      "name": "Barshu — Soho",
+      "cuisine": "Sichuan",
+      "address": "28 Frith St, London W1D 5LF",
+      "latitude": 51.5135,
+      "longitude": -0.132,
+      "name_zh_hans": "巴蜀 — 苏豪",
+      "name_zh_hant": "巴蜀 — 蘇豪",
+      "deals": [
+        {
+          "title": "Michelin Guide Sichuan, mains £12–14",
+          "detail": "18-year-old Sichuan pioneer in London. Most mains £12–14, chillies/peppers imported from China. Vegetarian options available."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "米其林指南川菜，主菜 £12–14",
+          "detail": "伦敦川菜先锋18年。多数主菜£12–14，辣椒花椒直接从中国进口，提供素食选项"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "米其林指南川菜，主菜 £12–14",
+          "detail": "倫敦川菜先鋒18年。多數主菜£12–14，辣椒花椒直接從中國進口，提供素食選項"
+        }
+      ]
+    },
+    {
+      "id": "c4d78f9a-1e2b-4c5d-4a6f-7c8b1c3e6a8c",
+      "name": "Baozi Inn — Chinatown",
+      "cuisine": "Chinese",
+      "address": "26 Newport Ct, London WC2H 7JS",
+      "latitude": 51.5114,
+      "longitude": -0.1295,
+      "name_zh_hans": "包子小馆 — 唐人街",
+      "name_zh_hant": "包子小館 — 唐人街",
+      "deals": [],
+      "deals_zh_hans": [],
+      "deals_zh_hant": []
+    },
+    {
+      "id": "d5e89a1b-2f3c-4d6e-5b7a-8d9c2d4f7b9d",
+      "name": "Murger Han — Euston",
+      "cuisine": "Northern Chinese",
+      "address": "24 Cosmo Pl, Euston, London WC1N 3AP",
+      "latitude": 51.5232,
+      "longitude": -0.1218,
+      "name_zh_hans": "汉记肉夹馍 — 尤斯顿",
+      "name_zh_hant": "漢記肉夾饃 — 尤斯頓",
+      "deals": [
+        {
+          "title": "Hand-pulled biang biang noodles £6–14",
+          "detail": "London's first Xi'an restaurant. Hand-pulled noodles made in front of guests. Murgers (Chinese sandwiches) £7.50. Branches: Euston, Mayfair, City, Elephant & Castle."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "手工biangbiang面 £6–14",
+          "detail": "伦敦首家西安菜。现场手工拉面表演。肉夹馍£7.50/个。分店：尤斯顿、梅菲尔、金融城、大象堡"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "手工biangbiang麵 £6–14",
+          "detail": "倫敦首家西安菜。現場手工拉麵表演。肉夾饃£7.50/個。分店：尤斯頓、梅菲爾、金融城、大象堡"
+        }
+      ]
+    },
+    {
+      "id": "e6f9a2b3-3a4d-4e7f-6c8b-9e1d3e5a8c1e",
+      "name": "Yauatcha — Soho",
+      "cuisine": "Dim Sum",
+      "address": "15-17 Broadwick St, London W1F 0DL",
+      "latitude": 51.5135,
+      "longitude": -0.1355,
+      "name_zh_hans": "尤茶坊 — 苏豪",
+      "name_zh_hant": "尤茶坊 — 蘇豪",
+      "deals": [
+        {
+          "title": "Lunch set £23.50pp",
+          "detail": "Dim sum + signature main + ice cream/sorbet + cold-pressed juice or tea, Mon–Fri 11am–5pm"
+        },
+        {
+          "title": "Infinite Yum Cha",
+          "detail": "Unlimited dim sum and bao available, vegetarian/vegan options on request"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "午市套餐 £23.50/人",
+          "detail": "点心+招牌主菜+冰淇淋/雪芭+冷压果汁或茶，周一至周五 11am–5pm"
+        },
+        {
+          "title": "无限畅吃点心",
+          "detail": "点心和包无限畅吃，提供素食/纯素选项"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "午市套餐 £23.50/人",
+          "detail": "點心+招牌主菜+冰淇淋/雪芭+冷壓果汁或茶，週一至週五 11am–5pm"
+        },
+        {
+          "title": "無限暢吃點心",
+          "detail": "點心和包無限暢吃，提供素食/純素選項"
+        }
+      ]
+    },
+    {
+      "id": "f7a1b3c4-4b5e-4f8a-7d9c-1f2e4f6b9d2f",
+      "name": "Dragon Castle — Elephant & Castle",
+      "cuisine": "Dim Sum",
+      "address": "100 Walworth Rd, London SE17 1JL",
+      "latitude": 51.4925,
+      "longitude": -0.0975,
+      "name_zh_hans": "龙堡 — 大象堡",
+      "name_zh_hant": "龍堡 — 大象堡",
+      "deals": [
+        {
+          "title": "49 dim sum dishes, 12pm–5pm daily",
+          "detail": "Family-run with specialist dim sum chefs. Steamed, fried, and cheung fun rice noodle rolls. South London's best dim sum destination."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "49款点心，每日 12pm–5pm",
+          "detail": "家族经营，专业点心师傅。蒸点、炸点、肠粉。南伦敦最佳点心去处。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "49款點心，每日 12pm–5pm",
+          "detail": "家族經營，專業點心師傅。蒸點、炸點、腸粉。南倫敦最佳點心去處。"
+        }
+      ]
+    },
+    {
+      "id": "a8b2c4d5-5c6f-4a9b-8e1d-2a3f5a7c1e3a",
+      "name": "Pearl Liang — Paddington",
+      "cuisine": "Dim Sum",
+      "address": "8 Sheldon Square, London W2 6EZ",
+      "latitude": 51.518,
+      "longitude": -0.1775,
+      "name_zh_hans": "莲珠 — 帕丁顿",
+      "name_zh_hant": "蓮珠 — 帕丁頓",
+      "deals": [
+        {
+          "title": "Dim sum set 8 items £12.50",
+          "detail": "All-day dim sum service. 10-piece sampler £10. Individual items £4–5. Larger set menus from £38pp."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "8款点心套餐 £12.50",
+          "detail": "全天点心服务。10件试吃拼盘£10。单点£4–5/份。套餐£38起/人。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "8款點心套餐 £12.50",
+          "detail": "全天點心服務。10件試吃拼盤£10。單點£4–5/份。套餐£38起/人。"
+        }
+      ]
+    },
+    {
+      "id": "b9c3d5e6-6d7a-4b1c-9f2e-3b4a6b8d2f4b",
+      "name": "Phoenix Palace — Marylebone",
+      "cuisine": "Cantonese",
+      "address": "5 Glentworth St, London NW1 5PG",
+      "latitude": 51.5225,
+      "longitude": -0.1568,
+      "name_zh_hans": "凤凰阁 — 玛丽勒本",
+      "name_zh_hant": "鳳凰閣 — 瑪麗勒本",
+      "deals": [
+        {
+          "title": "All-day dim sum",
+          "detail": "Dim sum service 12pm–5pm daily, Sunday from 11am (last orders 4:45pm). 300+ menu items."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "全天点心服务",
+          "detail": "每日 12pm–5pm 供应点心，周日 11am 开始（最后点单 4:45pm）。菜单 300+ 道菜"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "全天點心服務",
+          "detail": "每日 12pm–5pm 供應點心，週日 11am 開始（最後點單 4:45pm）。菜單 300+ 道菜"
+        }
+      ]
+    },
+    {
+      "id": "c1d4e6f7-7e8b-4c2d-1a3f-4c5b7c9e3a5c",
+      "name": "Royal China — Bayswater",
+      "cuisine": "Cantonese",
+      "address": "13 Queensway, London W2 4QJ",
+      "latitude": 51.5118,
+      "longitude": -0.1882,
+      "name_zh_hans": "帝苑酒家 — 贝斯沃特",
+      "name_zh_hant": "帝苑酒家 — 貝斯沃特",
+      "deals": [
+        {
+          "title": "Daily dim sum, weekend queues",
+          "detail": "Dim sum served daily (no booking for dim sum service). Weekend queues form by 10:50am — arrive early. 13% service charge applies."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "每日点心，周末需排队",
+          "detail": "每日供应点心（点心时段不接受预订）。周末早上 10:50 就开始排队 — 务必提前。账单加 13% 服务费。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "每日點心，週末需排隊",
+          "detail": "每日供應點心（點心時段不接受預訂）。週末早上 10:50 就開始排隊 — 務必提前。賬單加 13% 服務費。"
+        }
+      ]
+    },
+    {
+      "id": "d2e5f7a8-8f9c-4d3e-2b4a-5d6c8d1f4b6d",
+      "name": "Four Seasons — Chinatown",
+      "cuisine": "Cantonese",
+      "address": "12 Gerrard St, London W1D 5PR",
+      "latitude": 51.5113,
+      "longitude": -0.131,
+      "name_zh_hans": "四季 — 唐人街",
+      "name_zh_hant": "四季 — 唐人街",
+      "deals": [
+        {
+          "title": "Famous roast duck",
+          "detail": "Renowned for Cantonese roast duck"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "招牌烧鸭",
+          "detail": "粤式烧鸭闻名于伦敦"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "招牌燒鴨",
+          "detail": "粵式燒鴨聞名於倫敦"
+        }
+      ]
+    },
+    {
+      "id": "e3f6a8b9-9a1d-4e4f-3c5b-6e7d9e2a5c7e",
+      "name": "Gold Mine — Bayswater",
+      "cuisine": "Cantonese",
+      "address": "102 Queensway, London W2 3RR",
+      "latitude": 51.5128,
+      "longitude": -0.188,
+      "name_zh_hans": "金山楼 — 贝斯沃特",
+      "name_zh_hant": "金山樓 — 貝斯沃特",
+      "deals": [
+        {
+          "title": "Renowned roast meats",
+          "detail": "Cantonese BBQ duck and roast pork specialties"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "招牌烧腊",
+          "detail": "粤式烧鸭、叉烧、烧肉著称"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "招牌燒臘",
+          "detail": "粵式燒鴨、叉燒、燒肉著稱"
+        }
+      ]
+    },
+    {
+      "id": "f4a7b9c1-1b2e-4f5a-4d6c-7f8e1f3b6d8f",
+      "name": "Plum Valley — Chinatown",
+      "cuisine": "Cantonese",
+      "address": "20 Gerrard St, London W1D 6JQ",
+      "latitude": 51.5115,
+      "longitude": -0.1312,
+      "name_zh_hans": "梅子谷 — 唐人街",
+      "name_zh_hant": "梅子谷 — 唐人街",
+      "deals": [],
+      "deals_zh_hans": [],
+      "deals_zh_hant": []
+    },
+    {
+      "id": "a5b8c1d2-2c3f-4a6b-5e7d-8a9f2a4c7e9a",
+      "name": "Xi'an Impression — Holloway",
+      "cuisine": "Northern Chinese",
+      "address": "117 Benwell Rd, London N7 7BW",
+      "latitude": 51.555,
+      "longitude": -0.1085,
+      "name_zh_hans": "西安印象 — 霍洛威",
+      "name_zh_hant": "西安印象 — 霍洛威",
+      "deals": [
+        {
+          "title": "Hand-pulled biang biang noodles",
+          "detail": "Specialty Shaanxi hand-pulled noodles"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "手工biangbiang面",
+          "detail": "陕西手工拉面招牌"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "手工biangbiang麵",
+          "detail": "陝西手工拉麵招牌"
+        }
+      ]
+    },
+    {
+      "id": "b6c9d2e3-3d4a-4b7c-6f8e-9b1a3b5d8f1b",
+      "name": "Wong Kei — Chinatown",
+      "cuisine": "Cantonese",
+      "address": "41-43 Wardour St, London W1D 6PY",
+      "latitude": 51.5118,
+      "longitude": -0.1325,
+      "name_zh_hans": "王记 — 唐人街",
+      "name_zh_hant": "王記 — 唐人街",
+      "deals": [
+        {
+          "title": "Affordable BBQ rice / noodle sets",
+          "detail": "Known for budget-friendly Cantonese set meals"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "经济实惠烧腊饭面",
+          "detail": "粤式平价套餐著称"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "經濟實惠燒臘飯麵",
+          "detail": "粵式平價套餐著稱"
+        }
+      ]
+    },
+    {
+      "id": "c7d1e3f4-4e5b-4c8d-7a9f-1c2b4c6e9a2c",
+      "name": "Dumplings' Legend — Chinatown",
+      "cuisine": "Chinese",
+      "address": "15-16 Gerrard St, London W1D 6JE",
+      "latitude": 51.5114,
+      "longitude": -0.1313,
+      "name_zh_hans": "龙门客栈 — 唐人街",
+      "name_zh_hant": "龍門客棧 — 唐人街",
+      "deals": [],
+      "deals_zh_hans": [],
+      "deals_zh_hant": []
+    },
+    {
+      "id": "d8e2f4a5-5f6c-4d9e-8b1a-2d3c5d7f1b3d",
+      "name": "BAO — Soho",
+      "cuisine": "Taiwanese",
+      "address": "53 Lexington St, London W1F 9AS",
+      "latitude": 51.5135,
+      "longitude": -0.137,
+      "name_zh_hans": "包 — 苏豪",
+      "name_zh_hant": "包 — 蘇豪",
+      "deals": [
+        {
+          "title": "Michelin Bib Gourmand 9 years running",
+          "detail": "Famous Taiwanese steamed buns £3.50–£5.50 (Classic £5.50). Walk-in only, queues common."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "米其林必比登推荐9年",
+          "detail": "招牌台式刈包 £3.50–£5.50（经典款 £5.50）。仅接受现场，常需排队。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "米其林必比登推薦9年",
+          "detail": "招牌台式刈包 £3.50–£5.50（經典款 £5.50）。僅接受現場，常需排隊。"
+        }
+      ]
+    },
+    {
+      "id": "e9f3a5b6-6a7d-4e1f-9c2b-3e4d6e8a2c4e",
+      "name": "BAO — Borough",
+      "cuisine": "Taiwanese",
+      "address": "13 Stoney St, London SE1 9AD",
+      "latitude": 51.505,
+      "longitude": -0.0905,
+      "name_zh_hans": "包 — 博罗市场",
+      "name_zh_hant": "包 — 博羅市場",
+      "deals": [
+        {
+          "title": "Karaoke room available",
+          "detail": "Borough branch has private KTV rooms for group bookings"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "KTV包间",
+          "detail": "Borough分店设有团体KTV包间"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "KTV包間",
+          "detail": "Borough分店設有團體KTV包間"
+        }
+      ]
+    },
+    {
+      "id": "a2b5c7d8-8c9f-4a3b-2e4d-5a6f8a1c4e6a",
+      "name": "Eat Tokyo — Soho",
+      "cuisine": "Japanese",
+      "address": "16 Old Compton St, London W1D 4TL",
+      "latitude": 51.5132,
+      "longitude": -0.132,
+      "name_zh_hans": "Eat Tokyo — 苏豪",
+      "name_zh_hant": "Eat Tokyo — 蘇豪",
+      "deals": [
+        {
+          "title": "Generous portions",
+          "detail": "Known for large bento and sushi sets at affordable prices"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "份量超值",
+          "detail": "便当及寿司套餐分量大、价格实惠"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "份量超值",
+          "detail": "便當及壽司套餐分量大、價格實惠"
+        }
+      ]
+    },
+    {
+      "id": "b3c6d8e9-9d1a-4b4c-3f5e-6b7a9b2d5f7b",
+      "name": "Tonkotsu — Soho",
+      "cuisine": "Japanese",
+      "address": "63 Dean St, London W1D 4QG",
+      "latitude": 51.5135,
+      "longitude": -0.1325,
+      "name_zh_hans": "Tonkotsu — 苏豪",
+      "name_zh_hant": "Tonkotsu — 蘇豪",
+      "deals": [
+        {
+          "title": "Weekday lunch £10.50",
+          "detail": "Lunch-sized ramen or hiyashi noodle salad + lunch-sized side £10.50, Mon–Fri until 5pm (excl. bank holidays). Regular ramen £16.50–£16.75."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "工作日午市 £10.50",
+          "detail": "小份拉面或冷面+小份配菜£10.50，周一至周五至 5pm（节假日除外）。正常拉面£16.50–£16.75。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "工作日午市 £10.50",
+          "detail": "小份拉麵或冷麵+小份配菜£10.50，週一至週五至 5pm（節假日除外）。正常拉麵£16.50–£16.75。"
+        }
+      ]
+    },
+    {
+      "id": "c4d7e9f1-1e2b-4c5d-4a6f-7c8b1c3e6a8c",
+      "name": "Shoryu Ramen — Regent Street",
+      "cuisine": "Japanese",
+      "address": "9 Regent St, London SW1Y 4LR",
+      "latitude": 51.5085,
+      "longitude": -0.1335,
+      "name_zh_hans": "Shoryu 拉面 — 摄政街",
+      "name_zh_hant": "Shoryu 拉麵 — 攝政街",
+      "deals": [
+        {
+          "title": "3-course lunch set £29",
+          "detail": "Starter + ramen + drink (tea/coffee/0.0% beer). Any day, anytime. Standalone ramen from £10."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "三道菜午市套餐 £29",
+          "detail": "前菜+拉面+饮品（茶/咖啡/0.0%啤酒），全天供应。单点拉面£10起。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "三道菜午市套餐 £29",
+          "detail": "前菜+拉麵+飲品（茶/咖啡/0.0%啤酒），全天供應。單點拉麵£10起。"
+        }
+      ]
+    },
+    {
+      "id": "d5e8f1a2-2f3c-4d6e-5b7a-8d9c2d4f7b9d",
+      "name": "Kanada-Ya — Holborn",
+      "cuisine": "Japanese",
+      "address": "64 St Giles High St, London WC2H 8LE",
+      "latitude": 51.516,
+      "longitude": -0.129,
+      "name_zh_hans": "Kanada-Ya — 霍尔本",
+      "name_zh_hant": "Kanada-Ya — 霍爾本",
+      "deals": [
+        {
+          "title": "Original tonkotsu ramen £16.95",
+          "detail": "18-hour pork-bone broth, hand-made noodles, chashu pork belly. Truffle ramen £20.95. From Fukuoka, Japan."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "正宗豚骨拉面 £16.95",
+          "detail": "18小时熬制猪骨汤底，手工面条，叉烧。松露拉面£20.95。源自日本福冈。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "正宗豚骨拉麵 £16.95",
+          "detail": "18小時熬製豬骨湯底，手工麵條，叉燒。松露拉麵£20.95。源自日本福岡。"
+        }
+      ]
+    },
+    {
+      "id": "e6f9b2c3-3a4d-4e7f-6c8b-9e1d3e5a8c1e",
+      "name": "YORI Korean BBQ — Piccadilly",
+      "cuisine": "Korean BBQ",
+      "address": "6 Panton St, London SW1Y 4DL",
+      "latitude": 51.5095,
+      "longitude": -0.1325,
+      "name_zh_hans": "YORI 韩式烧烤 — 皮卡迪利",
+      "name_zh_hant": "YORI 韓式燒烤 — 皮卡迪利",
+      "deals": [
+        {
+          "title": "BBQ Half & Half Set for 2",
+          "detail": "Signature shared BBQ set. NOT all-you-can-eat — banchan and condiments charged separately."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "双拼烧烤套餐 (2人份)",
+          "detail": "招牌双拼烧烤套餐。非自助 — 小菜与酱料另计。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "雙拼燒烤套餐 (2人份)",
+          "detail": "招牌雙拼燒烤套餐。非自助 — 小菜與醬料另計。"
+        }
+      ]
+    },
+    {
+      "id": "f7a1c3d4-4b5e-4f8a-7d9c-1f2e4f6b9d2f",
+      "name": "On The Bab — Old Street",
+      "cuisine": "Korean",
+      "address": "305 Old St, London EC1V 9LA",
+      "latitude": 51.5258,
+      "longitude": -0.0815,
+      "name_zh_hans": "On The Bab — 老街",
+      "name_zh_hant": "On The Bab — 老街",
+      "deals": [
+        {
+          "title": "Affordable Korean street food",
+          "detail": "Bibimbap £7.50, kimchi bokeum bab £8.50, sides £2. Walk-in only, lunch specials available."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "平价韩式街头小吃",
+          "detail": "石锅拌饭£7.50，泡菜炒饭£8.50，配菜£2。仅接受现场，提供午市特惠。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "平價韓式街頭小吃",
+          "detail": "石鍋拌飯£7.50，泡菜炒飯£8.50，配菜£2。僅接受現場，提供午市特惠。"
+        }
+      ]
+    },
+    {
+      "id": "a8b2d4e5-5c6f-4a9b-8e1d-2a3f5a7c1e3a",
+      "name": "Cây Tre — Soho",
+      "cuisine": "Vietnamese",
+      "address": "42-43 Dean St, London W1D 4PZ",
+      "latitude": 51.5138,
+      "longitude": -0.1325,
+      "name_zh_hans": "Cây Tre — 苏豪",
+      "name_zh_hant": "Cây Tre — 蘇豪",
+      "deals": [
+        {
+          "title": "Lunch deal £10 (main + side)",
+          "detail": "1 side + 1 main for £10, 7 items each to choose from (including signature pho). 24-hour simmered pho broth."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "午市特惠 £10（主菜+配菜）",
+          "detail": "1配菜+1主菜£10，各7款可选（含招牌牛肉河粉）。汤底慢熬24小时。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "午市特惠 £10（主菜+配菜）",
+          "detail": "1配菜+1主菜£10，各7款可選（含招牌牛肉河粉）。湯底慢熬24小時。"
+        }
+      ]
+    },
+    {
+      "id": "b9c3e5f6-6d7a-4b1c-9f2e-3b4a6b8d2f4b",
+      "name": "Smoking Goat — Shoreditch",
+      "cuisine": "Thai",
+      "address": "64 Shoreditch High St, London E1 6JJ",
+      "latitude": 51.524,
+      "longitude": -0.0775,
+      "name_zh_hans": "Smoking Goat — 肖尔迪奇",
+      "name_zh_hant": "Smoking Goat — 肖爾迪奇",
+      "deals": [
+        {
+          "title": "Thai BBQ bar, small plates from £4",
+          "detail": "Famous chilli fish sauce wings £7. Tom yum prawn mama noodles £14. Sai oua, Tamworth skewers, Mangalitsa pork chop. Thai BBQ specialist."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "泰式烧烤吧，小盘菜£4起",
+          "detail": "招牌辣鱼露鸡翅£7。冬阴功虾妈妈面£14。泰式香肠、烤串、猪肉。泰式烧烤专家。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "泰式燒烤吧，小盤菜£4起",
+          "detail": "招牌辣魚露雞翅£7。冬陰功蝦媽媽麵£14。泰式香腸、烤串、豬肉。泰式燒烤專家。"
+        }
+      ]
+    },
+    {
+      "id": "c1d4f6a7-7e8b-4c2d-1a3f-4c5b7c9e3a5c",
+      "name": "Som Saa — Spitalfields",
+      "cuisine": "Thai",
+      "address": "43A Commercial St, London E1 6BD",
+      "latitude": 51.5188,
+      "longitude": -0.075,
+      "name_zh_hans": "Som Saa — 斯皮塔佛德",
+      "name_zh_hant": "Som Saa — 斯皮塔佛德",
+      "deals": [
+        {
+          "title": "Tem Toh tasting menu",
+          "detail": "Set tasting menu featuring fishcakes + red curry. Most a la carte mains around £15. Regional Thai dishes in a former fabric warehouse."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "Tem Toh 品尝菜单",
+          "detail": "套餐品尝菜单含鱼饼+红咖喱。单点主菜约£15。前布料仓库改造，地方泰国菜。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "Tem Toh 品嚐菜單",
+          "detail": "套餐品嚐菜單含魚餅+紅咖哩。單點主菜約£15。前布料倉庫改造，地方泰國菜。"
+        }
+      ]
+    },
+    {
+      "id": "d2e5a7b8-8f9c-4d3e-2b4a-5d6c8d1f4b6d",
+      "name": "Dishoom — King's Cross",
+      "cuisine": "Indian",
+      "address": "5 Stable St, London N1C 4AB",
+      "latitude": 51.5345,
+      "longitude": -0.1255,
+      "name_zh_hans": "Dishoom — 国王十字",
+      "name_zh_hant": "Dishoom — 國王十字",
+      "deals": [
+        {
+          "title": "Signature bacon naan breakfast",
+          "detail": "Famous bacon naan + house chai, served 8–11:45am weekdays / 9–11:45am weekends. Includes bottomless porridge."
+        },
+        {
+          "title": "Group feast menu (10+)",
+          "detail": "Set menus available for groups of 10 or more, advance booking required"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "招牌培根馕饼早餐",
+          "detail": "招牌培根馕饼+印度奶茶，工作日 8–11:45am / 周末 9–11:45am。含无限麦片粥。"
+        },
+        {
+          "title": "10人起团体套餐",
+          "detail": "10人以上团体套餐，需提前预订"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "招牌培根饢餅早餐",
+          "detail": "招牌培根饢餅+印度奶茶，工作日 8–11:45am / 週末 9–11:45am。含無限麥片粥。"
+        },
+        {
+          "title": "10人起團體套餐",
+          "detail": "10人以上團體套餐，需提前預訂"
+        }
+      ]
+    },
+    {
+      "id": "e3f6b8c9-9a1d-4e4f-3c5b-6e7d9e2a5c7e",
+      "name": "Hoppers — Soho",
+      "cuisine": "Sri Lankan",
+      "address": "49 Frith St, London W1D 4SG",
+      "latitude": 51.5138,
+      "longitude": -0.1318,
+      "name_zh_hans": "Hoppers — 苏豪",
+      "name_zh_hant": "Hoppers — 蘇豪",
+      "deals": [
+        {
+          "title": "The Hoppers Experience £35pp",
+          "detail": "Set tasting menu: bone marrow roti + mutton rolls + hoppers/dosa. Vegetarian version available. Sri Lankan + Tamil Nadu street food."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "Hoppers 体验套餐 £35/人",
+          "detail": "套餐：骨髓罗提+羊肉卷+霍珀斯/多萨。提供素食版。斯里兰卡+泰米尔纳德邦街头美食。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "Hoppers 體驗套餐 £35/人",
+          "detail": "套餐：骨髓羅提+羊肉捲+霍珀斯/多薩。提供素食版。斯里蘭卡+泰米爾納德邦街頭美食。"
+        }
+      ]
+    },
+    {
+      "id": "f4a7c9d1-1b2e-4f5a-4d6c-7f8e1f3b6d8f",
+      "name": "Tayyabs — Whitechapel",
+      "cuisine": "Pakistani",
+      "address": "83-89 Fieldgate St, London E1 1JU",
+      "latitude": 51.516,
+      "longitude": -0.064,
+      "name_zh_hans": "Tayyabs — 白教堂",
+      "name_zh_hant": "Tayyabs — 白教堂",
+      "deals": [
+        {
+          "title": "BYOB, no corkage",
+          "detail": "Bring your own alcohol — no corkage fee"
+        },
+        {
+          "title": "Famous lamb chops £13",
+          "detail": "Award-winning lamb chops, iconic dish since 1972. Family-run Punjabi restaurant."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "自带酒水免开瓶费",
+          "detail": "可自带酒水，不收开瓶费"
+        },
+        {
+          "title": "招牌羊排 £13",
+          "detail": "1972年开业，旁遮普家族餐厅，招牌羊排闻名"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "自帶酒水免開瓶費",
+          "detail": "可自帶酒水，不收開瓶費"
+        },
+        {
+          "title": "招牌羊排 £13",
+          "detail": "1972年開業，旁遮普家族餐廳，招牌羊排聞名"
+        }
+      ]
+    },
+    {
+      "id": "a5b8d1e2-2c3f-4a6b-5e7d-8a9f2a4c7e9a",
+      "name": "Padella — Borough Market",
+      "cuisine": "Italian",
+      "address": "6 Southwark St, London SE1 1TQ",
+      "latitude": 51.5054,
+      "longitude": -0.0905,
+      "name_zh_hans": "Padella — 博罗市场",
+      "name_zh_hant": "Padella — 博羅市場",
+      "deals": [
+        {
+          "title": "Affordable handmade pasta",
+          "detail": "Most pasta dishes under £15, fresh-made daily, walk-in only. Michelin Bib Gourmand."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "平价手工意面",
+          "detail": "大部分意面£15以下，每日新鲜手作，仅接受现场排队。米其林必比登。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "平價手工意麵",
+          "detail": "大部分意麵£15以下，每日新鮮手作，僅接受現場排隊。米其林必比登。"
+        }
+      ]
+    },
+    {
+      "id": "b6c9e2f3-3d4a-4b7c-6f8e-9b1a3b5d8f1b",
+      "name": "Pizza Pilgrims — Soho",
+      "cuisine": "Italian",
+      "address": "11 Dean St, London W1D 3RP",
+      "latitude": 51.5132,
+      "longitude": -0.1322,
+      "name_zh_hans": "Pizza Pilgrims — 苏豪",
+      "name_zh_hant": "Pizza Pilgrims — 蘇豪",
+      "deals": [
+        {
+          "title": "Group feasting menus from £25pp",
+          "detail": "Slow-proved Neapolitan pizza. Group sharing menus from £25pp for birthdays, work lunches. Pizzas around £10–16."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "团体套餐£25起/人",
+          "detail": "慢发酵那不勒斯披萨。生日/聚会团体分享菜单£25起/人。披萨£10–16。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "團體套餐£25起/人",
+          "detail": "慢發酵那不勒斯披薩。生日/聚會團體分享菜單£25起/人。披薩£10–16。"
+        }
+      ]
+    },
+    {
+      "id": "c7d1f3a4-4e5b-4c8d-7a9f-1c2b4c6e9a2c",
+      "name": "Franco Manca — Brixton",
+      "cuisine": "Italian",
+      "address": "4 Market Row, London SW9 8LD",
+      "latitude": 51.4625,
+      "longitude": -0.1135,
+      "name_zh_hans": "Franco Manca — 布里克斯顿",
+      "name_zh_hant": "Franco Manca — 布里克斯頓",
+      "deals": [
+        {
+          "title": "Sourdough pizza from £6.45",
+          "detail": "Affordable wood-fired sourdough pizzas, originated at Brixton Market"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "酸面团披萨£6.45起",
+          "detail": "柴烤酸面团披萨平价美味，源自布里克斯顿市场"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "酸麵糰披薩£6.45起",
+          "detail": "柴烤酸麵糰披薩平價美味，源自布里克斯頓市場"
+        }
+      ]
+    },
+    {
+      "id": "d8e2a4b5-5f6c-4d9e-8b1a-2d3c5d7f1b3d",
+      "name": "Flat Iron — Soho",
+      "cuisine": "Steakhouse",
+      "address": "17 Beak St, London W1F 9RW",
+      "latitude": 51.513,
+      "longitude": -0.1395,
+      "name_zh_hans": "Flat Iron — 苏豪",
+      "name_zh_hant": "Flat Iron — 蘇豪",
+      "deals": [
+        {
+          "title": "Signature flat iron steak £14",
+          "detail": "Famously simple menu — flat iron steak £14, sides priced separately"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "招牌平铁牛排 £14",
+          "detail": "极简菜单 — 平铁牛排£14，配菜另计"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "招牌平鐵牛排 £14",
+          "detail": "極簡菜單 — 平鐵牛排£14，配菜另計"
+        }
+      ]
+    },
+    {
+      "id": "e9f3b5c6-6a7d-4e1f-9c2b-3e4d6e8a2c4e",
+      "name": "Honest Burgers — Soho",
+      "cuisine": "Burgers",
+      "address": "4 Meard St, London W1F 0EF",
+      "latitude": 51.5135,
+      "longitude": -0.1338,
+      "name_zh_hans": "Honest Burgers — 苏豪",
+      "name_zh_hant": "Honest Burgers — 蘇豪",
+      "deals": [
+        {
+          "title": "20% student discount (Student Beans)",
+          "detail": "20% off food with Student Beans verification. Also 20% off for NHS / emergency services with Blue Light Card."
+        },
+        {
+          "title": "Burgers include chips",
+          "detail": "All burgers come with rosemary salt chips — no extra combo needed. Honest burger £15."
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "学生9折（Student Beans）",
+          "detail": "凭Student Beans认证享食品8折。NHS/急救人员凭Blue Light Card同享8折。"
+        },
+        {
+          "title": "汉堡含薯条",
+          "detail": "所有汉堡含迷迭香盐薯条 — 无需额外套餐。招牌汉堡£15。"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "學生9折（Student Beans）",
+          "detail": "憑Student Beans認證享食品8折。NHS/急救人員憑Blue Light Card同享8折。"
+        },
+        {
+          "title": "漢堡含薯條",
+          "detail": "所有漢堡含迷迭香鹽薯條 — 無需額外套餐。招牌漢堡£15。"
+        }
+      ]
+    },
+    {
+      "id": "f1a4c6d7-7b8e-4f2a-1d3c-4f5e7f9b3d5f",
+      "name": "Hawksmoor — Borough",
+      "cuisine": "Steakhouse",
+      "address": "16 Winchester Walk, London SE1 9AQ",
+      "latitude": 51.5054,
+      "longitude": -0.0908,
+      "name_zh_hans": "Hawksmoor — 博罗市场",
+      "name_zh_hant": "Hawksmoor — 博羅市場",
+      "deals": [
+        {
+          "title": "Express Menu £27 / £31",
+          "detail": "2 courses £27 or 3 courses £31, Mon–Sat until 6pm and Sun after 5pm"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "Express套餐 £27/£31",
+          "detail": "两道菜£27或三道菜£31，周一至周六 6pm 前及周日 5pm 后"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "Express套餐 £27/£31",
+          "detail": "兩道菜£27或三道菜£31，週一至週六 6pm 前及週日 5pm 後"
+        }
+      ]
+    },
+    {
+      "id": "1a2b3c4d-5e6f-7a8b-9c1d-2e3f4a5b6c7d",
+      "name": "HEYTEA — Soho",
+      "cuisine": "Bubble Tea",
+      "address": "Unit 2 Ground Floor, Wingate House, 93-107 Shaftesbury Ave, London W1D 5DA",
+      "latitude": 51.5115,
+      "longitude": -0.1305,
+      "name_zh_hans": "喜茶 — 苏豪",
+      "name_zh_hant": "喜茶 — 蘇豪",
+      "deals": [
+        {
+          "title": "First UK store",
+          "detail": "Original London branch opened August 2023, signature cheese tea and fruit tea"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "英国首家门店",
+          "detail": "2023年8月开业，招牌芝士茶与果茶"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "英國首家門店",
+          "detail": "2023年8月開業，招牌芝士茶與果茶"
+        }
+      ]
+    },
+    {
+      "id": "2b3c4d5e-6f7a-8b9c-1d2e-3f4a5b6c7d8e",
+      "name": "HEYTEA — Mayfair",
+      "cuisine": "Bubble Tea",
+      "address": "10 Maddox St, London W1S 1PF",
+      "latitude": 51.5135,
+      "longitude": -0.1418,
+      "name_zh_hans": "喜茶 — 梅菲尔",
+      "name_zh_hant": "喜茶 — 梅菲爾",
+      "deals": [],
+      "deals_zh_hans": [],
+      "deals_zh_hant": []
+    },
+    {
+      "id": "3c4d5e6f-7a8b-9c1d-2e3f-4a5b6c7d8e9f",
+      "name": "HEYTEA — Baker Street",
+      "cuisine": "Bubble Tea",
+      "address": "45 Baker Street, London W1U 7EU",
+      "latitude": 51.5202,
+      "longitude": -0.1565,
+      "name_zh_hans": "喜茶 — 贝克街",
+      "name_zh_hant": "喜茶 — 貝克街",
+      "deals": [],
+      "deals_zh_hans": [],
+      "deals_zh_hant": []
+    },
+    {
+      "id": "4d5e6f7a-8b9c-1d2e-3f4a-5b6c7d8e9f1a",
+      "name": "HEYTEA — New Oxford Street",
+      "cuisine": "Bubble Tea",
+      "address": "45 New Oxford St, London WC1A 1BA",
+      "latitude": 51.5168,
+      "longitude": -0.1265,
+      "name_zh_hans": "喜茶 — 新牛津街",
+      "name_zh_hant": "喜茶 — 新牛津街",
+      "deals": [
+        {
+          "title": "Newest branch",
+          "detail": "Opened July 2025"
+        }
+      ],
+      "deals_zh_hans": [
+        {
+          "title": "最新分店",
+          "detail": "2025年7月开业"
+        }
+      ],
+      "deals_zh_hant": [
+        {
+          "title": "最新分店",
+          "detail": "2025年7月開業"
+        }
+      ]
+    },
+    {
+      "id": "5e6f7a8b-9c1d-2e3f-4a5b-6c7d8e9f1a2b",
+      "name": "HEYTEA — Hammersmith",
+      "cuisine": "Bubble Tea",
+      "address": "106 King St, London W6 0QW",
+      "latitude": 51.4925,
+      "longitude": -0.2305,
+      "name_zh_hans": "喜茶 — 哈默史密斯",
+      "name_zh_hant": "喜茶 — 哈默史密斯",
+      "deals": [],
+      "deals_zh_hans": [],
+      "deals_zh_hant": []
+    },
+    {
+      "id": "6f7a8b9c-1d2e-3f4a-5b6c-7d8e9f1a2b3c",
+      "name": "HEYTEA — Canary Wharf",
+      "cuisine": "Bubble Tea",
+      "address": "Canary Wharf, London E14 (address to verify)",
+      "latitude": 51.5054,
+      "longitude": -0.0235,
+      "name_zh_hans": "喜茶 — 金丝雀码头",
+      "name_zh_hant": "喜茶 — 金絲雀碼頭",
+      "deals": [],
+      "deals_zh_hans": [],
+      "deals_zh_hant": []
+    }
+  ]
+}

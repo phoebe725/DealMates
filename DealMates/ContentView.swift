@@ -27,10 +27,12 @@ struct ContentView: View {
                     view: wrap(MyPlansView()),
                     title: AppLocalization.string("My Plans", comment: ""),
                     systemImage: "calendar",
-                    // Active + ready-to-go: anything not yet completed. Drops
-                    // off the badge once attendance is confirmed.
-                    badge: (unread.activeCount + unread.readyToGoCount) > 0
-                        ? "\(unread.activeCount + unread.readyToGoCount)"
+                    // Unread plan *actions* — someone joined / left / was removed
+                    // in one of your plans. (Active / ready-to-go counts live on
+                    // the segmented control inside the tab.) Clears once you open
+                    // that plan's chat.
+                    badge: unread.unreadActionCount > 0
+                        ? "\(unread.unreadActionCount)"
                         : nil
                 ),
                 .init(

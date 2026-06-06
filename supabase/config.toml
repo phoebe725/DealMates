@@ -9,3 +9,11 @@ entrypoint = "./functions/notify-on-plan/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/notify-on-plan/*.html" ]
+
+[functions.refresh-deals]
+enabled = true
+# Invoked by pg_cron with the service-role key in the Authorization header, so
+# the request carries no end-user JWT — verify_jwt must be off.
+verify_jwt = false
+import_map = "./functions/refresh-deals/deno.json"
+entrypoint = "./functions/refresh-deals/index.ts"
