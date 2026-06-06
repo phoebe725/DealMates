@@ -102,7 +102,7 @@ struct MyPlansView: View {
                             .font(.pinHero(28, weight: .light))
                             .foregroundStyle(Color.pinInk)
                         +
-                        Text("pins.")
+                        Text("Plans")
                             .font(.pinAccent(38))
                             .foregroundStyle(Color.pinClayDeep)
                     )

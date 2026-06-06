@@ -60,7 +60,7 @@ struct MessagesView: View {
                         .font(.pinHero(28, weight: .light))
                         .foregroundStyle(Color.pinInk)
                     +
-                    Text("messages.")
+                    Text("Messages")
                         .font(.pinAccent(38))
                         .foregroundStyle(Color.pinClayDeep)
                 )

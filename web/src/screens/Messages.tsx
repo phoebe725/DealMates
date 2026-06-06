@@ -78,7 +78,7 @@ export function Messages() {
       <div className="px-5 pb-3 pt-3">
         <h1 className="leading-tight">
           <span className="font-sans text-[28px] font-light text-ink">{t("My ")}</span>
-          <span className="font-accent text-[38px] italic text-clayDeep">{t("messages.")}</span>
+          <span className="font-accent text-[38px] italic text-clayDeep">{t("Messages")}</span>
         </h1>
         <div className="mt-4">
           <Segmented

@@ -117,11 +117,11 @@ struct DiscoverView: View {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     (
-                        Text("Find a ")
+                        Text("Find ")
                             .font(.pinHero(28, weight: .light))
                             .foregroundStyle(Color.pinInk)
                         +
-                        Text("Deal")
+                        Text("Deals")
                             .font(.pinAccent(38))
                             .foregroundStyle(Color.pinClayDeep)
                     )

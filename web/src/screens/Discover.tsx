@@ -122,8 +122,8 @@ export function Discover() {
       {/* Header */}
       <div className="px-5 pb-4 pt-3">
         <h1 className="leading-tight">
-          <span className="font-sans text-[28px] font-light text-ink">{t("Find a ")}</span>
-          <span className="font-accent text-[38px] italic text-clayDeep">{t("Deal")}</span>
+          <span className="font-sans text-[28px] font-light text-ink">{t("Find ")}</span>
+          <span className="font-accent text-[38px] italic text-clayDeep">{t("Deals")}</span>
         </h1>
         <p className="font-subtitle text-[13px] text-inkMuted">{t(isSignedIn ? "Group dining offers near me" : "Group dining offers near you")}</p>
 
