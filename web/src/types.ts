@@ -22,6 +22,7 @@ export interface Restaurant {
   deals_zh_hans: Deal[] | null;
   deals_zh_hant: Deal[] | null;
   is_featured: boolean | null;
+  is_buffet: boolean | null;
   last_deals_verified_at: string | null;
   plan_count: number | null;
   instagram_handle: string | null;

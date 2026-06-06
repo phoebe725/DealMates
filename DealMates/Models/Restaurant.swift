@@ -23,12 +23,15 @@ struct Restaurant: Identifiable, Codable, Hashable {
     // Discover/Deals extensions (added by the 20260601 migration). Optional /
     // defaulted so existing call sites and decodes keep working unchanged.
     var isFeatured: Bool
+    /// Whether the restaurant offers an all-you-can-eat / buffet menu.
+    /// Source of truth for the "AYCE / Buffet" filter (the `is_buffet` column).
+    var isBuffet: Bool
     var lastDealsVerifiedAt: Date?
     var planCount: Int
     var instagramHandle: String?
     var websiteUrl: String?
 
-    init(id: String, name: String, cuisine: String, address: String, imageUrl: String? = nil, latitude: Double? = nil, longitude: Double? = nil, nameZhHans: String? = nil, nameZhHant: String? = nil, cuisineZhHans: String? = nil, cuisineZhHant: String? = nil, deals: [Deal] = [], dealsZhHans: [Deal]? = nil, dealsZhHant: [Deal]? = nil, isFeatured: Bool = false, lastDealsVerifiedAt: Date? = nil, planCount: Int = 0, instagramHandle: String? = nil, websiteUrl: String? = nil) {
+    init(id: String, name: String, cuisine: String, address: String, imageUrl: String? = nil, latitude: Double? = nil, longitude: Double? = nil, nameZhHans: String? = nil, nameZhHant: String? = nil, cuisineZhHans: String? = nil, cuisineZhHant: String? = nil, deals: [Deal] = [], dealsZhHans: [Deal]? = nil, dealsZhHant: [Deal]? = nil, isFeatured: Bool = false, isBuffet: Bool = false, lastDealsVerifiedAt: Date? = nil, planCount: Int = 0, instagramHandle: String? = nil, websiteUrl: String? = nil) {
         self.id = id
         self.name = name
         self.cuisine = cuisine
@@ -44,6 +47,7 @@ struct Restaurant: Identifiable, Codable, Hashable {
         self.dealsZhHans = dealsZhHans
         self.dealsZhHant = dealsZhHant
         self.isFeatured = isFeatured
+        self.isBuffet = isBuffet
         self.lastDealsVerifiedAt = lastDealsVerifiedAt
         self.planCount = planCount
         self.instagramHandle = instagramHandle
@@ -67,6 +71,7 @@ struct Restaurant: Identifiable, Codable, Hashable {
         dealsZhHans = try? c.decodeIfPresent([Deal].self, forKey: .dealsZhHans)
         dealsZhHant = try? c.decodeIfPresent([Deal].self, forKey: .dealsZhHant)
         isFeatured          = (try? c.decodeIfPresent(Bool.self, forKey: .isFeatured)) ?? false
+        isBuffet            = (try? c.decodeIfPresent(Bool.self, forKey: .isBuffet)) ?? false
         lastDealsVerifiedAt = try? c.decodeIfPresent(Date.self, forKey: .lastDealsVerifiedAt)
         planCount           = (try? c.decodeIfPresent(Int.self, forKey: .planCount)) ?? 0
         instagramHandle     = try? c.decodeIfPresent(String.self, forKey: .instagramHandle)
@@ -98,6 +103,7 @@ extension Restaurant {
         case dealsZhHans = "deals_zh_hans"
         case dealsZhHant = "deals_zh_hant"
         case isFeatured = "is_featured"
+        case isBuffet = "is_buffet"
         case lastDealsVerifiedAt = "last_deals_verified_at"
         case planCount = "plan_count"
         case instagramHandle = "instagram_handle"
