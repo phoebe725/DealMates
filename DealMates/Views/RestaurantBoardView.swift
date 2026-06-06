@@ -177,7 +177,7 @@ struct RestaurantBoardView: View {
     private func dealCard(_ offer: RestaurantOffer) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 6) {
-                Text("🔥 " + offer.displayTitle)
+                Text(offer.shortLabel.emoji + " " + offer.shortLabel.text)
                     .font(.pinBody(14, weight: .medium))
                     .foregroundStyle(Color.pinClayDeep)
                 if let pp = offer.pricePp {
@@ -224,7 +224,7 @@ struct RestaurantBoardView: View {
                     .font(.pinSubtitle(12))
                     .foregroundStyle(Color.pinClayDeep)
             }
-            Text(offer.displayTitle)
+            Text(offer.shortLabel.text)
                 .font(.pinBody(15, weight: .medium))
                 .foregroundStyle(Color.pinInk)
             if !offer.displayDescription.isEmpty {

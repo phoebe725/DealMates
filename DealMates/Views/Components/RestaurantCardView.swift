@@ -4,8 +4,8 @@ struct RestaurantCardView: View {
     let restaurant: Restaurant
     var offers: [RestaurantOffer] = []
 
-    private var top: RestaurantOffer? { RestaurantOffer.top(offers) }
-    private var groupBadge: String? { top?.category == "group_gated" ? top?.groupBadge : nil }
+    private var top: RestaurantOffer? { RestaurantOffer.best(offers) }
+    private var isGroup: Bool { top?.dealKind == "group" }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -26,19 +26,10 @@ struct RestaurantCardView: View {
                     .foregroundStyle(Color.pinInkMuted)
                     .lineLimit(1)
                 if let top {
-                    HStack(spacing: 6) {
-                        Label(top.displayTitle, systemImage: "flame.fill")
-                            .font(.pinSubtitle(12).weight(.semibold))
-                            .foregroundStyle(top.category == "group_gated" ? Color.pinClayDeep : Color.pinSunDeep)
-                            .lineLimit(1)
-                        if let groupBadge {
-                            Text(groupBadge)
-                                .font(.pinSubtitle(11).weight(.semibold))
-                                .foregroundStyle(Color.pinClayDeep)
-                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(Color.pinClay.opacity(0.15), in: Capsule())
-                        }
-                    }
+                    Text(top.shortLabel.emoji + " " + top.shortLabel.text)
+                        .font(.pinSubtitle(12).weight(.semibold))
+                        .foregroundStyle(isGroup ? Color.pinClayDeep : Color.pinSunDeep)
+                        .lineLimit(1)
                 }
             }
 

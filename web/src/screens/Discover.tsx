@@ -4,15 +4,15 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { fetchRestaurants, fetchAllActivePlans, fetchOffersMap, defaultPlanOrder } from "@/services/db";
-import { restaurantName, restaurantDeals, dealToOffer, offerTitle, offerGroupBadge, topOffer, dealOffers, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
+import { restaurantName, restaurantDeals, dealToOffer, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
 import { t, localizedCuisine } from "@/i18n";
 import { fetchPlanByCode } from "@/services/db";
 import { Chip, EmptyState, Segmented, Spinner } from "@/components/ui";
 import { useDragScroll } from "@/hooks/useDragScroll";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { trackDealClick, trackRestaurantClick } from "@/lib/analytics";
+import { bestOffer, offerShortLabel, dealKind, DEAL_FILTERS, matchesDealFilter, type DealFilter } from "@/lib/dealDisplay";
 
-const DEALS_FILTER = "🔥 Deals";
 const BUFFET_CATEGORY = "AYCE / Buffet";
 const DEAL_KEYWORDS = ["優惠", "优惠", "买", "買", "送", "deal", "offer", "discount", "ayce", "buffet"];
 
@@ -43,6 +43,7 @@ export function Discover() {
   const nav = useNavigate();
   const [mode, setMode] = useState<"restaurants" | "plans">("restaurants");
   const [search, setSearch] = useState("");
+  const [dealFilter, setDealFilter] = useState<DealFilter | null>(null);
   const [cuisine, setCuisine] = useState<string | null>(null);
   const restaurants = useQuery({ queryKey: ["restaurants"], queryFn: fetchRestaurants });
   const plans = useQuery({ queryKey: ["activePlans"], queryFn: fetchAllActivePlans });
@@ -58,7 +59,6 @@ export function Discover() {
     if (o && o.length) return o;
     return restaurantDeals(r).map((d, i) => dealToOffer(d, r.id, i));
   };
-  const hasDealLike = (r: Restaurant) => dealOffers(offersFor(r)).length > 0;
 
   const [codeInput, setCodeInput] = useState("");
   const [codeBusy, setCodeBusy] = useState(false);
@@ -80,23 +80,24 @@ export function Discover() {
     await Promise.all([restaurants.refetch(), plans.refetch(), offersQ.refetch()]);
   });
 
-  const cuisines = useMemo(() => {
-    const list = Array.from(new Set((restaurants.data ?? []).map((r) => r.cuisine))).filter((c) => c !== BUFFET_CATEGORY).sort();
-    if ((restaurants.data ?? []).some((r) => r.is_buffet)) list.unshift(BUFFET_CATEGORY);
-    if ((restaurants.data ?? []).some(hasDealLike)) list.unshift(DEALS_FILTER);
-    return list;
-  }, [restaurants.data, offersMap]);
+  // Cuisine chips are pure cuisines now — AYCE/Buffet lives in the deal filters.
+  const cuisines = useMemo(
+    () => Array.from(new Set((restaurants.data ?? []).map((r) => r.cuisine)))
+      .filter((c) => c !== BUFFET_CATEGORY)
+      .sort(),
+    [restaurants.data],
+  );
+
+  // Deal filters only show when at least one restaurant qualifies for them.
+  const dealFilters = useMemo(
+    () => DEAL_FILTERS.filter((f) => (restaurants.data ?? []).some((r) => matchesDealFilter(offersFor(r), f.value))),
+    [restaurants.data, offersMap],
+  );
 
   const filtered = useMemo(() => {
     let rows = restaurants.data ?? [];
-    if (cuisine) {
-      if (cuisine === DEALS_FILTER)
-        rows = rows.filter(hasDealLike);
-      else if (cuisine === BUFFET_CATEGORY)
-        rows = rows.filter((r) => r.is_buffet);
-      else
-        rows = rows.filter((r) => r.cuisine === cuisine);
-    }
+    if (dealFilter) rows = rows.filter((r) => matchesDealFilter(offersFor(r), dealFilter));
+    if (cuisine) rows = rows.filter((r) => r.cuisine === cuisine);
     if (search.trim()) {
       const q = search.toLowerCase();
       rows = rows.filter((r) =>
@@ -107,7 +108,7 @@ export function Discover() {
       );
     }
     return rows;
-  }, [restaurants.data, cuisine, search, offersMap]);
+  }, [restaurants.data, dealFilter, cuisine, search, offersMap]);
 
   const showFeatured = !search.trim();
   const featured = showFeatured ? filtered.filter(featuredEligible) : [];
@@ -169,9 +170,25 @@ export function Discover() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+
+            {/* Deal filters — value categories, separate from cuisine */}
+            {dealFilters.length > 0 && (
+              <div className="mt-3 flex flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch]">
+                {dealFilters.map((f) => (
+                  <CuisineChip
+                    key={f.value}
+                    label={`${f.emoji} ${t(f.key)}`}
+                    active={dealFilter === f.value}
+                    onClick={() => setDealFilter(dealFilter === f.value ? null : f.value)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Cuisine filters — pure cuisines */}
             <div
               ref={cuisineScroll}
-              className="mt-3 flex cursor-grab select-none flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] active:cursor-grabbing"
+              className="mt-2 flex cursor-grab select-none flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] active:cursor-grabbing"
             >
               <CuisineChip label={t("All cuisines")} active={!cuisine} onClick={() => setCuisine(null)} />
               {cuisines.map((c) => (
@@ -253,11 +270,10 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 function RestaurantCard({ r, offers, onClick }: { r: Restaurant; offers: RestaurantOffer[]; onClick: () => void }) {
-  // The single most important offer: group-gated wins, then deal; highlights
-  // never surface on the card.
-  const top = topOffer(offers);
-  const isGroup = top?.category === "group_gated";
-  const groupBadge = isGroup ? offerGroupBadge(top) : null;
+  // Strongest offer by priority (group > AYCE > discount > student > member > lunch).
+  const top = bestOffer(offers);
+  const label = top ? offerShortLabel(top) : null;
+  const isGroup = top ? dealKind(top) === "group" : false;
   const handleClick = () => {
     trackRestaurantClick(r.id);
     if (top) trackDealClick(top.id, r.id, { offer_type: top.offer_type, category: top.category });
@@ -269,18 +285,11 @@ function RestaurantCard({ r, offers, onClick }: { r: Restaurant; offers: Restaur
         <img src={r.image_url} alt="" className="h-32 w-full object-cover" loading="lazy" />
       )}
       <div className="p-3.5">
-        <div className="flex items-center gap-2">
-          <span className="font-sans text-[16px] font-medium text-ink">{restaurantName(r)}</span>
-          {groupBadge && (
-            <span className="rounded-full bg-clay/15 px-2 py-0.5 text-[11px] font-semibold text-clayDeep">
-              {groupBadge}
-            </span>
-          )}
-        </div>
+        <span className="font-sans text-[16px] font-medium text-ink">{restaurantName(r)}</span>
         <div className="text-[13px] text-inkMuted">{localizedCuisine(r.cuisine)}</div>
-        {top && (
+        {label && (
           <div className={`mt-1.5 text-[13px] font-semibold ${isGroup ? "text-clayDeep" : "text-sunDeep"}`}>
-            🔥 {offerTitle(top)}
+            {label.emoji} {label.text}
           </div>
         )}
       </div>

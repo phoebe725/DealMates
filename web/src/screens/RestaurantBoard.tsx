@@ -6,6 +6,7 @@ import { fetchRestaurant, fetchActivePlans, fetchRestaurantOffers, defaultPlanOr
 import { restaurantName, restaurantDeals, dealToOffer, offerTitle, offerDescription, offerGroupBadge, dealOffers, needsMorePeople, type Plan, type RestaurantOffer } from "@/types";
 import { t, localizedCuisine as cuisineLabel } from "@/i18n";
 import { trackCreatePlanClick } from "@/lib/analytics";
+import { offerShortLabel } from "@/lib/dealDisplay";
 import { Chip, EmptyState, Spinner } from "@/components/ui";
 
 function timeLabel(p: Plan) {
@@ -121,10 +122,11 @@ function SectionHeader({ title }: { title: string }) {
 
 function DealCard({ o }: { o: RestaurantOffer }) {
   const desc = offerDescription(o);
+  const label = offerShortLabel(o);
   return (
     <div className="rounded-card bg-clay/10 p-3">
       <div className="flex items-center gap-2">
-        <span className="text-[14px] font-semibold text-clayDeep">🔥 {offerTitle(o)}</span>
+        <span className="text-[14px] font-semibold text-clayDeep">{label.emoji} {label.text}</span>
         {o.price_pp != null && (
           <span className="ml-auto text-[12px] font-semibold text-clayDeep">£{o.price_pp}/pp</span>
         )}
@@ -151,7 +153,7 @@ function GroupDealCard({ o, onCreate }: { o: RestaurantOffer; onCreate: () => vo
       {o.min_people != null && (
         <div className="mt-1 text-[12px] text-clayDeep">{t("Requires %lld people", o.min_people)}</div>
       )}
-      <div className="mt-1 text-[15px] font-semibold text-ink">{offerTitle(o)}</div>
+      <div className="mt-1 text-[15px] font-semibold text-ink">{offerShortLabel(o).text}</div>
       {desc && <div className="mt-0.5 text-[13px] text-ink">{desc}</div>}
       <button onClick={onCreate} className="mt-3 w-full rounded-full bg-clay py-2.5 text-[14px] font-semibold text-cream">
         {t("Create table for this deal")}

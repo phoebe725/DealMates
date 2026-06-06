@@ -136,7 +136,27 @@ struct DiscoverView: View {
 
             if mode == .restaurants {
                 PinSearchField(text: $vm.searchText, placeholder: "Search restaurants or cuisine")
+                dealChips
                 cuisineChips
+            }
+        }
+    }
+
+    // Deal filters (value categories) — separate from cuisine, shown first.
+    @ViewBuilder
+    private var dealChips: some View {
+        let filters = vm.availableDealFilters
+        if !filters.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(filters, id: \.value) { f in
+                        chip(label: f.emoji + " " + AppLocalization.string(f.key),
+                             selected: vm.dealFilter == f.value) {
+                            vm.dealFilter = (vm.dealFilter == f.value) ? nil : f.value
+                        }
+                    }
+                }
+                .padding(.horizontal, 1)
             }
         }
     }

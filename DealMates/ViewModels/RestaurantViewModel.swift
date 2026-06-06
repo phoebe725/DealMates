@@ -11,16 +11,21 @@ final class RestaurantViewModel: ObservableObject {
     @Published var cuisineFilter: String? = nil {
         didSet { applyFilter() }
     }
+    /// Deal filter — one of all/group/ayce/discount/student/member, separate
+    /// from cuisine. AYCE/Buffet is a deal filter here, not a cuisine.
+    @Published var dealFilter: String? = nil {
+        didSet { applyFilter() }
+    }
     @Published var isLoading = false
     @Published var errorMessage: String?
     /// Active offers grouped by restaurant id (restaurant_offers table).
     @Published var offersByRestaurant: [String: [RestaurantOffer]] = [:]
 
-    /// Synthetic cross-cuisine filter chips. "AYCE / Buffet" is driven by the
-    /// restaurant's `is_buffet` column (source of truth); "🔥 Deals" by whether
-    /// the restaurant has any deal-like offer.
-    static let dealsCategory  = "🔥 Deals"
-    static let buffetCategory = "AYCE / Buffet"
+    /// Deal-filter chips (value, emoji, label key) — separate from cuisine.
+    static let dealFilterChips: [(value: String, emoji: String, key: String)] = [
+        ("all", "🔥", "All Deals"), ("group", "👥", "Group Deals"), ("ayce", "🍽", "AYCE / Buffet"),
+        ("discount", "💸", "Discounts"), ("student", "🎓", "Student"), ("member", "💳", "Member"),
+    ]
 
     /// Offers-first, with legacy displayDeals as fallback when a restaurant has
     /// no rows in restaurant_offers (or the table isn't there yet).
@@ -28,20 +33,17 @@ final class RestaurantViewModel: ObservableObject {
         if let o = offersByRestaurant[r.id], !o.isEmpty { return o }
         return r.displayDeals.enumerated().map { RestaurantOffer.fromDeal($1, restaurantId: r.id, index: $0) }
     }
-    func hasDealLike(_ r: Restaurant) -> Bool { offers(for: r).contains { $0.category != "highlight" } }
 
-    /// Sorted, unique cuisine list from loaded restaurants — reflects the actual
-    /// `cuisine` values in the table (no client-side hiding). The "AYCE / Buffet"
-    /// category is prepended when any loaded venue qualifies.
+    /// Deal filters that at least one loaded restaurant qualifies for.
+    var availableDealFilters: [(value: String, emoji: String, key: String)] {
+        Self.dealFilterChips.filter { chip in
+            restaurants.contains { RestaurantOffer.matchesFilter(offers(for: $0), chip.value) }
+        }
+    }
+
+    /// Pure cuisine list — AYCE/Buffet is a deal filter now, not a cuisine.
     var availableCuisines: [String] {
-        var cuisines = Array(Set(restaurants.map(\.cuisine))).filter { $0 != Self.buffetCategory }.sorted()
-        if restaurants.contains(where: { $0.isBuffet }) {
-            cuisines.insert(Self.buffetCategory, at: 0)
-        }
-        if restaurants.contains(where: { hasDealLike($0) }) {
-            cuisines.insert(Self.dealsCategory, at: 0)
-        }
-        return cuisines
+        Array(Set(restaurants.map(\.cuisine))).filter { $0 != "AYCE / Buffet" }.sorted()
     }
 
     private let service = DatabaseService.shared
@@ -78,14 +80,11 @@ final class RestaurantViewModel: ObservableObject {
 
     private func applyFilter() {
         var result = restaurants
+        if let f = dealFilter, !f.isEmpty {
+            result = result.filter { RestaurantOffer.matchesFilter(offers(for: $0), f) }
+        }
         if let cuisine = cuisineFilter, !cuisine.isEmpty {
-            if cuisine == Self.dealsCategory {
-                result = result.filter { hasDealLike($0) }
-            } else if cuisine == Self.buffetCategory {
-                result = result.filter { $0.isBuffet }
-            } else {
-                result = result.filter { $0.cuisine == cuisine }
-            }
+            result = result.filter { $0.cuisine == cuisine }
         }
         if !searchText.isEmpty {
             let q = searchText.lowercased()

@@ -51,9 +51,69 @@ struct RestaurantOffer: Identifiable, Codable, Hashable {
         offers.filter { $0.category != "highlight" }
     }
 
-    /// The single most important offer for a card: group-gated wins, then deal.
-    static func top(_ offers: [RestaurantOffer]) -> RestaurantOffer? {
-        offers.first { $0.category == "group_gated" } ?? offers.first { $0.category == "deal" }
+    // MARK: - Value-oriented display layer (mirrors web/src/lib/dealDisplay.ts)
+
+    /// Deal sub-kind, used for filters + card priority. English text is the signal.
+    var dealKind: String {
+        if category == "group_gated" { return "group" }
+        let s = ((titleEn ?? "") + " " + (descriptionEn ?? "")).lowercased()
+        if s.contains("student") { return "student" }
+        if s.contains("member") { return "member" }
+        for k in ["all-you-can-eat", "all you can eat", "ayce", "buffet", "unlimited", "yum cha", "steam pot", "malatang"]
+            where s.contains(k) { return "ayce" }
+        for k in ["%", " off", "discount", "tastecard", "first table", "save"]
+            where s.contains(k) { return "discount" }
+        if s.contains("lunch") { return "lunch" }
+        return "other"
+    }
+
+    /// Percentage in the offer text, e.g. "20% off" → 20.
+    private var percent: Int? {
+        let s = (titleEn ?? "") + " " + (descriptionEn ?? "")
+        guard let r = s.range(of: "\\d{1,2}\\s*%", options: .regularExpression) else { return nil }
+        return Int(s[r].filter(\.isNumber))
+    }
+
+    private static func money(_ v: Double) -> String { String(format: "%g", v) }
+
+    struct Label { let emoji: String; let text: String }
+
+    /// Short, value-oriented, localized label for a card or deal heading.
+    var shortLabel: Label {
+        func L(_ key: String, _ args: CVarArg...) -> String {
+            args.isEmpty ? AppLocalization.string(key) : String(format: AppLocalization.string(key), arguments: args)
+        }
+        switch dealKind {
+        case "group":
+            if offerType == "buy_x_get_y", let m = minPeople { return Label(emoji: "👥", text: L("Buy %lld get %lld free", m, 1)) }
+            if let pp = pricePp { return Label(emoji: "👥", text: L("AYCE from £%@", Self.money(pp))) }
+            if offerType == "group_set_menu" { return Label(emoji: "👥", text: L("Group set menu")) }
+            if let p = percent { return Label(emoji: "👥", text: L("Group deal: save %lld%", p)) }
+            return Label(emoji: "👥", text: L("Group deal"))
+        case "ayce":
+            return pricePp != nil ? Label(emoji: "🍽", text: L("AYCE from £%@", Self.money(pricePp!))) : Label(emoji: "🍽", text: L("All you can eat"))
+        case "discount":
+            return percent != nil ? Label(emoji: "💸", text: L("Save %lld%", percent!)) : Label(emoji: "💸", text: L("Special offer"))
+        case "student": return Label(emoji: "🎓", text: L("Student deal"))
+        case "member":  return Label(emoji: "💳", text: L("Member discount"))
+        case "lunch":   return Label(emoji: "🍜", text: L("Lunch set"))
+        default:        return Label(emoji: "🔥", text: displayTitle)
+        }
+    }
+
+    private static let priority = ["group": 0, "ayce": 1, "discount": 2, "student": 3, "member": 4, "lunch": 5, "other": 6]
+
+    /// The strongest offer to feature on a card (deals only), by priority.
+    static func best(_ offers: [RestaurantOffer]) -> RestaurantOffer? {
+        deals(offers).min { (priority[$0.dealKind] ?? 9) < (priority[$1.dealKind] ?? 9) }
+    }
+
+    /// Does this offer set satisfy a deal filter (all/group/ayce/discount/student/member)?
+    static func matchesFilter(_ offers: [RestaurantOffer], _ f: String) -> Bool {
+        let d = deals(offers)
+        if d.isEmpty { return false }
+        if f == "all" { return true }
+        return d.contains { $0.dealKind == f }
     }
 
     /// Build an offer-shaped value from a legacy Deal for fallback rendering.
