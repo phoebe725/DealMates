@@ -178,7 +178,7 @@ struct RestaurantBoardView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 6) {
                 Text("🔥 " + offer.displayTitle)
-                    .font(.pinBody(14, weight: .semibold))
+                    .font(.pinBody(14, weight: .medium))
                     .foregroundStyle(Color.pinClayDeep)
                 if let pp = offer.pricePp {
                     Spacer()
@@ -202,7 +202,7 @@ struct RestaurantBoardView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Text("🔥 " + AppLocalization.string("Group deal"))
-                    .font(.pinSubtitle(11, weight: .bold))
+                    .font(.pinSubtitle(11).weight(.semibold))
                     .foregroundStyle(Color.pinClayDeep)
                     .textCase(.uppercase)
                 if let badge = offer.groupBadge {
@@ -225,7 +225,7 @@ struct RestaurantBoardView: View {
                     .foregroundStyle(Color.pinClayDeep)
             }
             Text(offer.displayTitle)
-                .font(.pinBody(15, weight: .semibold))
+                .font(.pinBody(15, weight: .medium))
                 .foregroundStyle(Color.pinInk)
             if !offer.displayDescription.isEmpty {
                 Text(offer.displayDescription)
