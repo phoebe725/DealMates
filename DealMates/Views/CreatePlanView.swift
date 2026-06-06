@@ -77,7 +77,7 @@ struct CreatePlanView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
             (
-                Text(isEditing ? "Edit your " : "Pin a ")
+                Text(isEditing ? "Edit my " : "Pin a ")
                     .font(.pinHero(28, weight: .light))
                     .foregroundStyle(Color.pinInk)
                 +
@@ -164,7 +164,7 @@ struct CreatePlanView: View {
                        value: $currentPeople,
                        range: minPeople...neededPeople,
                        suffix: "people")
-            Text("You + \(max(currentPeople - 1, 0)) more already joined")
+            Text("Me + \(max(currentPeople - 1, 0)) more already joined")
                 .font(.pinSubtitle(12))
                 .foregroundStyle(Color.pinInkMuted)
         }

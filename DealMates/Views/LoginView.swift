@@ -3,6 +3,7 @@ import SwiftUI
 struct LoginView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("preferredLanguageCode") private var languageCode: String = Locale.current.language.languageCode?.identifier ?? "en"
 
     /// Caller chooses which mode the form opens in. Inside the view the user
     /// can still toggle via the link at the bottom.
@@ -15,6 +16,10 @@ struct LoginView: View {
     @State private var gender: Gender = .female
     @State private var ageText: String = ""
     @State private var isLoading = false
+    @State private var isVerifying = false
+    @Environment(\.openURL) private var openURL
+
+    private var isChinese: Bool { languageCode.hasPrefix("zh") }
 
     init(startInSignUp: Bool = false) {
         self.startInSignUp = startInSignUp
@@ -25,23 +30,33 @@ struct LoginView: View {
         ZStack {
             Color.pinCream.ignoresSafeArea()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
-                    header
-                    form
-                    if let error = authViewModel.errorMessage { errorBanner(error) }
-                    submitButton
-                    toggleModeLink
+            if let pendingEmail = authViewModel.pendingConfirmationEmail {
+                checkInboxView(email: pendingEmail)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 28) {
+                        header
+                        form
+                        if let error = authViewModel.errorMessage { errorBanner(error) }
+                        submitButton
+                        toggleModeLink
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
+                    .padding(.bottom, 48)
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 16)
-                .padding(.bottom, 48)
             }
         }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
-                    dismiss()
+                    // On the inbox screen, "back" returns to the form rather
+                    // than abandoning the whole sign-in flow.
+                    if authViewModel.pendingConfirmationEmail != nil {
+                        authViewModel.cancelPendingConfirmation()
+                    } else {
+                        dismiss()
+                    }
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 17, weight: .semibold))
@@ -56,6 +71,16 @@ struct LoginView: View {
         .toolbarBackground(Color.pinCream, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .navigationBarBackButtonHidden()
+        // Wipe any error / "check your email" banner from a previous visit.
+        // Without this, the message persists across nav-pops and into the
+        // opposite mode (sign-in ↔ sign-up), confusing the user.
+        .onAppear  { authViewModel.errorMessage = nil; authViewModel.infoMessage = nil }
+        .onDisappear {
+            authViewModel.errorMessage = nil
+            authViewModel.infoMessage = nil
+            authViewModel.cancelPendingConfirmation()
+        }
+        .onChange(of: isSignUpMode) { _, _ in authViewModel.errorMessage = nil }
     }
 
     // MARK: - Header
@@ -71,31 +96,42 @@ struct LoginView: View {
             // Inter Light, so we compensate with a ~1.4× larger point size on
             // the serif. SwiftUI baseline-aligns the concat, so the line stays
             // flat. If you change one, change the other proportionally.
+            //
+            // Chinese phrases (`歡迎入座` / `歡迎回來`) don't naturally split
+            // into a light + accent pair, so under the Chinese language we
+            // collapse to a single accent-weight Text rather than forcing an
+            // unnatural break.
             if isSignUpMode {
                 (
-                    Text("Start your ")
+                    Text("Welcome to the ")
                         .font(.pinHero(28, weight: .light))
                         .foregroundStyle(Color.pinInk)
                     +
-                    Text("raft.")
+                    Text("table.")
                         .font(.pinAccent(40))
                         .foregroundStyle(Color.pinClayDeep)
                 )
             } else {
-                (
-                    Text("Welcome ")
-                        .font(.pinHero(28, weight: .light))
-                        .foregroundStyle(Color.pinInk)
-                    +
-                    Text("back.")
+                if isChinese {
+                    Text("Welcome back.")
                         .font(.pinAccent(40))
                         .foregroundStyle(Color.pinClayDeep)
-                )
+                } else {
+                    (
+                        Text("Welcome ")
+                            .font(.pinHero(28, weight: .light))
+                            .foregroundStyle(Color.pinInk)
+                        +
+                        Text("back.")
+                            .font(.pinAccent(40))
+                            .foregroundStyle(Color.pinClayDeep)
+                    )
+                }
             }
 
             Text(isSignUpMode
                  ? "Pin your first plan in a minute."
-                 : "Sign in to see what your raft has pinned.")
+                 : "Sign in to see your plans and chats.")
                 .font(.pinSubtitle(15))
                 .foregroundStyle(Color.pinInkMuted)
         }
@@ -128,12 +164,16 @@ struct LoginView: View {
             }
 
             field("Email") {
-                TextField("you@example.com", text: $email)
+                // The placeholder is rendered via `prompt: Text(verbatim:)`.
+                // Passing "you@example.com" as a LocalizedStringKey would let
+                // SwiftUI Markdown auto-link the email pattern and draw it as a
+                // blue link — verbatim disables that, so it's plain gray like
+                // every other field's placeholder.
+                TextField("Email", text: $email, prompt: Text(verbatim: "you@example.com"))
                     .keyboardType(.emailAddress)
-                    .textContentType(.emailAddress)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
-                    .pinTextField()
+                    .pinTextField(tint: Color.pinClay)
             }
 
             field("Password") {
@@ -179,6 +219,113 @@ struct LoginView: View {
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color.pinClay.opacity(0.12))
+        )
+    }
+
+    // MARK: - Check your inbox
+    //
+    // Shown after a successful sign-up when the Supabase project requires email
+    // confirmation. Mirrors the marketing site: confirm where the link went,
+    // a shortcut into Mail, a primary "I've verified" action that retries the
+    // sign-in, and a resend fallback.
+
+    private func checkInboxView(email: String) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                ZStack {
+                    Circle()
+                        .fill(Color.pinClay.opacity(0.12))
+                        .frame(width: 64, height: 64)
+                    Image(systemName: "envelope.fill")
+                        .font(.system(size: 26, weight: .medium))
+                        .foregroundStyle(Color.pinClayDeep)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Check your inbox")
+                        .font(.pinHero(28, weight: .light))
+                        .foregroundStyle(Color.pinInk)
+                    // Runtime-interpolated email → render verbatim so it isn't
+                    // treated as a catalog key.
+                    Text(verbatim: AppLocalization.string("Tap the link we sent to %@ to finish setting up my account.", email))
+                        .font(.pinSubtitle(15))
+                        .foregroundStyle(Color.pinInkMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if let info = authViewModel.infoMessage { infoBanner(info) }
+                if let error = authViewModel.errorMessage { errorBanner(error) }
+
+                VStack(spacing: 12) {
+                    Button {
+                        openMailApp()
+                    } label: {
+                        Label("Open Mail", systemImage: "envelope")
+                    }
+                    .buttonStyle(PinSecondaryButtonStyle())
+
+                    Button {
+                        Task {
+                            isVerifying = true
+                            defer { isVerifying = false }
+                            await authViewModel.signIn(email: email, password: password)
+                        }
+                    } label: {
+                        if isVerifying {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .tint(Color.pinCream)
+                        } else {
+                            Text("I've verified my email")
+                        }
+                    }
+                    .buttonStyle(PinPrimaryButtonStyle())
+                    .disabled(isVerifying)
+                }
+                .padding(.top, 4)
+
+                HStack(spacing: 4) {
+                    Text("Didn't receive an email?")
+                        .font(.pinBody(14))
+                        .foregroundStyle(Color.pinInkMuted)
+                    Button {
+                        Task { await authViewModel.resendConfirmation() }
+                    } label: {
+                        Text("Resend")
+                    }
+                    .buttonStyle(PinTextLinkStyle(size: 14))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .padding(.bottom, 48)
+        }
+    }
+
+    /// Opens the system Mail app. We call `openURL` directly (no `canOpenURL`
+    /// probe) so we don't need to register query schemes; if no mail client is
+    /// installed the open simply no-ops.
+    private func openMailApp() {
+        if let url = URL(string: "message://") {
+            openURL(url)
+        }
+    }
+
+    private func infoBanner(_ message: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(Color.pinSageDeep)
+            Text(message)
+                .font(.pinBody(13))
+                .foregroundStyle(Color.pinInk)
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.pinSageDeep.opacity(0.12))
         )
     }
 
@@ -249,6 +396,11 @@ struct LoginView: View {
 // applied to every input so the form reads as one calm surface.
 
 private struct PinTextFieldModifier: ViewModifier {
+    /// Cursor / selection / iOS autofill-suggestion color for the field. The
+    /// email field overrides this to a muted gray so the autofilled email
+    /// suggestion reads as quiet placeholder-style text rather than the default
+    /// system blue.
+    var tint: Color = .pinClay
     func body(content: Content) -> some View {
         content
             .font(.pinBody(16))
@@ -259,12 +411,12 @@ private struct PinTextFieldModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(Color.pinShell)
             )
-            .tint(Color.pinClay)
+            .tint(tint)
     }
 }
 
 private extension View {
-    func pinTextField() -> some View { modifier(PinTextFieldModifier()) }
+    func pinTextField(tint: Color = .pinClay) -> some View { modifier(PinTextFieldModifier(tint: tint)) }
 }
 
 #Preview {

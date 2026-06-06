@@ -163,7 +163,7 @@ export function PlanDetail() {
 
         {/* Members */}
         <div className="mt-4">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-sunDeep">⛵ {t("Your mates")}</div>
+          <div className="text-[11px] font-medium uppercase tracking-wide text-sunDeep">⛵ {t("My mates")}</div>
           <div className="mt-2 flex flex-wrap gap-2">
             {members.map((m) => (
               <button

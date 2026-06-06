@@ -56,7 +56,7 @@ struct MessagesView: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
                 (
-                    Text("Your ")
+                    Text("My ")
                         .font(.pinHero(28, weight: .light))
                         .foregroundStyle(Color.pinInk)
                     +
@@ -268,7 +268,7 @@ struct MessagesView: View {
     private var loadingState: some View {
         VStack(spacing: 14) {
             ProgressView().tint(Color.pinInkMuted)
-            Text("Loading your messages…")
+            Text("Loading my messages…")
                 .font(.pinSubtitle(14))
                 .foregroundStyle(Color.pinInkMuted)
         }

@@ -157,7 +157,7 @@ function CheckInbox() {
       <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-clay/15 text-2xl text-clayDeep">✉️</div>
       <h1 className="font-sans text-[28px] font-light text-ink">{t("Check your inbox")}</h1>
       <p className="mt-2 text-[15px] text-inkMuted">
-        {t("Tap the link we sent to %@ to finish setting up your account.", pendingConfirmationEmail ?? "")}
+        {t("Tap the link we sent to %@ to finish setting up my account.", pendingConfirmationEmail ?? "")}
       </p>
       <button className="pin-btn-primary mt-6" onClick={() => location.reload()}>
         {t("I've verified my email")}

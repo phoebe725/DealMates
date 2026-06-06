@@ -17,16 +17,51 @@ final class AuthService {
         return try await ensureUserProfileExists(uid: session.user.id.uuidString.lowercased(), email: "")
     }
 
-    /// Signs up a new user. Throws if Supabase project requires email confirmation
-    /// and the session hasn't been issued yet.
+    /// Signs up a new user. Throws if the Supabase project requires email
+    /// confirmation and the session hasn't been issued yet.
+    ///
+    /// If the caller is currently an anonymous guest (the default state — the
+    /// app signs everyone in anonymously on launch), we *convert that account
+    /// in place* via `auth.update` rather than calling `auth.signUp`. Signing
+    /// up would mint a brand-new auth user and abandon the guest's row as an
+    /// empty orphan; converting keeps the same uid, so any plans/messages the
+    /// guest already created stay attached to them and no junk row is left
+    /// behind.
     func signUp(email: String, password: String, displayName: String, gender: Gender? = nil, age: Int? = nil) async throws -> AppUser {
-        let response = try await client.auth.signUp(email: email, password: password)
-        let uid = response.user.id.uuidString.lowercased()
-        let profile = try await ensureUserProfileExists(uid: uid, email: email, displayName: displayName)
+        let wasAnonymous = (try? await client.auth.session)?.user.isAnonymous ?? false
+
+        let uid: String
+        let needsConfirmation: Bool
+        if wasAnonymous {
+            let updated = try await client.auth.update(user: UserAttributes(email: email, password: password))
+            uid = updated.id.uuidString.lowercased()
+            // With "Confirm email" on, the new address is pending until the user
+            // clicks the link; emailConfirmedAt stays nil and isAnonymous stays
+            // true until then.
+            needsConfirmation = updated.emailConfirmedAt == nil
+        } else {
+            let response = try await client.auth.signUp(email: email, password: password)
+            uid = response.user.id.uuidString.lowercased()
+            needsConfirmation = response.session == nil
+        }
+
+        // Make sure a row exists, then write the chosen name + email. Crucially,
+        // keep `is_anonymous = true` while the email is still unconfirmed: the
+        // app derives "signed in" from that flag (and mirrors the realtime row
+        // into currentUser), so flipping it early would bounce an unconfirmed
+        // user straight into the app. It only flips to false on a confirmed
+        // sign-in (see `signIn`).
+        _ = try await ensureUserProfileExists(uid: uid, email: email, displayName: displayName)
+        try await promoteProfile(uid: uid, email: email, displayName: displayName, isAnonymous: needsConfirmation)
         if gender != nil || age != nil {
             try await updateDemographics(uid: uid, gender: gender, age: age)
         }
-        if response.session == nil {
+
+        let rows: [AppUser] = try await client
+            .from("users").select().eq("id", value: uid).limit(1).execute().value
+        let profile = rows.first ?? AppUser(id: uid, email: email, displayName: displayName)
+
+        if needsConfirmation {
             throw NSError(
                 domain: "DealMates.Auth",
                 code: 1001,
@@ -34,6 +69,53 @@ final class AuthService {
             )
         }
         return profile
+    }
+
+    /// Writes the chosen display name + email onto the profile row. `isAnonymous`
+    /// is passed through deliberately: at sign-up time it stays `true` until the
+    /// email is confirmed, so the app doesn't treat an unconfirmed account as
+    /// signed in. `signIn` flips it to `false` once confirmation is verified.
+    private func promoteProfile(uid: String, email: String, displayName: String, isAnonymous: Bool) async throws {
+        struct Patch: Encodable {
+            let email: String
+            let displayName: String
+            let isAnonymous: Bool
+            let updatedAt: Date
+            enum CodingKeys: String, CodingKey {
+                case email
+                case displayName = "display_name"
+                case isAnonymous = "is_anonymous"
+                case updatedAt = "updated_at"
+            }
+        }
+        try await client.from("users")
+            .update(Patch(email: email, displayName: displayName, isAnonymous: isAnonymous, updatedAt: Date()))
+            .eq("id", value: uid)
+            .execute()
+    }
+
+    /// Flips a row to a real (non-anonymous) account. Called from `signIn` after
+    /// the email is confirmed.
+    private func markAccountConfirmed(uid: String) async throws {
+        struct Patch: Encodable {
+            let isAnonymous: Bool
+            let updatedAt: Date
+            enum CodingKeys: String, CodingKey {
+                case isAnonymous = "is_anonymous"
+                case updatedAt = "updated_at"
+            }
+        }
+        try await client.from("users")
+            .update(Patch(isAnonymous: false, updatedAt: Date()))
+            .eq("id", value: uid)
+            .execute()
+    }
+
+    /// Resends the signup confirmation email for an account that exists but
+    /// hasn't confirmed yet. Supabase intentionally succeeds even if the email
+    /// is unknown (so callers can't probe which addresses are registered).
+    func resendConfirmation(email: String) async throws {
+        try await client.auth.resend(email: email, type: .signup)
     }
 
     func updateGender(uid: String, gender: Gender) async throws {
@@ -69,7 +151,13 @@ final class AuthService {
             )
         }
         let uid = response.user.id.uuidString.lowercased()
-        return try await ensureUserProfileExists(uid: uid, email: email)
+        let existing = try await ensureUserProfileExists(uid: uid, email: email)
+        // Email is confirmed at this point — promote the row to a real account
+        // so the app treats them as signed in, then return the fresh row.
+        try await markAccountConfirmed(uid: uid)
+        let rows: [AppUser] = try await client
+            .from("users").select().eq("id", value: uid).limit(1).execute().value
+        return rows.first ?? existing
     }
 
     func signOut() async throws {
@@ -79,9 +167,18 @@ final class AuthService {
     func restoreSession() async throws -> AppUser? {
         // Returns the cached session without a network round-trip
         let session = try? await client.auth.session
-        guard let uid = session?.user.id.uuidString.lowercased() else { return nil }
-        let email = session?.user.email ?? ""
-        return try? await ensureUserProfileExists(uid: uid, email: email)
+        guard let user = session?.user else { return nil }
+        let uid = user.id.uuidString.lowercased()
+        let email = user.email ?? ""
+        guard var profile = try? await ensureUserProfileExists(uid: uid, email: email) else { return nil }
+        // The auth user — not the profile row — is the source of truth for
+        // "is this a real, signed-in account". A converted-but-unconfirmed user
+        // still carries an anonymous / unconfirmed session, so treat them as a
+        // guest until the email is actually confirmed. Without this, a row whose
+        // is_anonymous was flipped at sign-up time would let an unconfirmed user
+        // straight in on the next launch.
+        profile.isAnonymous = user.isAnonymous || user.emailConfirmedAt == nil
+        return profile
     }
 
     /// Patches the user's profile and returns the updated row.
@@ -132,7 +229,7 @@ final class AuthService {
             domain: "DealMates.Auth",
             code: 1003,
             userInfo: [NSLocalizedDescriptionKey: AppLocalization.string(
-                "Couldn't save your profile. Please sign out and back in, then try again."
+                "Couldn't save my profile. Please sign out and back in, then try again."
             )]
         )
     }

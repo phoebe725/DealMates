@@ -130,7 +130,7 @@ struct PlanDetailView: View {
             }
             Button("Keep pin", role: .cancel) {}
         } message: {
-            Text("Your mates lose access and the chat goes away.")
+            Text("My mates lose access and the chat goes away.")
         }
         .onAppear {
             chatVM.startListening()
@@ -339,7 +339,7 @@ struct PlanDetailView: View {
                             do {
                                 try await CalendarService.shared.addPlanToCalendar(plan: livePlan)
                                 addedToCalendar = true
-                                planVM.successMessage = AppLocalization.string("Added to your calendar.")
+                                planVM.successMessage = AppLocalization.string("Added to my calendar.")
                             } catch {
                                 calendarErrorMessage = (error as? LocalizedError)?.errorDescription
                                     ?? AppLocalization.string("Could not add to calendar.")
@@ -371,7 +371,7 @@ struct PlanDetailView: View {
                 Image(systemName: "sailboat.fill")
                     .font(.system(size: 10))
                     .foregroundStyle(Color.pinSunDeep)
-                Text("Your mates")
+                Text("My mates")
                     .font(.pinBody(11, weight: .medium))
                     .foregroundStyle(Color.pinSunDeep)
             }

@@ -175,7 +175,7 @@ final class NotificationManager: ObservableObject {
             )
             post(
                 id: "join-\(newPlan.id)-\(newMemberUid)",
-                title: AppLocalization.string("New raft member at %@", newPlan.restaurantName),
+                title: AppLocalization.string("New mate at %@", newPlan.restaurantName),
                 body:  AppLocalization.string("%@ joined the pin", name)
             )
         }
@@ -183,7 +183,7 @@ final class NotificationManager: ObservableObject {
         if justFilled {
             post(
                 id: "ready-\(newPlan.id)",
-                title: AppLocalization.string("Your raft at %@ is ready 🎉", newPlan.restaurantName),
+                title: AppLocalization.string("My mates at %@ are ready 🎉", newPlan.restaurantName),
                 body:  AppLocalization.string("Everyone's in. Time to lock in the meet-up.")
             )
         }

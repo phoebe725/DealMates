@@ -107,7 +107,7 @@ struct MyPlansView: View {
                             .foregroundStyle(Color.pinClayDeep)
                     )
                     .lineLimit(1)
-                    Text("Plans you've started or joined.")
+                    Text("Plans I've started or joined.")
                         .font(.pinSubtitle(13))
                         .foregroundStyle(Color.pinInkMuted)
                 }
@@ -386,7 +386,7 @@ struct MyPlansView: View {
                 .buttonStyle(.plain)
 
                 PinChip(
-                    text: plan.creatorId == authViewModel.uid ? "You — organiser" : "Organiser",
+                    text: plan.creatorId == authViewModel.uid ? "Me — organiser" : "Organiser",
                     tint: .pinClay
                 )
             }
@@ -442,7 +442,7 @@ struct MyPlansView: View {
         if plans.isEmpty {
             return AnyView(PinEmptyState(
                 title: "No pins yet",
-                message: "Find a restaurant in Discover and start a pin — or join one your friends started.",
+                message: "Find a restaurant in Discover and start a pin — or join one my friends started.",
                 systemImage: "mappin"
             ))
         }
@@ -471,7 +471,7 @@ struct MyPlansView: View {
     private var loadingState: some View {
         VStack(spacing: 14) {
             ProgressView().tint(Color.pinInkMuted)
-            Text("Loading your pins…")
+            Text("Loading my pins…")
                 .font(.pinSubtitle(14))
                 .foregroundStyle(Color.pinInkMuted)
         }

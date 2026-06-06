@@ -152,7 +152,7 @@ const zhHans: Record<string, string> = {
   Leave: "离开",
   "Group is full": "团体已满",
   "Need %lld more": "差 %lld 人成团",
-  "Your mates": "你的饭友",
+  "My mates": "我的饭友",
   "Confirm attendance": "确认出席",
   "Add to calendar": "加入日历",
   "Added to calendar": "已加入日历",
@@ -179,8 +179,8 @@ const zhHans: Record<string, string> = {
   "No plans wrapped up yet": "还没有吃完的饭局",
   Ready: "准备好",
   Done: "已完成",
-  "You.": "你。",
-  "How your mates see you on PinTable.": "饭友眼中的你",
+  "Me.": "我。",
+  "How my mates see me on PinTable.": "饭友眼中的我",
   "Edit profile": "编辑资料",
   Save: "保存",
   Cancel: "取消",
@@ -216,7 +216,7 @@ const zhHans: Record<string, string> = {
   "I've verified my email": "我已验证邮箱",
   "Didn't receive an email?": "没收到邮件？",
   Resend: "重新发送",
-  "Tap the link we sent to %@ to finish setting up your account.": "点击我们发送到 %@ 的链接，完成账号设置。",
+  "Tap the link we sent to %@ to finish setting up my account.": "点击我们发送到 %@ 的链接，完成账号设置。",
 };
 
 const zhHant: Record<string, string> = {
@@ -314,7 +314,7 @@ const zhHant: Record<string, string> = {
   Leave: "離開",
   "Group is full": "人數已滿",
   "Need %lld more": "差 %lld 人成團",
-  "Your mates": "你的飯友",
+  "My mates": "我的飯友",
   "Confirm attendance": "確認出席",
   "Add to calendar": "加入行事曆",
   "Added to calendar": "已加入行事曆",
@@ -332,8 +332,8 @@ const zhHant: Record<string, string> = {
   "New messages": "新訊息",
   "Join a plan or message an organiser to start a thread.": "加入飯局或私訊組織者，開啟對話。",
   "Group · %lld/%lld": "夥伴 · %lld/%lld",
-  "You.": "你。",
-  "How your mates see you on PinTable.": "飯友眼中的你",
+  "Me.": "我。",
+  "How my mates see me on PinTable.": "飯友眼中的我",
   "Edit profile": "編輯資料",
   Save: "儲存",
   Cancel: "取消",
@@ -376,7 +376,7 @@ const zhHant: Record<string, string> = {
   "I've verified my email": "我已驗證信箱",
   "Didn't receive an email?": "沒收到郵件？",
   Resend: "重新發送",
-  "Tap the link we sent to %@ to finish setting up your account.": "點擊我們發送到 %@ 的連結，完成帳號設定。",
+  "Tap the link we sent to %@ to finish setting up my account.": "點擊我們發送到 %@ 的連結，完成帳號設定。",
 };
 
 function dict(): Record<string, string> {

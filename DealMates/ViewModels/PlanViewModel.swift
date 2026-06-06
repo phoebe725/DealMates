@@ -92,7 +92,7 @@ final class PlanViewModel: ObservableObject {
         do {
             try await service.joinPlan(plan, userId: userId, userName: userName)
             await fetchPlans()
-            successMessage = AppLocalization.string("You joined the plan!")
+            successMessage = AppLocalization.string("I joined the plan!")
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -102,7 +102,7 @@ final class PlanViewModel: ObservableObject {
         do {
             try await service.leavePlan(plan, userId: userId, userName: userName)
             await fetchPlans()
-            successMessage = AppLocalization.string("You left the plan")
+            successMessage = AppLocalization.string("I left the plan")
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -104,8 +104,8 @@ export function Profile() {
 
   return (
     <div className="px-5 pb-10 pt-3">
-      <h1 className="font-accent text-[40px] italic text-clayDeep">{t("You.")}</h1>
-      <p className="font-subtitle text-[13px] text-inkMuted">{t("How your mates see you on PinTable.")}</p>
+      <h1 className="font-accent text-[40px] italic text-clayDeep">{t("Me.")}</h1>
+      <p className="font-subtitle text-[13px] text-inkMuted">{t("How my mates see me on PinTable.")}</p>
 
       {/* Profile card */}
       <div className="mt-5 flex items-center gap-4 rounded-card bg-shell p-4">

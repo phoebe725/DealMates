@@ -6,6 +6,13 @@ import PhotosUI
 struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var showEditSheet = false
+    @State private var showAdmin = false
+
+    /// Founder gate for the hidden admin entry (long-press the wordmark).
+    private var isFounder: Bool {
+        (authViewModel.currentUser?.email ?? "").lowercased()
+            == Config.founderEmail.lowercased()
+    }
 
     var body: some View {
         NavigationStack {
@@ -53,24 +60,24 @@ struct ProfileView: View {
                 ProfileEditView(isPresented: $showEditSheet)
                     .environmentObject(authViewModel)
             }
+            .sheet(isPresented: $showAdmin) { AdminView() }
         }
     }
 
     // MARK: - Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            (
-                Text("Your ")
-                    .font(.pinHero(28, weight: .light))
-                    .foregroundStyle(Color.pinInk)
-                +
-                Text("puffin.")
-                    .font(.pinAccent(38))
-                    .foregroundStyle(Color.pinClayDeep)
-            )
-            .lineLimit(1)
-            Text("How others see you in the raft.")
+        VStack(alignment: .leading, spacing: 6) {
+            // Long-pressing the wordmark opens the founder admin console — a
+            // no-op for everyone but the founder account.
+            PintableWordmark(size: 18)
+                .onLongPressGesture(minimumDuration: 0.6) {
+                    if isFounder { showAdmin = true }
+                }
+            Text("Me.")
+                .font(.pinAccent(40))
+                .foregroundStyle(Color.pinClayDeep)
+            Text("How my mates see me on Pintable.")
                 .font(.pinSubtitle(13))
                 .foregroundStyle(Color.pinInkMuted)
         }
@@ -310,7 +317,7 @@ struct ProfileView: View {
             VStack(alignment: .leading, spacing: 12) {
                 howRow(number: "1", text: "Browse restaurants and see who's already planning to dine.")
                 howRow(number: "2", text: "Pin a plan — set time, group size, and goal.")
-                howRow(number: "3", text: "Chat in real-time with your raft before heading over.")
+                howRow(number: "3", text: "Chat in real-time with your mates before heading over.")
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
