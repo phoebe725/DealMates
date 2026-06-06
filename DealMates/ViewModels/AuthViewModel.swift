@@ -13,6 +13,11 @@ final class AuthViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var errorMessage: String?
     @Published var isAuthenticated = false
+    /// Set when a sign-up succeeds but the account still needs email
+    /// confirmation. Drives the "Check your inbox" screen in `LoginView`.
+    @Published var pendingConfirmationEmail: String?
+    /// Transient success note (e.g. "email resent") shown on the inbox screen.
+    @Published var infoMessage: String?
 
     private let service = AuthService.shared
     private var userCacheCancellable: AnyCancellable?
@@ -76,13 +81,57 @@ final class AuthViewModel: ObservableObject {
 
     func signUp(email: String, password: String, displayName: String, gender: Gender? = nil, age: Int? = nil) async {
         errorMessage = nil
+        infoMessage = nil
         do {
             let user = try await service.signUp(email: email, password: password, displayName: displayName, gender: gender, age: age)
             currentUser = user
             isAuthenticated = true
+        } catch let error as NSError where error.domain == "DealMates.Auth" && error.code == 1001 {
+            // Account created, but Supabase requires email confirmation before a
+            // session is issued. Surface the dedicated "Check your inbox" flow
+            // instead of a terse error banner.
+            pendingConfirmationEmail = email
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Re-sends the confirmation email for the account awaiting verification.
+    func resendConfirmation() async {
+        guard let email = pendingConfirmationEmail else { return }
+        errorMessage = nil
+        infoMessage = nil
+        do {
+            try await service.resendConfirmation(email: email)
+            infoMessage = AppLocalization.string("Email sent — check your inbox.")
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Sends a password-reset email; the link opens the web app to set a new
+    /// password (centralized reset flow). Surfaces a confirmation via infoMessage.
+    func sendPasswordReset(email: String) async {
+        errorMessage = nil
+        infoMessage = nil
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            errorMessage = AppLocalization.string("Enter your email first to reset your password.")
+            return
+        }
+        do {
+            try await service.sendPasswordReset(email: trimmed)
+            infoMessage = AppLocalization.string("Reset link sent — check your inbox.")
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Leaves the "Check your inbox" screen and returns to the form.
+    func cancelPendingConfirmation() {
+        pendingConfirmationEmail = nil
+        errorMessage = nil
+        infoMessage = nil
     }
 
     /// Re-fetch the current user's row so counters and other server-mutated fields stay fresh.
@@ -106,10 +155,12 @@ final class AuthViewModel: ObservableObject {
 
     func signIn(email: String, password: String) async {
         errorMessage = nil
+        infoMessage = nil
         do {
             let user = try await service.signIn(email: email, password: password)
             currentUser = user
             isAuthenticated = true
+            pendingConfirmationEmail = nil
         } catch {
             errorMessage = error.localizedDescription
         }

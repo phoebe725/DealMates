@@ -19,6 +19,12 @@ interface AuthState {
   resendConfirmation: () => Promise<void>;
   clearPending: () => void;
   refresh: () => Promise<void>;
+  /** Send a password-reset email (link returns to the site for a new password). */
+  resetPassword: (email: string) => Promise<void>;
+  /** Set a new password during a recovery session, then finish signing in. */
+  updatePassword: (newPassword: string) => Promise<void>;
+  /** True while the user is in the password-recovery flow (arrived via reset link). */
+  passwordRecovery: boolean;
 }
 
 const Ctx = createContext<AuthState | null>(null);
@@ -55,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingConfirmationEmail, setPending] = useState<string | null>(null);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   async function loadProfile(uid: string, email: string, confirmed: boolean, isAnon: boolean) {
     const profile = await ensureProfile(uid, email);
@@ -71,18 +78,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       s = anon.data.session;
     }
     if (s) {
-      await loadProfile(
-        s.user.id,
-        s.user.email ?? "",
-        !!s.user.email_confirmed_at,
-        !!s.user.is_anonymous,
-      );
+      // Prefer the server-fresh user over the (possibly stale) cached session
+      // token — after the user clicks the email link, email_confirmed_at flips
+      // server-side before the local token refreshes, so getUser reflects the
+      // confirmation immediately instead of after a delay.
+      const { data: fresh } = await supabase.auth.getUser();
+      const u = fresh.user ?? s.user;
+      await loadProfile(u.id, u.email ?? "", !!u.email_confirmed_at, !!u.is_anonymous);
     }
     setLoading(false);
   }
 
   useEffect(() => {
     bootstrap();
+    // Supabase fires PASSWORD_RECOVERY after the user returns via a reset link.
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
   const refresh = async () => {
@@ -155,6 +168,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.resend({ type: "signup", email: pendingConfirmationEmail });
   };
 
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+    });
+    if (error) throw error;
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+    // The recovery session is a real account — flip it non-anonymous and reload.
+    if (data.user) {
+      await supabase.from("users").update({ is_anonymous: false }).eq("id", data.user.id);
+    }
+    setPasswordRecovery(false);
+    await refresh();
+  };
+
   const isSignedIn = !!user && user.is_anonymous === false;
 
   return (
@@ -170,6 +201,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resendConfirmation,
         clearPending: () => setPending(null),
         refresh,
+        resetPassword,
+        updatePassword,
+        passwordRecovery,
       }}
     >
       {children}

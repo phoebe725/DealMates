@@ -12,6 +12,7 @@ struct LoginView: View {
     @State private var isSignUpMode: Bool
     @State private var email = ""
     @State private var password = ""
+    @State private var showPassword = false
     @State private var displayName = ""
     @State private var gender: Gender = .female
     @State private var ageText: String = ""
@@ -38,7 +39,9 @@ struct LoginView: View {
                         header
                         form
                         if let error = authViewModel.errorMessage { errorBanner(error) }
+                        if let info = authViewModel.infoMessage { infoBanner(info) }
                         submitButton
+                        if !isSignUpMode { forgotPasswordLink }
                         toggleModeLink
                     }
                     .padding(.horizontal, 24)
@@ -177,9 +180,27 @@ struct LoginView: View {
             }
 
             field("Password") {
-                SecureField("At least 8 characters", text: $password)
+                HStack(spacing: 8) {
+                    Group {
+                        if showPassword {
+                            TextField("At least 8 characters", text: $password)
+                        } else {
+                            SecureField("At least 8 characters", text: $password)
+                        }
+                    }
                     .textContentType(isSignUpMode ? .newPassword : .password)
-                    .pinTextField()
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    Button {
+                        showPassword.toggle()
+                    } label: {
+                        Image(systemName: showPassword ? "eye.slash" : "eye")
+                            .font(.system(size: 16))
+                            .foregroundStyle(Color.pinInkMuted)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .pinTextField()
             }
         }
     }
@@ -346,6 +367,20 @@ struct LoginView: View {
         .buttonStyle(PinPrimaryButtonStyle())
         .disabled(!canSubmit || isLoading)
         .opacity(canSubmit ? 1 : 0.5)
+    }
+
+    /// Sign-in only — sends a reset email; the link opens the web app to set a
+    /// new password. Confirmation/errors surface via info/error banners above.
+    private var forgotPasswordLink: some View {
+        Button {
+            Task { await authViewModel.sendPasswordReset(email: email) }
+        } label: {
+            Text("Forgot password?")
+                .font(.pinBody(14, weight: .medium))
+                .foregroundStyle(Color.pinClay)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
     }
 
     private var canSubmit: Bool {

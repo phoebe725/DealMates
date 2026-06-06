@@ -4,7 +4,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { trackPageView } from "@/lib/analytics";
 import { TabBar } from "@/components/TabBar";
 import { Wordmark } from "@/components/ui";
-import { SignedOut } from "@/screens/SignedOut";
+import { SignedOut, SetNewPassword } from "@/screens/SignedOut";
 import { Discover } from "@/screens/Discover";
 import { RestaurantBoard } from "@/screens/RestaurantBoard";
 import { PlanDetail } from "@/screens/PlanDetail";
@@ -63,7 +63,7 @@ function Shell() {
 }
 
 export default function App() {
-  const { loading, user } = useAuth();
+  const { loading, user, passwordRecovery } = useAuth();
   const { pathname } = useLocation();
 
   // page_view on every route change.
@@ -75,6 +75,11 @@ export default function App() {
     <div className="pin-shell">
       {loading ? (
         <Splash />
+      ) : passwordRecovery ? (
+        // Arrived via a password-reset link — set a new password before anything else.
+        <div className="h-full overflow-y-auto">
+          <SetNewPassword />
+        </div>
       ) : user ? (
         // Both anonymous guests and signed-in users get the full Shell.
         // Action gates (join, create, DM) prompt sign-up inline when needed.

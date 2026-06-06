@@ -118,6 +118,16 @@ final class AuthService {
         try await client.auth.resend(email: email, type: .signup)
     }
 
+    /// Sends a password-reset email. The link returns to the web app, where the
+    /// user sets a new password (one centralized reset flow). Supabase succeeds
+    /// even for unknown addresses so callers can't probe which are registered.
+    func sendPasswordReset(email: String) async throws {
+        try await client.auth.resetPasswordForEmail(
+            email,
+            redirectTo: URL(string: "https://pintable-london.web.app")
+        )
+    }
+
     func updateGender(uid: String, gender: Gender) async throws {
         try await updateDemographics(uid: uid, gender: gender, age: nil)
     }

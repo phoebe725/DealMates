@@ -65,12 +65,28 @@ function AuthForm({
   setSignUp: (v: boolean) => void;
   onBack: () => void;
 }) {
-  const { signUp: doSignUp, signIn } = useAuth();
+  const { signUp: doSignUp, signIn, resetPassword } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  async function forgotPassword() {
+    if (!email) {
+      setError(t("Enter your email first to reset your password."));
+      return;
+    }
+    setError(null);
+    try {
+      await resetPassword(email);
+      setResetSent(true);
+    } catch (e: any) {
+      setError(e?.message ?? "Something went wrong.");
+    }
+  }
 
   const canSubmit = email && password && (!signUp || name);
 
@@ -123,13 +139,23 @@ function AuthForm({
           />
         </Field>
         <Field label={t("Password")}>
-          <input
-            className="pin-field"
-            type="password"
-            placeholder={t("At least 8 characters")}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <div className="relative">
+            <input
+              className="pin-field pr-11"
+              type={showPassword ? "text" : "password"}
+              placeholder={t("At least 8 characters")}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? t("Hide password") : t("Show password")}
+              className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-inkMuted"
+            >
+              <EyeIcon off={showPassword} />
+            </button>
+          </div>
         </Field>
       </div>
 
@@ -138,6 +164,15 @@ function AuthForm({
       <button className="pin-btn-primary mt-6" disabled={!canSubmit || busy} onClick={submit}>
         {busy ? "…" : signUp ? t("Pin me in") : t("Sign in")}
       </button>
+
+      {!signUp &&
+        (resetSent ? (
+          <p className="mt-4 text-center text-[13px] text-sageDeep">{t("Reset link sent — check your inbox.")}</p>
+        ) : (
+          <button className="mt-4 block w-full text-center text-[13px] font-medium text-clay" onClick={forgotPassword}>
+            {t("Forgot password?")}
+          </button>
+        ))}
 
       <div className="mt-6 text-center text-[14px] text-inkMuted">
         {signUp ? t("Already have an account?") : t("Don't have an account?")}{" "}
@@ -169,6 +204,85 @@ function CheckInbox() {
         </button>
       </div>
     </div>
+  );
+}
+
+export function SetNewPassword() {
+  const { updatePassword } = useAuth();
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    if (password.length < 8) {
+      setError(t("At least 8 characters"));
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      await updatePassword(password);
+    } catch (e: any) {
+      setError(e?.message ?? "Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="px-6 pt-8">
+      <h1 className="font-sans text-[28px] font-light text-ink">{t("Set a new password")}</h1>
+      <div className="mt-7">
+        <label className="block space-y-2">
+          <span className="text-[14px] font-medium text-ink">{t("New password")}</span>
+          <div className="relative">
+            <input
+              className="pin-field pr-11"
+              type={showPassword ? "text" : "password"}
+              placeholder={t("At least 8 characters")}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? t("Hide password") : t("Show password")}
+              className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-inkMuted"
+            >
+              <EyeIcon off={showPassword} />
+            </button>
+          </div>
+        </label>
+      </div>
+
+      {error && <p className="mt-4 rounded-pin bg-clay/12 p-3 text-[13px] text-ink">{error}</p>}
+
+      <button className="pin-btn-primary mt-6" disabled={!password || busy} onClick={submit}>
+        {busy ? "…" : t("Update password")}
+      </button>
+    </div>
+  );
+}
+
+function EyeIcon({ off }: { off: boolean }) {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      {off ? (
+        <>
+          <path d="M9.88 9.88a3 3 0 0 0 4.24 4.24" />
+          <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+          <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+          <line x1="2" y1="2" x2="22" y2="22" />
+        </>
+      ) : (
+        <>
+          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+          <circle cx="12" cy="12" r="3" />
+        </>
+      )}
+    </svg>
   );
 }
 

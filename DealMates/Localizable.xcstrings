@@ -2099,6 +2099,54 @@
         }
       }
     },
+    "Forgot password?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "忘记密码？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "忘記密碼？"
+          }
+        }
+      }
+    },
+    "Enter your email first to reset your password." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先输入邮箱以重置密码。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請先輸入電郵以重設密碼。"
+          }
+        }
+      }
+    },
+    "Reset link sent — check your inbox." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置链接已发送 — 请查看收件箱。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重設連結已寄出 — 請查看收件匣。"
+          }
+        }
+      }
+    },
     "Email sent — check your inbox." : {
       "comment" : "Confirmation shown after the user taps Resend.",
       "extractionState" : "stale",
