@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { trackPageView } from "@/lib/analytics";
 import { TabBar } from "@/components/TabBar";
@@ -27,6 +27,17 @@ function Splash() {
 /** Tab routes show the bottom bar; detail routes (restaurant/plan) don't. */
 function Shell() {
   const { pathname } = useLocation();
+  const { user } = useAuth();
+  const nav = useNavigate();
+  // Once a guest signs in (becomes a real, confirmed account), leave the auth
+  // screen for Discover — mirrors the app, where auth state flips you straight
+  // back into the tabs. Email-confirm signups stay anonymous until verified, so
+  // this correctly leaves them on the "check your inbox" screen.
+  useEffect(() => {
+    if (pathname === "/signin" && user && user.is_anonymous === false) {
+      nav("/discover", { replace: true });
+    }
+  }, [pathname, user, nav]);
   const showTabs = ["/discover", "/plans", "/messages", "/profile"].includes(pathname);
   return (
     <div className="flex h-full flex-col">
