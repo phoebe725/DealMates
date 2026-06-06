@@ -6,7 +6,7 @@ import { fetchRestaurant, fetchActivePlans, fetchRestaurantOffers, defaultPlanOr
 import { restaurantName, offerTitle, offerDescription, offerGroupBadge, dealOffers, needsMorePeople, type Plan, type RestaurantOffer } from "@/types";
 import { t, localizedCuisine as cuisineLabel } from "@/i18n";
 import { trackCreatePlanClick } from "@/lib/analytics";
-import { offerShortLabel } from "@/lib/dealDisplay";
+import { offerShortLabel, splitTerms } from "@/lib/dealDisplay";
 import { Chip, EmptyState, RestaurantImage, Spinner } from "@/components/ui";
 
 function timeLabel(p: Plan) {
@@ -85,21 +85,29 @@ export function RestaurantBoard() {
           </div>
         )}
 
-        {/* 3. RESTAURANT INFORMATION */}
+        {/* 3. GOOD TO KNOW — curated highlights (price / hours / specialty) */}
+        {highlights.length > 0 && (
+          <>
+            <div className="mt-7"><SectionHeader title={t("Good to know")} /></div>
+            <div className="mt-3 space-y-2.5">
+              {highlights.map((h) => (
+                <div key={h.id}>
+                  <div className="text-[14px] font-medium text-ink">{offerTitle(h)}</div>
+                  {offerDescription(h) && (
+                    <div className="mt-0.5 text-[13px] text-inkMuted">{offerDescription(h)}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* 4. RESTAURANT INFORMATION */}
         <div className="mt-7"><SectionHeader title={t("Restaurant info")} /></div>
         <RestaurantImage r={rest} className="mt-3 h-44 w-full rounded-card" />
         <div className="mt-2 text-[14px] text-inkMuted">
           {cuisineLabel(rest.cuisine)}{rest.address ? ` · ${rest.address}` : ""}
         </div>
-        {highlights.length > 0 && (
-          <ul className="mt-2 space-y-1">
-            {highlights.map((h) => (
-              <li key={h.id} className="text-[13px] text-ink">
-                · {offerTitle(h)}{offerDescription(h) ? ` — ${offerDescription(h)}` : ""}
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
 
       {/* Persistent create-a-table CTA */}
@@ -117,24 +125,41 @@ function SectionHeader({ title }: { title: string }) {
   return <div className="text-[13px] font-semibold uppercase tracking-wide text-inkMuted">{title}</div>;
 }
 
-function DealCard({ o }: { o: RestaurantOffer }) {
-  const desc = offerDescription(o);
-  const label = offerShortLabel(o);
+/** Bulleted list of an offer's description terms. */
+function TermList({ desc }: { desc: string }) {
+  const terms = splitTerms(desc);
+  if (terms.length === 0) return null;
   return (
-    <div className="rounded-card bg-clay/10 p-3">
+    <ul className="mt-1.5 space-y-1">
+      {terms.map((term, i) => (
+        <li key={i} className="flex gap-1.5 text-[13px] text-ink">
+          <span className="select-none text-clayDeep">•</span>
+          <span>{term}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function DealCard({ o }: { o: RestaurantOffer }) {
+  // Headline is the authored title; the short-label emoji is kept as a category cue.
+  const title = offerTitle(o) || offerShortLabel(o).text;
+  const { emoji } = offerShortLabel(o);
+  return (
+    <div className="rounded-card bg-clay/10 p-3.5">
       <div className="flex items-center gap-2">
-        <span className="text-[14px] font-semibold text-clayDeep">{label.emoji} {label.text}</span>
+        <span className="text-[15px] font-semibold text-clayDeep">{emoji} {title}</span>
         {o.price_pp != null && (
-          <span className="ml-auto text-[12px] font-semibold text-clayDeep">£{o.price_pp}/pp</span>
+          <span className="ml-auto shrink-0 text-[12px] font-semibold text-clayDeep">£{o.price_pp}/pp</span>
         )}
       </div>
-      {desc && <div className="mt-0.5 text-[13px] text-ink">{desc}</div>}
+      <TermList desc={offerDescription(o)} />
     </div>
   );
 }
 
 function GroupDealCard({ o, onCreate }: { o: RestaurantOffer; onCreate: () => void }) {
-  const desc = offerDescription(o);
+  const title = offerTitle(o) || offerShortLabel(o).text;
   const badge = offerGroupBadge(o);
   return (
     <div className="rounded-card border-2 border-clay/40 bg-clay/15 p-3.5">
@@ -150,8 +175,8 @@ function GroupDealCard({ o, onCreate }: { o: RestaurantOffer; onCreate: () => vo
       {o.min_people != null && (
         <div className="mt-1 text-[12px] text-clayDeep">{t("Requires %lld people", o.min_people)}</div>
       )}
-      <div className="mt-1 text-[15px] font-semibold text-ink">{offerShortLabel(o).text}</div>
-      {desc && <div className="mt-0.5 text-[13px] text-ink">{desc}</div>}
+      <div className="mt-1 text-[15px] font-semibold text-ink">{title}</div>
+      <TermList desc={offerDescription(o)} />
       <button onClick={onCreate} className="mt-3 w-full rounded-full bg-clay py-2.5 text-[14px] font-semibold text-cream">
         {t("Create table for this deal")}
       </button>

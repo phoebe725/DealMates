@@ -1,5 +1,7 @@
 import SwiftUI
 
+/// Discover restaurant card — mirrors web/src/screens/Discover.tsx `RestaurantCard`:
+/// a full-width photo on top, with name → cuisine → strongest deal label below.
 struct RestaurantCardView: View {
     let restaurant: Restaurant
     var offers: [RestaurantOffer] = []
@@ -8,10 +10,11 @@ struct RestaurantCardView: View {
     private var isGroup: Bool { top?.dealKind == "group" }
 
     var body: some View {
-        HStack(spacing: 14) {
-            thumbnail
-                .frame(width: 64, height: 64)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        VStack(alignment: .leading, spacing: 0) {
+            image
+                .frame(maxWidth: .infinity)
+                .frame(height: 128)
+                .clipped()
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(restaurant.displayName)
@@ -21,34 +24,31 @@ struct RestaurantCardView: View {
                 Text(restaurant.displayCuisine)
                     .font(.pinSubtitle(13))
                     .foregroundStyle(Color.pinInkMuted)
-                Text(restaurant.address)
-                    .font(.pinSubtitle(12))
-                    .foregroundStyle(Color.pinInkMuted)
-                    .lineLimit(1)
                 if let top {
                     Text(top.shortLabel.emoji + " " + top.shortLabel.text)
-                        .font(.pinSubtitle(12).weight(.semibold))
+                        .font(.pinSubtitle(13).weight(.semibold))
                         .foregroundStyle(isGroup ? Color.pinClayDeep : Color.pinSunDeep)
                         .lineLimit(1)
+                        .padding(.top, 2)
                 }
             }
-
-            Spacer(minLength: 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
         }
-        .padding(14)
-        .pinCard()
+        .background(Color.pinShell)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: Color.pinInk.opacity(0.04), radius: 10, x: 0, y: 4)
     }
 
-    // MARK: - Thumbnail
+    // MARK: - Image
 
     @ViewBuilder
-    @ViewBuilder
-    private var thumbnail: some View {
+    private var image: some View {
         let url = restaurant.imageUrl.flatMap { URL(string: $0) }
         if restaurant.imageFit == "contain" {
             // Logo: contain on the brand background so it isn't cropped.
             CachedAsyncImage(url: url, contentMode: .fit, placeholder: { loadingPlaceholder }, failure: { placeholderBubble })
-                .padding(6)
+                .padding(12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(hex: restaurant.imageBg ?? "FFFFFF"))
         } else {
@@ -63,7 +63,7 @@ struct RestaurantCardView: View {
     private var placeholderBubble: some View {
         ZStack {
             Rectangle().fill(cuisineTint.opacity(0.25))
-            Text(cuisineEmoji).font(.system(size: 26))
+            Text(cuisineEmoji).font(.system(size: 34))
         }
     }
 

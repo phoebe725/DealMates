@@ -37,6 +37,16 @@ struct RestaurantOffer: Identifiable, Codable, Hashable {
         }
     }
 
+    /// Description split into its distinct terms. The curated data uses " · " as
+    /// the separator between conditions (e.g. "£32.80pp for 2+ · £45 solo · 20%
+    /// off 12–17"); a single-clause description returns one element.
+    var descriptionTerms: [String] {
+        displayDescription
+            .split(separator: "·")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
     /// Language-neutral group-gate badge (👥 4+, 👥 2–4), or nil when not gated.
     var groupBadge: String? {
         guard isGroupGated, let min = minPeople else { return nil }

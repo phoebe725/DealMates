@@ -140,6 +140,7 @@ struct RestaurantBoardView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         emptyBoard.padding(.top, 16)
                     }
+                    goodToKnowSection
                     infoSection
                 }
                 .padding(.horizontal, 20)
@@ -170,11 +171,34 @@ struct RestaurantBoardView: View {
         }
     }
 
+    /// Headline for an offer card — the authored title, falling back to the
+    /// generated short label only when no title exists.
+    private func offerTitle(_ offer: RestaurantOffer) -> String {
+        offer.displayTitle.isEmpty ? offer.shortLabel.text : offer.displayTitle
+    }
+
+    /// Description rendered as a bulleted list of its distinct terms.
+    @ViewBuilder
+    private func termList(_ offer: RestaurantOffer) -> some View {
+        let terms = offer.descriptionTerms
+        if !terms.isEmpty {
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(Array(terms.enumerated()), id: \.offset) { _, term in
+                    HStack(alignment: .top, spacing: 6) {
+                        Text("•").foregroundStyle(Color.pinClayDeep)
+                        Text(term).foregroundStyle(Color.pinInk)
+                    }
+                    .font(.pinSubtitle(12))
+                }
+            }
+        }
+    }
+
     private func dealCard(_ offer: RestaurantOffer) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Text(offer.shortLabel.emoji + " " + offer.shortLabel.text)
-                    .font(.pinBody(14, weight: .medium))
+                Text(offer.shortLabel.emoji + " " + offerTitle(offer))
+                    .font(.pinBody(15, weight: .medium))
                     .foregroundStyle(Color.pinClayDeep)
                 if let pp = offer.pricePp {
                     Spacer()
@@ -183,11 +207,7 @@ struct RestaurantBoardView: View {
                         .foregroundStyle(Color.pinClayDeep)
                 }
             }
-            if !offer.displayDescription.isEmpty {
-                Text(offer.displayDescription)
-                    .font(.pinSubtitle(12))
-                    .foregroundStyle(Color.pinInk)
-            }
+            termList(offer)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -220,14 +240,10 @@ struct RestaurantBoardView: View {
                     .font(.pinSubtitle(12))
                     .foregroundStyle(Color.pinClayDeep)
             }
-            Text(offer.shortLabel.text)
+            Text(offerTitle(offer))
                 .font(.pinBody(15, weight: .medium))
                 .foregroundStyle(Color.pinInk)
-            if !offer.displayDescription.isEmpty {
-                Text(offer.displayDescription)
-                    .font(.pinSubtitle(12))
-                    .foregroundStyle(Color.pinInk)
-            }
+            termList(offer)
             Button { showCreatePlan = true } label: {
                 Text("Create table for this deal")
                     .font(.pinButton(14))
@@ -245,26 +261,73 @@ struct RestaurantBoardView: View {
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.pinClay.opacity(0.4), lineWidth: 2))
     }
 
+    // MARK: - Good to know (curated highlights: price / hours / specialty)
+
+    @ViewBuilder
+    private var goodToKnowSection: some View {
+        let highlights = displayOffers.filter { $0.category == "highlight" }
+        if !highlights.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                PinSectionHeader(title: "Good to know")
+                ForEach(highlights) { h in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(h.displayTitle)
+                            .font(.pinBody(14, weight: .medium))
+                            .foregroundStyle(Color.pinInk)
+                        if !h.displayDescription.isEmpty {
+                            Text(h.displayDescription)
+                                .font(.pinSubtitle(12))
+                                .foregroundStyle(Color.pinInkMuted)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     // MARK: - Restaurant info (bottom of page)
 
     @ViewBuilder
     private var infoSection: some View {
-        let highlights = displayOffers.filter { $0.category == "highlight" }
         VStack(alignment: .leading, spacing: 6) {
             PinSectionHeader(title: "Restaurant info")
+            infoImage
+                .padding(.bottom, 4)
             Text(restaurant.displayName)
                 .font(.pinBody(18, weight: .medium))
                 .foregroundStyle(Color.pinInk)
             Text(restaurant.displayCuisine + " · " + restaurant.address)
                 .font(.pinSubtitle(13))
                 .foregroundStyle(Color.pinInkMuted)
-            ForEach(highlights) { h in
-                Text("· " + h.displayTitle + (h.displayDescription.isEmpty ? "" : " — " + h.displayDescription))
-                    .font(.pinSubtitle(12))
-                    .foregroundStyle(Color.pinInk)
-            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Restaurant photo for the info section — mirrors web's RestaurantImage:
+    /// logos use `contain` on the brand background, food photos use `cover`.
+    @ViewBuilder
+    private var infoImage: some View {
+        let url = restaurant.imageUrl.flatMap { URL(string: $0) }
+        Group {
+            if restaurant.imageFit == "contain" {
+                CachedAsyncImage(url: url, contentMode: .fit,
+                                 placeholder: { Rectangle().fill(Color.pinFog) },
+                                 failure: { Rectangle().fill(Color.pinFog) })
+                    .padding(16)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(hex: restaurant.imageBg ?? "FFFFFF"))
+            } else {
+                CachedAsyncImage(url: url,
+                                 placeholder: { Rectangle().fill(Color.pinFog) },
+                                 failure: { Rectangle().fill(Color.pinFog) })
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 176)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     // MARK: - Plan list
@@ -289,6 +352,7 @@ struct RestaurantBoardView: View {
                     )
                 }
 
+                goodToKnowSection.padding(.top, 8)
                 infoSection.padding(.top, 8)
             }
             .padding(.horizontal, 20)

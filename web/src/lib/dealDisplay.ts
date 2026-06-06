@@ -6,6 +6,13 @@ import { t } from "@/i18n";
 
 export type DealKind = "group" | "ayce" | "discount" | "student" | "member" | "lunch" | "other";
 
+/** Split an offer description into its distinct terms. The curated data uses
+ *  " · " as the separator between conditions (e.g. "£32.80pp for 2+ · £45 solo
+ *  · 20% off 12–17"); a single-clause description returns one element. */
+export function splitTerms(desc: string): string[] {
+  return desc.split("·").map((s) => s.trim()).filter(Boolean);
+}
+
 function en(o: RestaurantOffer): string {
   return `${o.title_en ?? ""} ${o.description_en ?? ""}`.toLowerCase();
 }
