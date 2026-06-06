@@ -24,7 +24,7 @@ final class RestaurantViewModel: ObservableObject {
     /// Deal-filter chips (value, emoji, label key) — separate from cuisine.
     static let dealFilterChips: [(value: String, emoji: String, key: String)] = [
         ("all", "🔥", "All Deals"), ("group", "👥", "Group Deals"), ("ayce", "🍽", "AYCE / Buffet"),
-        ("discount", "💸", "Discounts"), ("student", "🎓", "Student"), ("member", "💳", "Member"),
+        ("student", "🎓", "Student"), ("member", "💳", "Member"),
     ]
 
     /// Active offers for a restaurant (restaurant_offers is the source of truth).

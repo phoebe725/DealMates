@@ -85,7 +85,6 @@ export const DEAL_FILTERS: { value: DealFilter; emoji: string; key: string }[] =
   { value: "all",      emoji: "🔥", key: "All Deals" },
   { value: "group",    emoji: "👥", key: "Group Deals" },
   { value: "ayce",     emoji: "🍽", key: "AYCE / Buffet" },
-  { value: "discount", emoji: "💸", key: "Discounts" },
   { value: "student",  emoji: "🎓", key: "Student" },
   { value: "member",   emoji: "💳", key: "Member" },
 ];
