@@ -139,7 +139,7 @@ export function PlanDetail() {
             </span>
           </div>
           {plan.notes && <p className="mt-2 text-[13px] text-inkMuted">{plan.notes}</p>}
-          {plan.event_code && user?.id === plan.creator_id && (
+          {plan.event_code && (
             <div className="mt-3 flex items-center justify-between rounded-xl bg-cream px-3 py-2">
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-inkMuted">Event code</div>
