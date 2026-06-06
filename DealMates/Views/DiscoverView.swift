@@ -146,7 +146,7 @@ struct DiscoverView: View {
     private var cuisineChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                chip(label: "All cuisines", selected: vm.cuisineFilter == nil) {
+                chip(label: AppLocale.localizedCuisine("All cuisines"), selected: vm.cuisineFilter == nil) {
                     vm.cuisineFilter = nil
                 }
                 ForEach(vm.availableCuisines, id: \.self) { cuisine in

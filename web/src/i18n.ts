@@ -344,6 +344,8 @@ export function t(key: string, ...args: (string | number)[]): string {
 }
 
 const CUISINE_ZH_HANS: Record<string, string> = {
+  "🔥 deals": "🔥 优惠",
+  "all cuisines": "全部菜系",
   "japanese / sushi": "日本料理 / 寿司",
   chinese: "中餐",
   "hot pot": "火锅",
@@ -368,6 +370,8 @@ const CUISINE_ZH_HANS: Record<string, string> = {
   "bubble tea": "珍珠奶茶",
 };
 const CUISINE_ZH_HANT: Record<string, string> = {
+  "🔥 deals": "🔥 優惠",
+  "all cuisines": "全部菜系",
   "japanese / sushi": "日本料理 / 壽司",
   chinese: "中餐",
   "hot pot": "火鍋",
