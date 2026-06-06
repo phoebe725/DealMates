@@ -2304,13 +2304,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "找人"
+            "value" : "找"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "找人"
+            "value" : "找"
           }
         }
       }
@@ -2471,6 +2471,23 @@
         }
       }
     },
+    "Go" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前往"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前往"
+          }
+        }
+      }
+    },
     "Good to know" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2483,54 +2500,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "餐廳亮點"
-          }
-        }
-      }
-    },
-    "Go" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "前往"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "前往"
-          }
-        }
-      }
-    },
-    "Have a code? e.g. PT482" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "有桌号吗？例如 PT482"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "有桌號嗎？例如 PT482"
-          }
-        }
-      }
-    },
-    "No plan found for that code." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未找到该桌号对应的饭局。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "找不到該桌號對應的飯局。"
           }
         }
       }
@@ -2722,6 +2691,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "訪客"
+          }
+        }
+      }
+    },
+    "Have a code? e.g. PT482" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有桌号吗？例如 PT482"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有桌號嗎？例如 PT482"
           }
         }
       }
@@ -3985,6 +3970,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "還沒有飯局？快拼第一桌！"
+          }
+        }
+      }
+    },
+    "No plan found for that code." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到该桌号对应的饭局。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到該桌號對應的飯局。"
           }
         }
       }
