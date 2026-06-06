@@ -45,7 +45,7 @@ insert into public.restaurant_offers
    offer_type, is_group_gated, is_deal_like, min_people, max_people, price_pp,
    currency, source_url, valid_from, valid_until, is_active)
 select * from (values
-  ('fa0e7619-0c96-44ec-b61f-02ffe33d8b2b', 0, '10% off online orders', '在线订餐 9 折', '線上訂餐 9 折', '10% off when ordering via aisushi.co.uk', '通过 aisushi.co.uk 订餐可享 9 折', '透過 aisushi.co.uk 訂餐可享 9 折', 'other', false, true, NULL, NULL, NULL, 'GBP', NULL, NULL, NULL, true),
+  ('fa0e7619-0c96-44ec-b61f-02ffe33d8b2b'::uuid, 0, '10% off online orders', '在线订餐 9 折', '線上訂餐 9 折', '10% off when ordering via aisushi.co.uk', '通过 aisushi.co.uk 订餐可享 9 折', '透過 aisushi.co.uk 訂餐可享 9 折', 'other', false, true, NULL, NULL, NULL, 'GBP', NULL, NULL, NULL, true),
   ('fa0e7619-0c96-44ec-b61f-02ffe33d8b2b', 1, 'All-you-can-eat buffet', '自助餐畅吃', '自助餐暢吃', 'AYCE buffet available — 4 cold + 4 hot dishes per round', '提供自助餐 — 每轮 4 道冷盘 + 4 道热菜', '提供自助餐 — 每輪 4 道冷盤 + 4 道熱菜', 'other', false, true, NULL, NULL, NULL, 'GBP', NULL, NULL, NULL, true),
   ('e9f3a5b6-6a7d-4e1f-9c2b-3e4d6e8a2c4e', 0, 'Karaoke room available', 'KTV包间', 'KTV包間', 'Borough branch has private KTV rooms for group bookings', 'Borough分店设有团体KTV包间', 'Borough分店設有團體KTV包間', 'other', false, true, NULL, NULL, NULL, 'GBP', NULL, NULL, NULL, true),
   ('d8e2f4a5-5f6c-4d9e-8b1a-2d3c5d7f1b3d', 0, 'Michelin Bib Gourmand 9 years running', '米其林必比登推荐9年', '米其林必比登推薦9年', 'Famous Taiwanese steamed buns £3.50–£5.50 (Classic £5.50). Walk-in only, queues common.', '招牌台式刈包 £3.50–£5.50（经典款 £5.50）。仅接受现场，常需排队。', '招牌台式刈包 £3.50–£5.50（經典款 £5.50）。僅接受現場，常需排隊。', 'other', false, true, NULL, NULL, NULL, 'GBP', NULL, NULL, NULL, true),
