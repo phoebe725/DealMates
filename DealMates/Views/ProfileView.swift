@@ -77,10 +77,16 @@ struct ProfileView: View {
         VStack(spacing: 16) {
             PintableWordmark(size: 22)
                 .onLongPressGesture(minimumDuration: 0.6) { if isFounder { showAdmin = true } }
-            Text("👤").font(.system(size: 44)).padding(.top, 4)
-            Text("You're browsing as a guest")
-                .font(.pinHero(22, weight: .light))
+            // The guest is still a diner who can join plans, so show their
+            // profile (puffin avatar + name) here too.
+            AvatarImage(urlString: authViewModel.avatarURL, name: authViewModel.displayName, size: 80, fontSize: 34)
+                .padding(.top, 4)
+            Text(authViewModel.displayName)
+                .font(.pinBody(20, weight: .medium))
                 .foregroundStyle(Color.pinInk)
+            Text("You're browsing as a guest")
+                .font(.pinSubtitle(14))
+                .foregroundStyle(Color.pinInkMuted)
                 .multilineTextAlignment(.center)
 
             guestCard(titleKey: "✓ Available as guest", tint: .pinSageDeep, items: [

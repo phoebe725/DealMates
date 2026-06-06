@@ -36,14 +36,11 @@ struct AvatarImage: View {
     }
 
     private var initialBubble: some View {
-        ZStack {
-            Circle()
-                .fill(Color.pinSage.opacity(0.25))
-                .frame(width: size, height: size)
-            PuffinMark(size: size * 0.72)
-        }
-        .frame(width: size, height: size)
-        .clipShape(Circle())
+        Image("PuffinAvatar")
+            .resizable()
+            .scaledToFill()
+            .frame(width: size, height: size)
+            .clipShape(Circle())
     }
 
     /// Downscale (longest side ≤ 512px) and JPEG-compress at 0.8 for upload.

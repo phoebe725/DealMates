@@ -23,10 +23,12 @@ export function Profile() {
     return (
       <div className="flex min-h-full flex-col items-center justify-center px-8 pb-16 pt-8 text-center">
         <Wordmark size={36} />
-        <div className="mt-8 text-[48px]">👤</div>
-        <h1 className="mt-4 font-sans text-[22px] font-light text-ink">
+        {/* The guest is still a diner who can join plans — show their profile here too. */}
+        <img src={user.avatar_url || "/icon.png"} alt="" className="mt-7 h-20 w-20 rounded-full object-cover" />
+        <div className="mt-3 text-[20px] font-medium text-ink">{user.display_name}</div>
+        <p className="mt-1 font-subtitle text-[14px] text-inkMuted">
           {t("You're browsing as a guest")}
-        </h1>
+        </p>
 
         {/* What they CAN do */}
         <div className="mt-4 w-full max-w-xs rounded-card bg-shell p-4 text-left">
