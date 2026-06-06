@@ -69,7 +69,6 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
         fetchSystemMessages(planIds),
       ]);
 
-      let unreadPlans = 0;
       let unreadDMs = 0;
       let unreadActions = 0;
       let active = 0;
@@ -86,9 +85,9 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
         if (needsMorePeople(p) > 0) active += 1;
         else ready += 1;
         const m = latest[p.id];
+        // Own messages are never unread. System messages already handled above.
         if (!m || m.sender_id === uid || m.is_system) continue;
         if (m.timestamp > lastSeen(`plan-${p.id}`)) {
-          unreadPlans += 1;
           unreadPlanIds.add(p.id);
         }
       }
@@ -97,8 +96,10 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
         if (d.lastTimestamp > lastSeen(`dm-${d.otherUserId}`)) unreadDMs += 1;
       }
 
+      // Badge = unique plans with any unread activity (chat OR system) + DMs.
+      // Guarantees badge count == number of highlighted rows — no mismatch.
       setCounts({
-        totalUnread: unreadPlans + unreadDMs,
+        totalUnread: unreadPlanIds.size + unreadDMs,
         unreadDMCount: unreadDMs,
         unreadActionCount: unreadActions,
         activeCount: active,

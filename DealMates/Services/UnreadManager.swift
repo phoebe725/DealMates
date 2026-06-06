@@ -115,34 +115,25 @@ final class UnreadManager: ObservableObject {
         let systemMsgs = (try? await service.fetchSystemMessages(planIds: planIds)) ?? []
         if Task.isCancelled { return }
 
-        var unreadPlans = 0
         var unreadDMs = 0
         var unreadActions = 0
         var active = 0
         var ready = 0
         var newUnreadPlanIds = Set<String>()
 
-        // Unread plan *actions*: system join/leave/removal messages newer than
-        // the last time the user opened that plan's chat.
+        // System actions (joins/leaves) — drive My Plans tab badge AND row dots.
         for msg in systemMsgs where msg.timestamp > lastSeen(for: "plan-\(msg.planId)") {
             unreadActions += 1
             newUnreadPlanIds.insert(msg.planId)
         }
 
         for plan in openPlans {
-            // Active: still recruiting. Ready: group is full but attendance
-            // hasn't been recorded. Completed plans were filtered above.
-            if plan.needsMorePeople > 0 {
-                active += 1
-            } else {
-                ready += 1
-            }
+            if plan.needsMorePeople > 0 { active += 1 } else { ready += 1 }
             guard let msg = latestByPlan[plan.id] else { continue }
-            // Don't count your own messages or system messages (joins/leaves/etc.).
+            // Own messages are never unread. System messages already handled above.
             if msg.senderId == currentUid { continue }
             if msg.isSystem { continue }
             if msg.timestamp > lastSeen(for: "plan-\(plan.id)") {
-                unreadPlans += 1
                 newUnreadPlanIds.insert(plan.id)
             }
         }
@@ -152,19 +143,20 @@ final class UnreadManager: ObservableObject {
                 unreadDMs += 1
             }
         }
+        // Badge = unique plans with any unread activity (chat OR system) + DMs.
+        // This guarantees badge count == number of highlighted rows — no mismatch.
+        let unreadPlans = newUnreadPlanIds.count
         let unread = unreadPlans + unreadDMs
 
         print("[DEBUG] UnreadManager.doRefresh: dms=\(unreadDMs) plans=\(unreadPlans) actions=\(unreadActions) total=\(unread) active=\(active) ready=\(ready)")
 
-        // Only assign when the value actually changed — avoids a published
-        // event that re-renders ContentView for nothing.
-        if totalUnread != unread { totalUnread = unread }
-        if unreadDMCount != unreadDMs { unreadDMCount = unreadDMs }
-        if unreadPlanCount != unreadPlans { unreadPlanCount = unreadPlans }
+        if totalUnread    != unread         { totalUnread    = unread }
+        if unreadDMCount  != unreadDMs      { unreadDMCount  = unreadDMs }
+        if unreadPlanCount != unreadPlans   { unreadPlanCount = unreadPlans }
         if unreadActionCount != unreadActions { unreadActionCount = unreadActions }
-        if activeCount != active { activeCount = active }
-        if readyToGoCount != ready { readyToGoCount = ready }
-        if unreadPlanIds != newUnreadPlanIds { unreadPlanIds = newUnreadPlanIds }
+        if activeCount    != active         { activeCount    = active }
+        if readyToGoCount != ready          { readyToGoCount = ready }
+        if unreadPlanIds  != newUnreadPlanIds { unreadPlanIds = newUnreadPlanIds }
     }
 
     /// Fires a refresh immediately. Coalescing is already handled by
