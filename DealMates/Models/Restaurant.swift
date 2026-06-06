@@ -1,10 +1,5 @@
 import Foundation
 
-struct Deal: Codable, Hashable {
-    var title: String
-    var detail: String
-}
-
 struct Restaurant: Identifiable, Codable, Hashable {
     var id: String
     var name: String
@@ -17,9 +12,6 @@ struct Restaurant: Identifiable, Codable, Hashable {
     var nameZhHant: String?
     var cuisineZhHans: String?
     var cuisineZhHant: String?
-    var deals: [Deal]
-    var dealsZhHans: [Deal]?
-    var dealsZhHant: [Deal]?
     // Discover/Deals extensions (added by the 20260601 migration). Optional /
     // defaulted so existing call sites and decodes keep working unchanged.
     var isFeatured: Bool
@@ -32,7 +24,7 @@ struct Restaurant: Identifiable, Codable, Hashable {
     var lastDealsVerifiedAt: Date?
     var planCount: Int
 
-    init(id: String, name: String, cuisine: String, address: String, imageUrl: String? = nil, latitude: Double? = nil, longitude: Double? = nil, nameZhHans: String? = nil, nameZhHant: String? = nil, cuisineZhHans: String? = nil, cuisineZhHant: String? = nil, deals: [Deal] = [], dealsZhHans: [Deal]? = nil, dealsZhHant: [Deal]? = nil, isFeatured: Bool = false, isBuffet: Bool = false, imageFit: String = "cover", imageBg: String? = nil, lastDealsVerifiedAt: Date? = nil, planCount: Int = 0) {
+    init(id: String, name: String, cuisine: String, address: String, imageUrl: String? = nil, latitude: Double? = nil, longitude: Double? = nil, nameZhHans: String? = nil, nameZhHant: String? = nil, cuisineZhHans: String? = nil, cuisineZhHant: String? = nil, isFeatured: Bool = false, isBuffet: Bool = false, imageFit: String = "cover", imageBg: String? = nil, lastDealsVerifiedAt: Date? = nil, planCount: Int = 0) {
         self.id = id
         self.name = name
         self.cuisine = cuisine
@@ -44,9 +36,6 @@ struct Restaurant: Identifiable, Codable, Hashable {
         self.nameZhHant = nameZhHant
         self.cuisineZhHans = cuisineZhHans
         self.cuisineZhHant = cuisineZhHant
-        self.deals = deals
-        self.dealsZhHans = dealsZhHans
-        self.dealsZhHant = dealsZhHant
         self.isFeatured = isFeatured
         self.isBuffet = isBuffet
         self.imageFit = imageFit
@@ -68,9 +57,6 @@ struct Restaurant: Identifiable, Codable, Hashable {
         nameZhHant    = try c.decodeIfPresent(String.self, forKey: .nameZhHant)
         cuisineZhHans = try c.decodeIfPresent(String.self, forKey: .cuisineZhHans)
         cuisineZhHant = try c.decodeIfPresent(String.self, forKey: .cuisineZhHant)
-        deals = (try? c.decodeIfPresent([Deal].self, forKey: .deals)) ?? []
-        dealsZhHans = try? c.decodeIfPresent([Deal].self, forKey: .dealsZhHans)
-        dealsZhHant = try? c.decodeIfPresent([Deal].self, forKey: .dealsZhHant)
         isFeatured          = (try? c.decodeIfPresent(Bool.self, forKey: .isFeatured)) ?? false
         isBuffet            = (try? c.decodeIfPresent(Bool.self, forKey: .isBuffet)) ?? false
         imageFit            = (try? c.decodeIfPresent(String.self, forKey: .imageFit)) ?? "cover"
@@ -79,10 +65,11 @@ struct Restaurant: Identifiable, Codable, Hashable {
         planCount           = (try? c.decodeIfPresent(Int.self, forKey: .planCount)) ?? 0
     }
 
-    /// Eligible for the Discover "Featured" section: has at least one deal and
-    /// those deals were verified within the last 14 days.
-    var isFeaturedEligible: Bool {
-        guard !deals.isEmpty, let verified = lastDealsVerifiedAt else { return false }
+    /// Was the restaurant's deal info verified within the last 14 days? Featured
+    /// eligibility also requires at least one deal offer — see
+    /// `RestaurantViewModel.isFeaturedEligible(_:)`, which has the offer data.
+    var dealsRecentlyVerified: Bool {
+        guard let verified = lastDealsVerifiedAt else { return false }
         return verified > Date().addingTimeInterval(-14 * 24 * 60 * 60)
     }
 }
@@ -100,9 +87,6 @@ extension Restaurant {
         case nameZhHant = "name_zh_hant"
         case cuisineZhHans = "cuisine_zh_hans"
         case cuisineZhHant = "cuisine_zh_hant"
-        case deals
-        case dealsZhHans = "deals_zh_hans"
-        case dealsZhHant = "deals_zh_hant"
         case isFeatured = "is_featured"
         case isBuffet = "is_buffet"
         case imageFit = "image_fit"
@@ -125,15 +109,6 @@ extension Restaurant {
         case .zhHans: return cuisineZhHans ?? cuisine
         case .zhHant: return cuisineZhHant ?? cuisine
         case .other:  return cuisine
-        }
-    }
-
-    /// Locale-aware deals. Falls back to the English `deals` if no translated array exists.
-    var displayDeals: [Deal] {
-        switch AppLocale.current {
-        case .zhHans: return dealsZhHans ?? deals
-        case .zhHant: return dealsZhHant ?? deals
-        case .other:  return deals
         }
     }
 }

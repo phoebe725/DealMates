@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { fetchRestaurants, fetchAllActivePlans, fetchOffersMap, defaultPlanOrder } from "@/services/db";
-import { restaurantName, restaurantDeals, dealToOffer, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
+import { restaurantName, dealOffers, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
 import { t, localizedCuisine } from "@/i18n";
 import { fetchPlanByCode } from "@/services/db";
 import { Chip, EmptyState, RestaurantImage, Segmented, Spinner } from "@/components/ui";
@@ -20,9 +20,10 @@ function planHasDeal(p: Plan): boolean {
   const hay = `${p.notes} ${p.restaurant_name}`.toLowerCase();
   return DEAL_KEYWORDS.some((k) => hay.includes(k));
 }
-function featuredEligible(r: Restaurant): boolean {
-  const deals = r.deals ?? [];
-  if (deals.length === 0 || !r.last_deals_verified_at) return false;
+// Featured: the restaurant has at least one real deal offer and was verified
+// within the last 14 days. Offers are the source of truth now.
+function featuredEligible(r: Restaurant, offers: RestaurantOffer[]): boolean {
+  if (dealOffers(offers).length === 0 || !r.last_deals_verified_at) return false;
   const ms = Date.now() - new Date(r.last_deals_verified_at).getTime();
   return ms < 14 * 24 * 60 * 60 * 1000;
 }
@@ -52,13 +53,7 @@ export function Discover() {
   const restaurantMap = Object.fromEntries((restaurants.data ?? []).map((r) => [r.id, r]));
   const offersMap = offersQ.data ?? {};
 
-  // Offers-first, with legacy restaurants.deals as fallback when a restaurant
-  // has no rows in restaurant_offers (or the table isn't there yet).
-  const offersFor = (r: Restaurant): RestaurantOffer[] => {
-    const o = offersMap[r.id];
-    if (o && o.length) return o;
-    return restaurantDeals(r).map((d, i) => dealToOffer(d, r.id, i));
-  };
+  const offersFor = (r: Restaurant): RestaurantOffer[] => offersMap[r.id] ?? [];
 
   const [codeInput, setCodeInput] = useState("");
   const [codeBusy, setCodeBusy] = useState(false);
@@ -111,8 +106,8 @@ export function Discover() {
   }, [restaurants.data, dealFilter, cuisine, search, offersMap]);
 
   const showFeatured = !search.trim();
-  const featured = showFeatured ? filtered.filter(featuredEligible) : [];
-  const general = showFeatured ? filtered.filter((r) => !featuredEligible(r)) : filtered;
+  const featured = showFeatured ? filtered.filter((r) => featuredEligible(r, offersFor(r))) : [];
+  const general = showFeatured ? filtered.filter((r) => !featuredEligible(r, offersFor(r))) : filtered;
 
   const visiblePlans = useMemo(
     () => (plans.data ?? []).filter((p) => needsMorePeople(p) > 0 && !p.attendance_confirmed_at).sort(defaultPlanOrder),

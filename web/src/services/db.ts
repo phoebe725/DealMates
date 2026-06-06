@@ -15,8 +15,7 @@ export async function fetchRestaurants(): Promise<Restaurant[]> {
 }
 
 /** All active offers, grouped by restaurant_id and ordered. Returns {} if the
- *  restaurant_offers table is missing or errors — callers fall back to the
- *  legacy restaurants.deals JSON. */
+ *  restaurant_offers table is missing or errors. */
 export async function fetchOffersMap(): Promise<Record<string, RestaurantOffer[]>> {
   const { data, error } = await supabase
     .from("restaurant_offers")

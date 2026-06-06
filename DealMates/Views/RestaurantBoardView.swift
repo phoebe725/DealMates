@@ -53,12 +53,8 @@ struct RestaurantBoardView: View {
     @State private var offers: [RestaurantOffer] = []
     @ObservedObject private var subs = SubscriptionsViewModel.shared
 
-    /// Offers-first; fall back to the legacy deals JSON when there are no rows.
-    private var displayOffers: [RestaurantOffer] {
-        offers.isEmpty
-            ? restaurant.displayDeals.enumerated().map { RestaurantOffer.fromDeal($1, restaurantId: restaurant.id, index: $0) }
-            : offers
-    }
+    /// Active offers (restaurant_offers is the source of truth for promos).
+    private var displayOffers: [RestaurantOffer] { offers }
 
     init(restaurant: Restaurant) {
         self.restaurant = restaurant

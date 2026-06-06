@@ -275,7 +275,7 @@ struct DiscoverView: View {
     // MARK: - Featured / general split
 
     private var featuredRestaurants: [Restaurant] {
-        visibleRestaurants.filter { $0.isFeaturedEligible }
+        visibleRestaurants.filter { vm.isFeaturedEligible($0) }
     }
 
     /// Show Featured only while browsing (no active text search).
@@ -284,7 +284,7 @@ struct DiscoverView: View {
     }
 
     private var generalRestaurants: [Restaurant] {
-        showFeatured ? visibleRestaurants.filter { !$0.isFeaturedEligible } : visibleRestaurants
+        showFeatured ? visibleRestaurants.filter { !vm.isFeaturedEligible($0) } : visibleRestaurants
     }
 
     private var visibleRestaurants: [Restaurant] {

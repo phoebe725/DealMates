@@ -1,11 +1,6 @@
 // Row shapes mirror the Supabase tables (snake_case) used by the iOS app, so
 // the web client reads/writes the exact same data. See DealMates/Models/*.swift.
 
-export interface Deal {
-  title: string;
-  detail: string;
-}
-
 export interface Restaurant {
   id: string;
   name: string;
@@ -18,9 +13,6 @@ export interface Restaurant {
   name_zh_hant: string | null;
   cuisine_zh_hans: string | null;
   cuisine_zh_hant: string | null;
-  deals: Deal[] | null;
-  deals_zh_hans: Deal[] | null;
-  deals_zh_hant: Deal[] | null;
   is_featured: boolean | null;
   is_buffet: boolean | null;
   image_fit: "cover" | "contain" | null;
@@ -121,8 +113,7 @@ export interface Poll {
 export type OfferType = "buy_x_get_y" | "group_set_menu" | "min_diners_discount" | "other";
 export type OfferCategory = "group_gated" | "deal" | "highlight";
 
-// Normalized offer (restaurant_offers table). Read in preference to the legacy
-// restaurants.deals* JSON, which remains as a fallback.
+// Normalized offer (restaurant_offers table) — the source of truth for promos.
 export interface RestaurantOffer {
   id: string;
   restaurant_id: string;
@@ -155,13 +146,6 @@ export function restaurantName(r: Restaurant): string {
   return r.name;
 }
 
-export function restaurantDeals(r: Restaurant): Deal[] {
-  const l = currentLang();
-  if (l === "zh-Hans") return r.deals_zh_hans || r.deals || [];
-  if (l === "zh-Hant") return r.deals_zh_hant || r.deals || [];
-  return r.deals || [];
-}
-
 export function offerTitle(o: RestaurantOffer): string {
   const l = currentLang();
   if (l === "zh-Hans") return o.title_zh_hans || o.title_en || "";
@@ -184,20 +168,6 @@ export function offerGroupBadge(o: RestaurantOffer): string | null {
   if (max != null && max !== min) return `👥 ${min}–${max}`;
   if (max != null && max === min) return `👥 ${min}`;
   return `👥 ${min}+`;
-}
-
-/** Convert a legacy Deal JSON entry to an offer-shaped object so the UI can
- *  render old and new uniformly when falling back. */
-export function dealToOffer(d: Deal, restaurantId: string, i: number): RestaurantOffer {
-  return {
-    id: `legacy-${restaurantId}-${i}`,
-    restaurant_id: restaurantId,
-    offer_order: i,
-    title_en: d.title, title_zh_hans: null, title_zh_hant: null,
-    description_en: d.detail, description_zh_hans: null, description_zh_hant: null,
-    offer_type: "other", category: "deal", is_group_gated: false, is_deal_like: true,
-    min_people: null, max_people: null, price_pp: null, currency: "GBP", is_active: true,
-  };
 }
 
 /** Offers that belong in the Deals experience (everything except highlights). */

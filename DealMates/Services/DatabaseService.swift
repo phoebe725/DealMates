@@ -24,7 +24,7 @@ final class DatabaseService {
     }
 
     /// All active offers, grouped by restaurant_id. Returns [:] if the table is
-    /// missing or errors — callers fall back to Restaurant.displayDeals.
+    /// missing or errors.
     func fetchOffersMap() async -> [String: [RestaurantOffer]] {
         do {
             let rows: [RestaurantOffer] = try await client
@@ -68,71 +68,7 @@ final class DatabaseService {
         return rows.first ?? restaurant
     }
 
-    // MARK: - Admin: deals & curation
-
-    /// Pending deals awaiting review, newest first.
-    func fetchPendingDeals() async throws -> [PendingDeal] {
-        try await client.from("pending_deals")
-            .select().eq("status", value: "pending")
-            .order("created_at", ascending: false)
-            .execute().value
-    }
-
-    /// Approves a pending deal: appends `{title, detail}` to the restaurant's
-    /// English `deals`, bumps freshness, and marks the queue row approved. The
-    /// title/detail are passed in so the founder can tweak before approving.
-    func approvePendingDeal(_ pending: PendingDeal, title: String, detail: String) async throws {
-        if let rid = pending.restaurantId, let restaurant = try await fetchRestaurant(id: rid) {
-            var deals = restaurant.deals
-            deals.append(Deal(title: title, detail: detail))
-            try await updateRestaurantDeals(id: rid, deals: deals)
-        }
-        try await setPendingDealStatus(id: pending.id, status: "approved")
-    }
-
-    func rejectPendingDeal(id: String) async throws {
-        try await setPendingDealStatus(id: id, status: "rejected")
-    }
-
-    private func setPendingDealStatus(id: String, status: String) async throws {
-        struct Patch: Encodable { let status: String }
-        try await client.from("pending_deals")
-            .update(Patch(status: status)).eq("id", value: id).execute()
-    }
-
-    /// Updates the English deals array (+ bumps last_deals_verified_at).
-    func updateRestaurantDeals(id: String, deals: [Deal]) async throws {
-        struct Patch: Encodable {
-            let deals: [Deal]
-            let lastDealsVerifiedAt: Date
-            enum CodingKeys: String, CodingKey {
-                case deals
-                case lastDealsVerifiedAt = "last_deals_verified_at"
-            }
-        }
-        try await client.from("restaurants")
-            .update(Patch(deals: deals, lastDealsVerifiedAt: Date()))
-            .eq("id", value: id).execute()
-    }
-
-    /// Manual editor save: English + both Chinese deal arrays (+ freshness).
-    func updateRestaurantDeals(id: String, deals: [Deal], zhHans: [Deal], zhHant: [Deal]) async throws {
-        struct Patch: Encodable {
-            let deals: [Deal]
-            let dealsZhHans: [Deal]
-            let dealsZhHant: [Deal]
-            let lastDealsVerifiedAt: Date
-            enum CodingKeys: String, CodingKey {
-                case deals
-                case dealsZhHans = "deals_zh_hans"
-                case dealsZhHant = "deals_zh_hant"
-                case lastDealsVerifiedAt = "last_deals_verified_at"
-            }
-        }
-        try await client.from("restaurants")
-            .update(Patch(deals: deals, dealsZhHans: zhHans, dealsZhHant: zhHant, lastDealsVerifiedAt: Date()))
-            .eq("id", value: id).execute()
-    }
+    // MARK: - Admin: curation
 
     func setRestaurantFeatured(id: String, isFeatured: Bool) async throws {
         struct Patch: Encodable {

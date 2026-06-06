@@ -27,11 +27,15 @@ final class RestaurantViewModel: ObservableObject {
         ("discount", "💸", "Discounts"), ("student", "🎓", "Student"), ("member", "💳", "Member"),
     ]
 
-    /// Offers-first, with legacy displayDeals as fallback when a restaurant has
-    /// no rows in restaurant_offers (or the table isn't there yet).
+    /// Active offers for a restaurant (restaurant_offers is the source of truth).
     func offers(for r: Restaurant) -> [RestaurantOffer] {
-        if let o = offersByRestaurant[r.id], !o.isEmpty { return o }
-        return r.displayDeals.enumerated().map { RestaurantOffer.fromDeal($1, restaurantId: r.id, index: $0) }
+        offersByRestaurant[r.id] ?? []
+    }
+
+    /// Eligible for the Discover "Featured" section: has at least one deal offer
+    /// and the deal info was verified within the last 14 days.
+    func isFeaturedEligible(_ r: Restaurant) -> Bool {
+        r.dealsRecentlyVerified && !RestaurantOffer.deals(offers(for: r)).isEmpty
     }
 
     /// Deal filters that at least one loaded restaurant qualifies for.

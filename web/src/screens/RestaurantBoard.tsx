@@ -3,7 +3,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchRestaurant, fetchActivePlans, fetchRestaurantOffers, defaultPlanOrder } from "@/services/db";
-import { restaurantName, restaurantDeals, dealToOffer, offerTitle, offerDescription, offerGroupBadge, dealOffers, needsMorePeople, type Plan, type RestaurantOffer } from "@/types";
+import { restaurantName, offerTitle, offerDescription, offerGroupBadge, dealOffers, needsMorePeople, type Plan, type RestaurantOffer } from "@/types";
 import { t, localizedCuisine as cuisineLabel } from "@/i18n";
 import { trackCreatePlanClick } from "@/lib/analytics";
 import { offerShortLabel } from "@/lib/dealDisplay";
@@ -27,10 +27,7 @@ export function RestaurantBoard() {
   const rest = r.data;
   if (!rest) return <div className="p-6 text-inkMuted">Not found.</div>;
 
-  // Offers-first; fall back to the legacy deals JSON if there are no offer rows.
-  const allOffers = (offersQ.data && offersQ.data.length)
-    ? offersQ.data
-    : restaurantDeals(rest).map((d, i) => dealToOffer(d, rest.id, i));
+  const allOffers = offersQ.data ?? [];
   const deals = dealOffers(allOffers);                                  // group_gated + deal
   const highlights = allOffers.filter((o) => o.category === "highlight"); // info only
   const plans = (plansQ.data ?? []).slice().sort(defaultPlanOrder);

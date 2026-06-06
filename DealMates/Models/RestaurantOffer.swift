@@ -1,7 +1,6 @@
 import Foundation
 
-/// Normalized offer (restaurant_offers table). Read in preference to the legacy
-/// Restaurant.deals* JSON, which remains as a fallback.
+/// Normalized offer (restaurant_offers table) — the source of truth for promos.
 struct RestaurantOffer: Identifiable, Codable, Hashable {
     var id: String
     var restaurantId: String
@@ -114,17 +113,6 @@ struct RestaurantOffer: Identifiable, Codable, Hashable {
         if d.isEmpty { return false }
         if f == "all" { return true }
         return d.contains { $0.dealKind == f }
-    }
-
-    /// Build an offer-shaped value from a legacy Deal for fallback rendering.
-    static func fromDeal(_ d: Deal, restaurantId: String, index: Int) -> RestaurantOffer {
-        RestaurantOffer(
-            id: "legacy-\(restaurantId)-\(index)", restaurantId: restaurantId, offerOrder: index,
-            titleEn: d.title, titleZhHans: nil, titleZhHant: nil,
-            descriptionEn: d.detail, descriptionZhHans: nil, descriptionZhHant: nil,
-            offerType: "other", category: "deal", isGroupGated: false, isDealLike: true,
-            minPeople: nil, maxPeople: nil, pricePp: nil, currency: "GBP", isActive: true
-        )
     }
 }
 
