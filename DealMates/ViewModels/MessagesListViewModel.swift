@@ -19,7 +19,10 @@ final class MessagesListViewModel: ObservableObject {
         if isFirstLoad { isLoading = true }
 
         async let dmsTask = service.fetchConversations(currentUid: currentUid)
-        async let plansTask = service.fetchMyActivePlans(userId: currentUid)
+        // ALL of the user's plans — same set UnreadManager counts, so the
+        // Messages tab badge always matches the rows shown here. Also gives
+        // full chat history (expired/past plans stay visible).
+        async let plansTask = service.fetchMyPlans(userId: currentUid)
 
         let dms = (try? await dmsTask) ?? []
         let plans = (try? await plansTask) ?? []

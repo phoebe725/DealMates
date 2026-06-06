@@ -36,6 +36,10 @@ final class UnreadManager: ObservableObject {
     /// MessagesView.
     @Published private(set) var unreadPlanIds: Set<String> = []
 
+    /// Other-user IDs of DM threads with unread messages. Drives DM row dots —
+    /// so the Messages badge always equals (unreadPlanIds + unreadDMIds).count.
+    @Published private(set) var unreadDMIds: Set<String> = []
+
     private let defaults = UserDefaults.standard
     private let service = DatabaseService.shared
 
@@ -88,18 +92,16 @@ final class UnreadManager: ObservableObject {
     }
 
     private func doRefresh(currentUid: String) async {
-        // `fetchMyOpenPlans` filters on the DB side to plans whose attendance
-        // hasn't been confirmed yet. That gives us the same plan set
-        // MyPlansView counts in its Active / Ready-to-go buckets — including
-        // plans whose `expires_at` is in the past but whose attendance hasn't
-        // been recorded — while staying away from old historical rows that
-        // could fail to decode if pre-migration columns are NULL.
-        let openPlans: [Plan]
+        // Single source of truth: ALL the user's plans — exactly the set the
+        // Messages list and My Plans list render. Computing the badge over any
+        // narrower set (e.g. non-expired only) causes the badge to count a plan
+        // that the Messages list doesn't show — the badge/row mismatch bug.
+        let allPlans: [Plan]
         let dms: [DMConversation]
         do {
-            async let plansTask = service.fetchMyOpenPlans(userId: currentUid)
+            async let plansTask = service.fetchMyPlans(userId: currentUid)
             async let dmsTask = service.fetchConversations(currentUid: currentUid)
-            openPlans = try await plansTask
+            allPlans = try await plansTask
             dms = try await dmsTask
         } catch {
             // Treat fetch failures as "don't update" — never as "set to
@@ -110,16 +112,16 @@ final class UnreadManager: ObservableObject {
         }
         if Task.isCancelled { return }
 
-        let planIds = openPlans.map(\.id)
+        let planIds = allPlans.map(\.id)
         let latestByPlan = (try? await service.fetchLatestMessages(planIds: planIds)) ?? [:]
         let systemMsgs = (try? await service.fetchSystemMessages(planIds: planIds)) ?? []
         if Task.isCancelled { return }
 
-        var unreadDMs = 0
         var unreadActions = 0
         var active = 0
         var ready = 0
         var newUnreadPlanIds = Set<String>()
+        var newUnreadDMIds = Set<String>()
 
         // System actions (joins/leaves) — drive My Plans tab badge AND row dots.
         for msg in systemMsgs where msg.timestamp > lastSeen(for: "plan-\(msg.planId)") {
@@ -127,8 +129,12 @@ final class UnreadManager: ObservableObject {
             newUnreadPlanIds.insert(msg.planId)
         }
 
-        for plan in openPlans {
-            if plan.needsMorePeople > 0 { active += 1 } else { ready += 1 }
+        for plan in allPlans {
+            // Active / Ready buckets only count plans still open (attendance not
+            // yet confirmed) — matches MyPlansView's bucketing.
+            if plan.attendanceConfirmedAt == nil {
+                if plan.needsMorePeople > 0 { active += 1 } else { ready += 1 }
+            }
             guard let msg = latestByPlan[plan.id] else { continue }
             // Own messages are never unread. System messages already handled above.
             if msg.senderId == currentUid { continue }
@@ -140,12 +146,13 @@ final class UnreadManager: ObservableObject {
         for dm in dms {
             if dm.lastSenderId == currentUid { continue }
             if dm.lastTimestamp > lastSeen(for: "dm-\(dm.otherUserId)") {
-                unreadDMs += 1
+                newUnreadDMIds.insert(dm.otherUserId)
             }
         }
-        // Badge = unique plans with any unread activity (chat OR system) + DMs.
-        // This guarantees badge count == number of highlighted rows — no mismatch.
+        // Badge = exactly the rows that get a dot. Both derive from the same
+        // sets, so the count can never disagree with the highlighted rows.
         let unreadPlans = newUnreadPlanIds.count
+        let unreadDMs = newUnreadDMIds.count
         let unread = unreadPlans + unreadDMs
 
         print("[DEBUG] UnreadManager.doRefresh: dms=\(unreadDMs) plans=\(unreadPlans) actions=\(unreadActions) total=\(unread) active=\(active) ready=\(ready)")
@@ -157,6 +164,7 @@ final class UnreadManager: ObservableObject {
         if activeCount    != active         { activeCount    = active }
         if readyToGoCount != ready          { readyToGoCount = ready }
         if unreadPlanIds  != newUnreadPlanIds { unreadPlanIds = newUnreadPlanIds }
+        if unreadDMIds    != newUnreadDMIds  { unreadDMIds = newUnreadDMIds }
     }
 
     /// Fires a refresh immediately. Coalescing is already handled by

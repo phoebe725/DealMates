@@ -4,7 +4,7 @@
 // recompute so the tab badges update even from another tab.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  fetchMyOpenPlans,
+  fetchMyPlans,
   fetchConversations,
   fetchLatestMessages,
   fetchSystemMessages,
@@ -25,10 +25,10 @@ interface UnreadState {
   /** Open plans still recruiting / full-but-unconfirmed. */
   activeCount: number;
   readyToGoCount: number;
-  /** Plan IDs that have unread chat messages or system actions since last seen. */
+  /** Plan IDs with unread chat messages or system actions since last seen. */
   unreadPlanIds: Set<string>;
-  /** chatId is `plan-<planId>` or `dm-<otherUserId>`. */
-  isUnread: (chatId: string, lastActivityISO: string) => boolean;
+  /** Other-user IDs of DM threads with unread messages since last seen. */
+  unreadDmIds: Set<string>;
   markRead: (chatId: string) => void;
 }
 
@@ -53,27 +53,29 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
     activeCount: 0,
     readyToGoCount: 0,
     unreadPlanIds: new Set<string>(),
+    unreadDmIds: new Set<string>(),
   });
-  // Bump to force isUnread consumers to recompute after markRead.
-  const [, setTick] = useState(0);
   const running = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!uid || running.current) return;
     running.current = true;
     try {
-      const [openPlans, dms] = await Promise.all([fetchMyOpenPlans(uid), fetchConversations(uid)]);
-      const planIds = openPlans.map((p) => p.id);
+      // Single source of truth: ALL the user's plans — the same set the
+      // Messages and My Plans lists render. A narrower set would count a plan
+      // the Messages list doesn't show (the badge/row mismatch bug).
+      const [allPlans, dms] = await Promise.all([fetchMyPlans(uid), fetchConversations(uid)]);
+      const planIds = allPlans.map((p) => p.id);
       const [latest, systemMsgs] = await Promise.all([
         fetchLatestMessages(planIds),
         fetchSystemMessages(planIds),
       ]);
 
-      let unreadDMs = 0;
       let unreadActions = 0;
       let active = 0;
       let ready = 0;
       const unreadPlanIds = new Set<string>();
+      const unreadDmIds = new Set<string>();
 
       for (const m of systemMsgs) {
         if (m.timestamp > lastSeen(`plan-${m.plan_id}`)) {
@@ -81,9 +83,13 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
           unreadPlanIds.add(m.plan_id);
         }
       }
-      for (const p of openPlans) {
-        if (needsMorePeople(p) > 0) active += 1;
-        else ready += 1;
+      for (const p of allPlans) {
+        // Active / Ready buckets only count plans still open (attendance not
+        // confirmed) — matches MyPlans bucketing.
+        if (!p.attendance_confirmed_at) {
+          if (needsMorePeople(p) > 0) active += 1;
+          else ready += 1;
+        }
         const m = latest[p.id];
         // Own messages are never unread. System messages already handled above.
         if (!m || m.sender_id === uid || m.is_system) continue;
@@ -93,18 +99,18 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
       }
       for (const d of dms) {
         if (d.lastSenderId === uid) continue;
-        if (d.lastTimestamp > lastSeen(`dm-${d.otherUserId}`)) unreadDMs += 1;
+        if (d.lastTimestamp > lastSeen(`dm-${d.otherUserId}`)) unreadDmIds.add(d.otherUserId);
       }
 
-      // Badge = unique plans with any unread activity (chat OR system) + DMs.
-      // Guarantees badge count == number of highlighted rows — no mismatch.
+      // Badge = exactly the rows that get a dot. Both derive from the same sets.
       setCounts({
-        totalUnread: unreadPlanIds.size + unreadDMs,
-        unreadDMCount: unreadDMs,
+        totalUnread: unreadPlanIds.size + unreadDmIds.size,
+        unreadDMCount: unreadDmIds.size,
         unreadActionCount: unreadActions,
         activeCount: active,
         readyToGoCount: ready,
         unreadPlanIds,
+        unreadDmIds,
       });
     } catch {
       // Keep previous counts on a network blip — never flash to zero.
@@ -132,13 +138,10 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
   const markRead = useCallback(
     (chatId: string) => {
       localStorage.setItem(key(chatId), new Date().toISOString());
-      setTick((t) => t + 1);
       refresh();
     },
     [refresh],
   );
 
-  const isUnread = useCallback((chatId: string, lastActivityISO: string) => lastActivityISO > lastSeen(chatId), []);
-
-  return <Ctx.Provider value={{ ...counts, isUnread, markRead }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ ...counts, markRead }}>{children}</Ctx.Provider>;
 }

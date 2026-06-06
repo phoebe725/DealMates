@@ -14,13 +14,13 @@ import { EmptyState, Segmented, Spinner } from "@/components/ui";
 type Filter = "all" | "dm" | "plan";
 
 type Item =
-  | { kind: "dm"; id: string; title: string; avatar: string | null; preview: string; ts: string; fromSelf: boolean }
-  | { kind: "plan"; id: string; title: string; avatar: string | null; preview: string; subtitle: string; ts: string; fromSelf: boolean };
+  | { kind: "dm"; id: string; title: string; avatar: string | null; preview: string; ts: string }
+  | { kind: "plan"; id: string; title: string; avatar: string | null; preview: string; subtitle: string; ts: string };
 
 export function Messages() {
   const nav = useNavigate();
   const { user } = useAuth();
-  const { unreadDMCount, isUnread } = useUnread();
+  const { unreadDMCount, unreadPlanIds, unreadDmIds } = useUnread();
   const [filter, setFilter] = useState<Filter>("all");
   const { ref: pullRef, refreshing } = usePullToRefresh(async () => { await q.refetch(); });
   const qc = useQueryClient();
@@ -45,7 +45,7 @@ export function Messages() {
     if (!q.data) return [];
     const out: Item[] = [];
     for (const d of q.data.dms as DMConversation[]) {
-      out.push({ kind: "dm", id: d.otherUserId, title: d.otherUserName, avatar: d.otherUserAvatarURL, preview: d.lastMessage, ts: d.lastTimestamp, fromSelf: d.lastSenderId === user!.id });
+      out.push({ kind: "dm", id: d.otherUserId, title: d.otherUserName, avatar: d.otherUserAvatarURL, preview: d.lastMessage, ts: d.lastTimestamp });
     }
     for (const p of q.data.plans as Plan[]) {
       const last = q.data.latest[p.id];
@@ -65,7 +65,6 @@ export function Messages() {
         preview,
         subtitle: t("Group · %lld/%lld", p.current_people, p.needed_people),
         ts: last?.timestamp ?? "0",
-        fromSelf: !last || last.sender_id === user!.id,
       });
     }
     return out.sort((a, b) => b.ts.localeCompare(a.ts));
@@ -102,8 +101,7 @@ export function Messages() {
       ) : (
         <div className="space-y-2 px-5 pb-4">
           {visible.map((it) => {
-            const chatId = it.kind === "dm" ? `dm-${it.id}` : `plan-${it.id}`;
-            const unread = !it.fromSelf && isUnread(chatId, it.ts);
+            const unread = it.kind === "dm" ? unreadDmIds.has(it.id) : unreadPlanIds.has(it.id);
             return (
               <button
                 key={`${it.kind}-${it.id}`}

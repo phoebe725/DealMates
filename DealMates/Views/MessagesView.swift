@@ -162,10 +162,14 @@ struct MessagesView: View {
 
     private func row(for item: ConversationItem) -> some View {
         let isSystem = item.lastIsSystem
-        // System messages (joins/leaves) count as unread activity — only
-        // messages the current user sent themselves are excluded.
-        let notMine = item.lastSenderId != authViewModel.uid
-        let isUnread = notMine && unread.isUnread(chatId: item.chatId, lastActivity: item.lastTimestamp)
+        // Drive the dot from the exact same sets that produce the tab badge,
+        // so the badge count always equals the number of highlighted rows.
+        let isUnread: Bool = {
+            switch item.kind {
+            case .dm(let uid):    return unread.unreadDMIds.contains(uid)
+            case .plan(let plan): return unread.unreadPlanIds.contains(plan.id)
+            }
+        }()
 
         let liveTitle: String
         let liveAvatarUserId: String?
