@@ -272,7 +272,7 @@ export function PlanDetail() {
         )}
         {isMember && (
           <button
-            className="mt-2 w-full rounded-full bg-clay/12 py-2.5 text-[14px] font-semibold text-clayDeep disabled:opacity-50"
+            className="mt-2 w-full rounded-full bg-clay py-2.5 text-[14px] font-semibold text-cream active:bg-clayDeep disabled:opacity-50"
             disabled={busy}
             onClick={toggleMembership}
           >
