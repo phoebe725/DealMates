@@ -1,4 +1,5 @@
 import Foundation
+import Supabase
 
 /// Minimal first-party analytics — mirrors web/src/lib/analytics.ts. Events are
 /// inserted into the shared `analytics_events` table; `user_id` ties each event
