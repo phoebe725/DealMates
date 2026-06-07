@@ -63,6 +63,7 @@ export function Discover() {
   const [cuisine, setCuisine] = useState<string | null>(null);
   const [sort, setSort] = useState<"name" | "distance">("name");
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [sortOpen, setSortOpen] = useState(false);
   const restaurants = useQuery({ queryKey: ["restaurants"], queryFn: fetchRestaurants });
   const plans = useQuery({ queryKey: ["activePlans"], queryFn: fetchAllActivePlans });
   const offersQ = useQuery({ queryKey: ["offers"], queryFn: fetchOffersMap });
@@ -161,16 +162,50 @@ export function Discover() {
             <span className="font-sans text-[28px] font-light text-ink">{t("Find ")}</span>
             <span className="font-accent text-[38px] italic text-clayDeep">{t("Deals")}</span>
           </h1>
-          <button
-            onClick={() => nav("/map")}
-            aria-label={t("Map")}
-            className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-shell text-ink"
-          >
-            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3Z" />
-              <path d="M9 3v15M15 6v15" />
-            </svg>
-          </button>
+          <div className="mt-1 flex items-center gap-2">
+            <button
+              onClick={() => nav("/map")}
+              aria-label={t("Map")}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-shell text-ink"
+            >
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3Z" />
+                <path d="M9 3v15M15 6v15" />
+              </svg>
+            </button>
+            <div className="relative">
+              <button
+                onClick={() => setSortOpen((o) => !o)}
+                aria-label={t("Sort")}
+                className={`flex h-9 w-9 items-center justify-center rounded-full ${sort === "distance" ? "bg-clay text-cream" : "bg-shell text-ink"}`}
+              >
+                <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="6" x2="20" y2="6" />
+                  <line x1="7" y1="12" x2="17" y2="12" />
+                  <line x1="10" y1="18" x2="14" y2="18" />
+                </svg>
+              </button>
+              {sortOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} />
+                  <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-card bg-cream shadow-lg ring-1 ring-fog">
+                    <button
+                      className={`block w-full px-4 py-2.5 text-left text-[14px] ${sort === "name" ? "font-semibold text-clay" : "text-ink"}`}
+                      onClick={() => { setSort("name"); setSortOpen(false); }}
+                    >
+                      {t("A–Z")}
+                    </button>
+                    <button
+                      className={`block w-full px-4 py-2.5 text-left text-[14px] ${sort === "distance" ? "font-semibold text-clay" : "text-ink"}`}
+                      onClick={() => { chooseNearest(); setSortOpen(false); }}
+                    >
+                      📍 {t("Nearest")}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
         <p className="font-subtitle text-[13px] text-inkMuted">{t(isSignedIn ? "Group dining offers near me" : "Group dining offers near you")}</p>
 
@@ -214,12 +249,6 @@ export function Discover() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-
-            {/* Sort: name vs nearest (nearest needs browser location) */}
-            <div className="mt-2 flex gap-2">
-              <CuisineChip label={t("A–Z")} active={sort === "name"} onClick={() => setSort("name")} />
-              <CuisineChip label={`📍 ${t("Nearest")}`} active={sort === "distance"} onClick={chooseNearest} />
-            </div>
 
             {/* Deal filters — value categories, separate from cuisine */}
             {dealFilters.length > 0 && (
