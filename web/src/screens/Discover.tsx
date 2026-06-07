@@ -121,10 +121,22 @@ export function Discover() {
       {refreshing && <PullSpinner />}
       {/* Header */}
       <div className="px-5 pb-4 pt-3">
-        <h1 className="leading-tight">
-          <span className="font-sans text-[28px] font-light text-ink">{t("Find ")}</span>
-          <span className="font-accent text-[38px] italic text-clayDeep">{t("Deals")}</span>
-        </h1>
+        <div className="flex items-start justify-between">
+          <h1 className="leading-tight">
+            <span className="font-sans text-[28px] font-light text-ink">{t("Find ")}</span>
+            <span className="font-accent text-[38px] italic text-clayDeep">{t("Deals")}</span>
+          </h1>
+          <button
+            onClick={() => nav("/map")}
+            aria-label={t("Map")}
+            className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-shell text-ink"
+          >
+            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3Z" />
+              <path d="M9 3v15M15 6v15" />
+            </svg>
+          </button>
+        </div>
         <p className="font-subtitle text-[13px] text-inkMuted">{t(isSignedIn ? "Group dining offers near me" : "Group dining offers near you")}</p>
 
         <div className="mt-3 flex items-center gap-2">
