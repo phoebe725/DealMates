@@ -272,10 +272,14 @@ export function PlanDetail() {
         )}
         {isMember && (
           <button
-            className="mt-2 w-full rounded-full bg-clay py-2.5 text-[14px] font-semibold text-cream active:bg-clayDeep disabled:opacity-50"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-full bg-clay/[0.12] py-2.5 text-[14px] font-semibold text-clayDeep disabled:opacity-50"
             disabled={busy}
             onClick={toggleMembership}
           >
+            <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 14 4 9 9 4" />
+              <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+            </svg>
             {t("Leave")}
           </button>
         )}
