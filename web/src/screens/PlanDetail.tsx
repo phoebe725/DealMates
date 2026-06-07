@@ -257,7 +257,7 @@ export function PlanDetail() {
               {t("Send")}
             </button>
           </div>
-        ) : (
+        ) : showNamePrompt ? null : (
           <button
             className="pin-btn-primary"
             disabled={busy || need === 0}
@@ -271,7 +271,11 @@ export function PlanDetail() {
           </button>
         )}
         {isMember && (
-          <button className="mt-2 w-full text-center text-[13px] text-inkMuted" disabled={busy} onClick={toggleMembership}>
+          <button
+            className="mt-2 w-full rounded-full border border-clay/50 py-2.5 text-[14px] font-semibold text-clayDeep active:bg-clay/10 disabled:opacity-50"
+            disabled={busy}
+            onClick={toggleMembership}
+          >
             {t("Leave")}
           </button>
         )}

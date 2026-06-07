@@ -199,7 +199,7 @@ export function Discover() {
                       className={`block w-full px-4 py-2.5 text-left text-[14px] ${sort === "distance" ? "font-semibold text-clay" : "text-ink"}`}
                       onClick={() => { chooseNearest(); setSortOpen(false); }}
                     >
-                      📍 {t("Nearest")}
+                      {t("Nearest")}
                     </button>
                   </div>
                 </>
