@@ -38,18 +38,15 @@ class AuthError extends Error {
   needsConfirmation = true;
 }
 
-function randomDinerName() {
-  return `Diner${Math.floor(100 + Math.random() * 900)}`;
-}
-
-/** get-or-create the users row (mirrors ensureUserProfileExists). */
+/** get-or-create the users row (mirrors ensureUserProfileExists). A blank
+ *  display_name lets the DB trigger assign a sequential "Diner<member_no>". */
 async function ensureProfile(uid: string, email: string, displayName = ""): Promise<AppUser> {
   const existing = await supabase.from("users").select("*").eq("id", uid).limit(1);
   if (existing.data && existing.data[0]) return existing.data[0] as AppUser;
   const row = {
     id: uid,
     email,
-    display_name: displayName || randomDinerName(),
+    display_name: displayName,
     is_anonymous: email.length === 0,
   };
   await supabase.from("users").upsert(row, { onConflict: "id" });

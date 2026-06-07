@@ -321,7 +321,8 @@ final class AuthService {
     // MARK: Private
 
     private func ensureUserProfileExists(uid: String, email: String, displayName: String = "") async throws -> AppUser {
-        let finalName = displayName.isEmpty ? "Diner\(Int.random(in: 100...999))" : displayName
+        // A blank name lets the DB trigger assign a sequential "Diner<member_no>".
+        let finalName = displayName
 
         // First, check if the user profile already exists
         do {
