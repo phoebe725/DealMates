@@ -19,6 +19,7 @@ struct CreatePlanView: View {
     @State private var errorMessage: String?
 
     private let minPeople = 1
+    private let minNeeded = 2   // a plan needs ≥2 people to be a real group
     private let maxPeople = 10
 
     init(restaurant: Restaurant, planVM: PlanViewModel, existingPlan: Plan? = nil) {
@@ -193,11 +194,11 @@ struct CreatePlanView: View {
         VStack(alignment: .leading, spacing: 12) {
             stepperRow(title: "Total needed",
                        value: $neededPeople,
-                       range: minPeople...maxPeople,
+                       range: minNeeded...maxPeople, // ≥2 so a plan is always a group
                        suffix: "people")
             stepperRow(title: "Already joined",
                        value: $currentPeople,
-                       range: minPeople...neededPeople,
+                       range: 1...neededPeople,
                        suffix: "people")
             Text("Me + \(max(currentPeople - 1, 0)) more already joined")
                 .font(.pinSubtitle(12))

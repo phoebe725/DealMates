@@ -147,7 +147,7 @@ export function CreatePlan() {
       </Section>
 
       <Section title={t("Group size")}>
-        <Stepper label={t("Total needed")} value={needed} min={1} max={10} onChange={(v) => { setNeeded(v); if (joined > v) setJoined(v); }} />
+        <Stepper label={t("Total needed")} value={needed} min={2} max={10} onChange={(v) => { setNeeded(v); if (joined > v) setJoined(v); }} />
         <Stepper label={t("Already joined")} value={joined} min={1} max={needed} onChange={setJoined} />
       </Section>
 
