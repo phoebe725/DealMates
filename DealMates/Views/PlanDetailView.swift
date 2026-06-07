@@ -35,6 +35,8 @@ struct PlanDetailView: View {
     @State private var showAttendanceSheet = false
     @State private var showLockTimeSheet = false
     @State private var lockedTime: Date = Date().addingTimeInterval(3600)
+    @State private var showGuestNamePrompt = false
+    @State private var guestName = ""
     @State private var isBusy = false
     @State private var addedToCalendar = false
     @State private var calendarErrorMessage: String?
@@ -209,6 +211,14 @@ struct PlanDetailView: View {
         }
         .sheet(isPresented: $showLockTimeSheet) {
             lockTimeSheet
+        }
+        .alert("What should we call you?", isPresented: $showGuestNamePrompt) {
+            TextField("Your name", text: $guestName)
+                .textInputAutocapitalization(.words)
+            Button("Join as guest") { Task { await joinAsGuest() } }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("No account needed — just a name.")
         }
     }
 
@@ -482,7 +492,13 @@ struct PlanDetailView: View {
                 }
             } else {
                 Button {
-                    Task { await toggleMembership() }
+                    // Guests pick a display name before joining (mirrors web).
+                    if authViewModel.isSignedIn {
+                        Task { await toggleMembership() }
+                    } else {
+                        guestName = ""
+                        showGuestNamePrompt = true
+                    }
                 } label: {
                     Label("Join this pin", systemImage: "plus.circle.fill")
                 }
@@ -663,6 +679,18 @@ struct PlanDetailView: View {
     }
 
     // MARK: - Actions
+
+    /// Guest join: set the typed name (if any — no minimum length), then join.
+    private func joinAsGuest() async {
+        let trimmed = guestName.trimmingCharacters(in: .whitespacesAndNewlines)
+        isBusy = true
+        if !trimmed.isEmpty {
+            await authViewModel.updateProfile(displayName: trimmed, bio: authViewModel.bio)
+        }
+        let name = trimmed.isEmpty ? authViewModel.displayName : trimmed
+        await planVM.join(plan: livePlan, userId: authViewModel.uid, userName: name)
+        isBusy = false
+    }
 
     private func toggleMembership() async {
         isBusy = true

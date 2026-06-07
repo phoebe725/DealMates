@@ -215,16 +215,16 @@ export function PlanDetail() {
               placeholder={t("Your name")}
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && guestName.trim().length >= 2 && document.getElementById("guest-join-btn")?.click()}
+              onKeyDown={(e) => e.key === "Enter" && guestName.trim().length >= 1 && document.getElementById("guest-join-btn")?.click()}
               autoFocus
             />
             <div className="mt-2 flex gap-2">
               <button
                 id="guest-join-btn"
                 className="flex-1 rounded-full bg-clay py-2.5 text-[14px] font-semibold text-cream disabled:opacity-40"
-                disabled={guestName.trim().length < 2 || busy}
+                disabled={guestName.trim().length < 1 || busy}
                 onClick={async () => {
-                  if (!user || guestName.trim().length < 2) return;
+                  if (!user || guestName.trim().length < 1) return;
                   const { updateProfile } = await import("@/services/db");
                   await updateProfile(user.id, { display_name: guestName.trim() });
                   user.display_name = guestName.trim();
