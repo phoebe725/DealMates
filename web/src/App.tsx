@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
-import { trackPageView } from "@/lib/analytics";
+import { trackPageView, startScreenTimeTracking } from "@/lib/analytics";
 import { TabBar } from "@/components/TabBar";
 import { Wordmark } from "@/components/ui";
 import { SignedOut, SetNewPassword } from "@/screens/SignedOut";
@@ -70,6 +70,9 @@ export default function App() {
   useEffect(() => {
     trackPageView(pathname);
   }, [pathname]);
+
+  // Screen-time: session_start + heartbeat while visible + session_end on close.
+  useEffect(() => startScreenTimeTracking(), []);
 
   // Keep the shell sized to the *visual* viewport so the on-screen keyboard
   // shrinks it (iOS Safari doesn't shrink dvh/vh for the keyboard), and scroll a

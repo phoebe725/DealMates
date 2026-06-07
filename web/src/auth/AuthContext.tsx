@@ -4,6 +4,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
+import { setAnalyticsUser } from "@/lib/analytics";
 import type { AppUser } from "@/types";
 
 interface AuthState {
@@ -65,6 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Auth state is the source of truth for "real account" (mirrors restoreSession):
     profile.is_anonymous = isAnon || !confirmed;
     setUser(profile);
+    setAnalyticsUser(profile.id); // attribute analytics to this (guest or real) user
+
   }
 
   async function bootstrap() {

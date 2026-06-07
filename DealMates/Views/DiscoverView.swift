@@ -312,6 +312,7 @@ struct DiscoverView: View {
 
     private func restaurantCardButton(_ restaurant: Restaurant) -> some View {
         Button {
+            AnalyticsService.shared.track("restaurant_click", restaurantId: restaurant.id)
             selectedRestaurant = restaurant
         } label: {
             RestaurantCardView(restaurant: restaurant, offers: vm.offers(for: restaurant))

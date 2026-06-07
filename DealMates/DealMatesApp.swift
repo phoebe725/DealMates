@@ -51,6 +51,7 @@ struct DealMatesApp: App {
     @StateObject private var deepLink = DeepLinkRouter()
     @AppStorage("preferredLanguageCode") private var languageCode: String = Locale.current.language.languageCode?.identifier ?? "en"
     @AppStorage("preferredRegionCode") private var regionCode: String = "GB"
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // Register brand fonts (Instrument Serif + Inter) before SwiftUI tries to resolve any
@@ -99,6 +100,14 @@ struct DealMatesApp: App {
                 }
                 .onChange(of: languageCode) { _, newLang in
                     UserDefaults.standard.set([newLang], forKey: "AppleLanguages")
+                }
+                // Screen-time tracking: foreground = a timing segment.
+                .onChange(of: scenePhase) { _, phase in
+                    switch phase {
+                    case .active:                AnalyticsService.shared.startSession()
+                    case .background, .inactive: AnalyticsService.shared.endSession()
+                    @unknown default:            break
+                    }
                 }
         }
     }

@@ -244,7 +244,10 @@ struct RestaurantBoardView: View {
                 .font(.pinBody(15, weight: .medium))
                 .foregroundStyle(Color.pinInk)
             termList(offer)
-            Button { showCreatePlan = true } label: {
+            Button {
+                AnalyticsService.shared.track("create_plan_click", restaurantId: restaurant.id)
+                showCreatePlan = true
+            } label: {
                 Text("Create table for this deal")
                     .font(.pinButton(14))
                     .foregroundStyle(Color.pinCream)
@@ -460,6 +463,7 @@ struct RestaurantBoardView: View {
 
     private var createButton: some View {
         Button {
+            AnalyticsService.shared.track("create_plan_click", restaurantId: restaurant.id)
             showCreatePlan = true
         } label: {
             HStack(spacing: 6) {

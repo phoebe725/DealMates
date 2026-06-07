@@ -25,6 +25,13 @@ export function sessionId(): string {
   return id;
 }
 
+// The signed-in / anonymous auth user id, so events join to the users table
+// (member_no / display_name). Set from AuthContext when the profile loads.
+let currentUserId: string | null = null;
+export function setAnalyticsUser(uid: string | null): void {
+  currentUserId = uid;
+}
+
 interface TrackOpts {
   page_path?: string | null;
   restaurant_id?: string | null;
@@ -38,6 +45,7 @@ function track(event_name: string, opts: TrackOpts = {}): void {
     .from("analytics_events")
     .insert({
       event_name,
+      user_id: currentUserId,
       guest_id: guestId(),
       session_id: sessionId(),
       page_path: opts.page_path ?? null,
@@ -49,6 +57,35 @@ function track(event_name: string, opts: TrackOpts = {}): void {
     .then(({ error }) => {
       if (error) console.debug("[analytics] insert failed:", error.message);
     });
+}
+
+// --- Screen time: session_start + heartbeat (while visible) + session_end ---
+
+const SESSION_START_KEY = "pintable_session_start";
+
+function sessionElapsedMs(): number {
+  const start = Number(sessionStorage.getItem(SESSION_START_KEY) || Date.now());
+  return Date.now() - start;
+}
+
+/** Start screen-time tracking for this session. Returns a cleanup function. */
+export function startScreenTimeTracking(): () => void {
+  if (!sessionStorage.getItem(SESSION_START_KEY)) {
+    sessionStorage.setItem(SESSION_START_KEY, String(Date.now()));
+    track("session_start");
+  }
+  const HEARTBEAT_MS = 30_000;
+  const beat = () => {
+    if (!document.hidden) track("session_heartbeat", { metadata: { elapsed_ms: sessionElapsedMs() } });
+  };
+  const timer = window.setInterval(beat, HEARTBEAT_MS);
+  const onHide = () => track("session_end", { metadata: { duration_ms: sessionElapsedMs() } });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) onHide(); });
+  window.addEventListener("pagehide", onHide);
+  return () => {
+    window.clearInterval(timer);
+    window.removeEventListener("pagehide", onHide);
+  };
 }
 
 export function trackPageView(path: string): void {

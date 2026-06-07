@@ -89,6 +89,7 @@ final class PlanViewModel: ObservableObject {
     }
 
     func join(plan: Plan, userId: String, userName: String) async {
+        AnalyticsService.shared.track("join_click", restaurantId: plan.restaurantId, planId: plan.id)
         do {
             try await service.joinPlan(plan, userId: userId, userName: userName)
             await fetchPlans()

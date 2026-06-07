@@ -52,6 +52,7 @@ struct ContentView: View {
         )
         .ignoresSafeArea()
         .task {
+            AnalyticsService.shared.setUser(authViewModel.uid)
             await unread.refresh(currentUid: authViewModel.uid)
             // Realtime badge updates — message inserts, DM inserts, plan changes.
             unread.startListening(currentUid: authViewModel.uid)
@@ -61,6 +62,7 @@ struct ContentView: View {
             NotificationManager.shared.startListening(currentUid: authViewModel.uid)
         }
         .onChange(of: authViewModel.uid) { _, newUid in
+            AnalyticsService.shared.setUser(newUid)
             Task {
                 await unread.refresh(currentUid: newUid)
                 unread.startListening(currentUid: newUid)
