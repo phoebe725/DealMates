@@ -28,6 +28,19 @@ function featuredEligible(r: Restaurant, offers: RestaurantOffer[]): boolean {
   const ms = Date.now() - new Date(r.last_deals_verified_at).getTime();
   return ms < 14 * 24 * 60 * 60 * 1000;
 }
+// Haversine distance in metres; restaurants without coordinates sort last.
+function distanceMeters(loc: { lat: number; lng: number }, r: Restaurant): number {
+  if (r.latitude == null || r.longitude == null) return Infinity;
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(r.latitude - loc.lat);
+  const dLng = toRad(r.longitude - loc.lng);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(loc.lat)) * Math.cos(toRad(r.latitude)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
 function planTimeLabel(p: Plan): string {
   if (p.time_type === "asap") return t("ASAP");
   if (p.time_type === "flexible") {
@@ -48,6 +61,8 @@ export function Discover() {
   const [search, setSearch] = useState("");
   const [dealFilter, setDealFilter] = useState<DealFilter | null>(null);
   const [cuisine, setCuisine] = useState<string | null>(null);
+  const [sort, setSort] = useState<"name" | "distance">("name");
+  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const restaurants = useQuery({ queryKey: ["restaurants"], queryFn: fetchRestaurants });
   const plans = useQuery({ queryKey: ["activePlans"], queryFn: fetchAllActivePlans });
   const offersQ = useQuery({ queryKey: ["offers"], queryFn: fetchOffersMap });
@@ -110,6 +125,26 @@ export function Discover() {
   const showFeatured = !search.trim();
   const featured = showFeatured ? filtered.filter((r) => featuredEligible(r, offersFor(r))) : [];
   const general = showFeatured ? filtered.filter((r) => !featuredEligible(r, offersFor(r))) : filtered;
+
+  // Pick "Nearest" → grab the browser location once (sort falls back to featured
+  // order until it arrives / if permission is denied).
+  function chooseNearest() {
+    setSort("distance");
+    if (!userLoc && typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => {},
+        { enableHighAccuracy: false, timeout: 8000 },
+      );
+    }
+  }
+
+  const restaurantsToShow = useMemo(() => {
+    if (sort === "distance" && userLoc) {
+      return [...filtered].sort((a, b) => distanceMeters(userLoc, a) - distanceMeters(userLoc, b));
+    }
+    return showFeatured ? [...featured, ...general] : general;
+  }, [sort, userLoc, filtered, featured, general, showFeatured]);
 
   const visiblePlans = useMemo(
     () => (plans.data ?? []).filter((p) => needsMorePeople(p) > 0 && !p.attendance_confirmed_at).sort(defaultPlanOrder),
@@ -180,6 +215,12 @@ export function Discover() {
               onChange={(e) => setSearch(e.target.value)}
             />
 
+            {/* Sort: name vs nearest (nearest needs browser location) */}
+            <div className="mt-2 flex gap-2">
+              <CuisineChip label={t("A–Z")} active={sort === "name"} onClick={() => setSort("name")} />
+              <CuisineChip label={`📍 ${t("Nearest")}`} active={sort === "distance"} onClick={chooseNearest} />
+            </div>
+
             {/* Deal filters — value categories, separate from cuisine */}
             {dealFilters.length > 0 && (
               <div className="mt-3 flex flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch]">
@@ -219,12 +260,8 @@ export function Discover() {
           <Spinner label={t("Finding restaurants nearby…")} />
         ) : (
           <div className="space-y-3 px-5 pb-6">
-            {/* One continuous list, no section titles — featured deals sort to the top. */}
-            {showFeatured &&
-              featured.map((r) => (
-                <RestaurantCard key={r.id} r={r} offers={offersFor(r)} onClick={() => nav(`/restaurant/${r.id}`)} />
-              ))}
-            {general.map((r) => (
+            {/* One continuous list — featured deals sort to the top, or by distance when "Nearest". */}
+            {restaurantsToShow.map((r) => (
               <RestaurantCard key={r.id} r={r} offers={offersFor(r)} onClick={() => nav(`/restaurant/${r.id}`)} />
             ))}
             {filtered.length === 0 && <EmptyState title={t("No restaurants yet")} emoji="🔍" />}
