@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { trackPageView, startScreenTimeTracking } from "@/lib/analytics";
@@ -72,7 +72,15 @@ export default function App() {
   }, [pathname]);
 
   // Screen-time: session_start + heartbeat while visible + session_end on close.
-  useEffect(() => startScreenTimeTracking(), []);
+  // Start only once the (anonymous) auth session exists — analytics_events
+  // inserts are RLS-gated to authenticated requests, so firing before sign-in
+  // would be silently rejected.
+  const screenTimeStarted = useRef(false);
+  useEffect(() => {
+    if (!user || screenTimeStarted.current) return;
+    screenTimeStarted.current = true;
+    startScreenTimeTracking();
+  }, [user]);
 
   // Keep the shell sized to the *visual* viewport so the on-screen keyboard
   // shrinks it (iOS Safari doesn't shrink dvh/vh for the keyboard), and scroll a

@@ -104,7 +104,11 @@ struct DealMatesApp: App {
                 // Screen-time tracking: foreground = a timing segment.
                 .onChange(of: scenePhase) { _, phase in
                     switch phase {
-                    case .active:                AnalyticsService.shared.startSession()
+                    // Only start once the (anonymous) session exists — analytics
+                    // inserts are RLS-gated to authenticated requests. The initial
+                    // start at cold launch is kicked off from ContentView.task
+                    // (which renders post-auth); this handles resume-from-background.
+                    case .active:                if authViewModel.currentUser != nil { AnalyticsService.shared.startSession() }
                     case .background, .inactive: AnalyticsService.shared.endSession()
                     @unknown default:            break
                     }

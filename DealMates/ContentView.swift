@@ -53,6 +53,8 @@ struct ContentView: View {
         .ignoresSafeArea()
         .task {
             AnalyticsService.shared.setUser(authViewModel.uid)
+            AnalyticsService.shared.startSession() // auth is ready by the time ContentView renders
+
             await unread.refresh(currentUid: authViewModel.uid)
             // Realtime badge updates — message inserts, DM inserts, plan changes.
             unread.startListening(currentUid: authViewModel.uid)
