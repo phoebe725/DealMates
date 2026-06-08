@@ -60,6 +60,19 @@ struct RestaurantOffer: Identifiable, Codable, Hashable {
         offers.filter { $0.category != "highlight" }
     }
 
+    /// Lowest per-person price across a restaurant's offers, or nil if none priced.
+    static func price(_ offers: [RestaurantOffer]) -> Double? {
+        offers.compactMap { $0.pricePp }.filter { $0 > 0 }.min()
+    }
+
+    /// £ / ££ / £££ price tier from the representative price, or nil if unknown.
+    static func priceTier(_ offers: [RestaurantOffer]) -> String? {
+        guard let p = price(offers) else { return nil }
+        if p <= 15 { return "£" }
+        if p <= 30 { return "££" }
+        return "£££"
+    }
+
     // MARK: - Value-oriented display layer (mirrors web/src/lib/dealDisplay.ts)
 
     /// Deal sub-kind, used for filters + card priority. English text is the signal.

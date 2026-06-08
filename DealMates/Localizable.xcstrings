@@ -1,6 +1,22 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Price: Low to High" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "价格：从低到高"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "價格：從低到高"
+          }
+        }
+      }
+    },
     "What should we call you?" : {
       "localizations" : {
         "zh-Hans" : {

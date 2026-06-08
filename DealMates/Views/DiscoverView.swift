@@ -4,6 +4,7 @@ import CoreLocation
 enum RestaurantSortMode: String, CaseIterable, Identifiable {
     case name = "Name (A–Z)"
     case distance = "Distance: Nearest"
+    case price = "Price: Low to High"
     var id: String { rawValue }
 }
 
@@ -344,6 +345,11 @@ struct DiscoverView: View {
             guard let userLoc = locationManager.currentLocation else { return base }
             return base.sorted { a, b in
                 distance(from: userLoc, to: a) < distance(from: userLoc, to: b)
+            }
+        case .price:
+            return base.sorted { a, b in
+                (RestaurantOffer.price(vm.offers(for: a)) ?? .greatestFiniteMagnitude)
+                    < (RestaurantOffer.price(vm.offers(for: b)) ?? .greatestFiniteMagnitude)
             }
         }
     }

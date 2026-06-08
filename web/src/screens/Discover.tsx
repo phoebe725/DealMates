@@ -12,7 +12,7 @@ import { Chip, EmptyState, RestaurantImage, Segmented, Spinner } from "@/compone
 import { useDragScroll } from "@/hooks/useDragScroll";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { trackDealClick, trackRestaurantClick } from "@/lib/analytics";
-import { bestOffer, offerShortLabel, dealKind, DEAL_FILTERS, matchesDealFilter, type DealFilter } from "@/lib/dealDisplay";
+import { bestOffer, offerShortLabel, dealKind, priceTier, restaurantPrice, DEAL_FILTERS, matchesDealFilter, type DealFilter } from "@/lib/dealDisplay";
 
 const BUFFET_CATEGORY = "AYCE / Buffet";
 const DEAL_KEYWORDS = ["優惠", "优惠", "买", "買", "送", "deal", "offer", "discount", "ayce", "buffet"];
@@ -58,7 +58,7 @@ export function Discover() {
   const [search, setSearch] = useState("");
   const [dealFilter, setDealFilter] = useState<DealFilter | null>(null);
   const [cuisine, setCuisine] = useState<string | null>(null);
-  const [sort, setSort] = useState<"name" | "distance">("name");
+  const [sort, setSort] = useState<"name" | "distance" | "price">("name");
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [sortOpen, setSortOpen] = useState(false);
   const restaurants = useQuery({ queryKey: ["restaurants"], queryFn: fetchRestaurants });
@@ -141,8 +141,13 @@ export function Discover() {
     if (sort === "distance" && userLoc) {
       return [...filtered].sort((a, b) => distanceMeters(userLoc, a) - distanceMeters(userLoc, b));
     }
+    if (sort === "price") {
+      return [...filtered].sort(
+        (a, b) => (restaurantPrice(offersFor(a)) ?? Infinity) - (restaurantPrice(offersFor(b)) ?? Infinity),
+      );
+    }
     return showFeatured ? [...featured, ...general] : general;
-  }, [sort, userLoc, filtered, featured, general, showFeatured]);
+  }, [sort, userLoc, filtered, featured, general, showFeatured, offersMap]);
 
   const visiblePlans = useMemo(
     () => (plans.data ?? []).filter((p) => needsMorePeople(p) > 0 && !p.attendance_confirmed_at).sort(defaultPlanOrder),
@@ -174,7 +179,7 @@ export function Discover() {
               <button
                 onClick={() => setSortOpen((o) => !o)}
                 aria-label={t("Sort")}
-                className={`flex h-9 w-9 items-center justify-center rounded-full ${sort === "distance" ? "bg-clay text-cream" : "bg-shell text-ink"}`}
+                className={`flex h-9 w-9 items-center justify-center rounded-full ${sort !== "name" ? "bg-clay text-cream" : "bg-shell text-ink"}`}
               >
                 <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
                   <line x1="4" y1="6" x2="20" y2="6" />
@@ -197,6 +202,12 @@ export function Discover() {
                       onClick={() => { chooseNearest(); setSortOpen(false); }}
                     >
                       {t("Nearest")}
+                    </button>
+                    <button
+                      className={`block w-full px-4 py-2.5 text-left text-[14px] ${sort === "price" ? "font-semibold text-clay" : "text-ink"}`}
+                      onClick={() => { setSort("price"); setSortOpen(false); }}
+                    >
+                      {t("Price")}
                     </button>
                   </div>
                 </>
@@ -348,7 +359,10 @@ function RestaurantCard({ r, offers, onClick }: { r: Restaurant; offers: Restaur
       <RestaurantImage r={r} className="h-32 w-full" />
       <div className="p-3.5">
         <span className="font-sans text-[16px] font-medium text-ink">{restaurantName(r)}</span>
-        <div className="text-[13px] text-inkMuted">{localizedCuisine(r.cuisine)}</div>
+        <div className="text-[13px] text-inkMuted">
+          {localizedCuisine(r.cuisine)}
+          {priceTier(offers) && <span className="text-clayDeep"> · {priceTier(offers)}</span>}
+        </div>
         {deals.length > 0 && (
           // All deals on one row, each in a tinted pill; swipe horizontally if they overflow.
           <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
