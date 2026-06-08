@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchRestaurant, createPlan, fetchPlan, updatePlan } from "@/services/db";
 import { restaurantName, type GenderPreference, type Plan, type TimeType } from "@/types";
 import { generateEventCode } from "@/lib/eventCode";
-import { t } from "@/i18n";
+import { t, formatDateTime } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
 import { Segmented, Spinner } from "@/components/ui";
 
@@ -173,15 +173,29 @@ export function CreatePlan() {
           ]}
         />
         {timeType === "scheduled" && (
-          // Wrap the native input so the box stays full-width — iOS Safari sizes
-          // datetime-local to its content, which made the field jump width.
-          <div className="pin-field mt-3 w-full">
-            <input
-              type="datetime-local"
-              className="w-full bg-transparent text-[16px] text-ink outline-none"
-              value={scheduledAt}
-              onChange={(e) => setScheduledAt(e.target.value)}
-            />
+          // Separate date + time: type=date shows a weekday-labelled calendar on
+          // both Android and iOS (datetime-local on iOS is a wheel with no
+          // weekday). Each input sits in a fixed-width box so it never jumps.
+          <div className="mt-3 space-y-2">
+            <div className="flex gap-2">
+              <div className="pin-field flex-1">
+                <input
+                  type="date"
+                  className="w-full bg-transparent text-[16px] text-ink outline-none"
+                  value={scheduledAt.slice(0, 10)}
+                  onChange={(e) => setScheduledAt(`${e.target.value}T${scheduledAt.slice(11, 16)}`)}
+                />
+              </div>
+              <div className="pin-field w-28">
+                <input
+                  type="time"
+                  className="w-full bg-transparent text-[16px] text-ink outline-none"
+                  value={scheduledAt.slice(11, 16)}
+                  onChange={(e) => setScheduledAt(`${scheduledAt.slice(0, 10)}T${e.target.value}`)}
+                />
+              </div>
+            </div>
+            <p className="text-[13px] font-medium text-clayDeep">{formatDateTime(scheduledAt)}</p>
           </div>
         )}
         {timeType === "flexible" && (

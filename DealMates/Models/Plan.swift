@@ -80,11 +80,11 @@ struct Plan: Identifiable, Codable, Hashable {
             return "\(day) \(meal)"
         case .scheduled:
             let f = DateFormatter()
-            f.dateStyle = .medium
-            f.timeStyle = .short
             if let lang = UserDefaults.standard.string(forKey: "preferredLanguageCode") {
                 f.locale = Locale(identifier: lang)
             }
+            // Include the weekday, e.g. "Mon 8 Jun 2026, 14:14" (localized order).
+            f.setLocalizedDateFormatFromTemplate("EEE d MMM yyyy jmm")
             return f.string(from: scheduledAt)
         }
     }

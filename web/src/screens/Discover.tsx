@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { fetchRestaurants, fetchAllActivePlans, fetchOffersMap, defaultPlanOrder } from "@/services/db";
 import { restaurantName, dealOffers, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
-import { t, localizedCuisine } from "@/i18n";
+import { t, localizedCuisine , formatDateTime } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
 import { fetchPlanByCode } from "@/services/db";
 import { Chip, EmptyState, RestaurantImage, Segmented, Spinner } from "@/components/ui";
@@ -48,10 +48,7 @@ function planTimeLabel(p: Plan): string {
     const meal = t(p.flex_meal === "dinner" ? "Dinner" : "Lunch");
     return `${day} ${meal}`;
   }
-  return new Date(p.scheduled_at).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  return formatDateTime(p.scheduled_at);
 }
 
 export function Discover() {

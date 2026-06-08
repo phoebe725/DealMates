@@ -64,6 +64,18 @@ export function currentLang(): Lang {
   return "en";
 }
 
+/** Localized date+time that includes the weekday, e.g. "Mon, 8 Jun 2026, 14:14". */
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(currentLang(), {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function setLang(l: Lang) {
   localStorage.setItem(KEY, l);
   window.location.reload();

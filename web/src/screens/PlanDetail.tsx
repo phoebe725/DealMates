@@ -16,7 +16,7 @@ import {
   listenToPlan,
 } from "@/services/db";
 import { restaurantName, needsMorePeople, type ChatMessage, type Plan, type AppUser, type Restaurant } from "@/types";
-import { t, systemMessageText } from "@/i18n";
+import { t, systemMessageText , formatDateTime } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
 import { useUnread } from "@/unread/UnreadContext";
 import { trackJoinClick, trackGuestJoinSuccess } from "@/lib/analytics";
@@ -26,7 +26,7 @@ function timeLabel(p: Plan) {
   if (p.time_type === "asap") return t("ASAP");
   if (p.time_type === "flexible")
     return `${t(p.flex_day === "weekend" ? "Weekend" : "Weekday")} ${t(p.flex_meal === "dinner" ? "Dinner" : "Lunch")}`;
-  return new Date(p.scheduled_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  return formatDateTime(p.scheduled_at);
 }
 
 export function PlanDetail() {

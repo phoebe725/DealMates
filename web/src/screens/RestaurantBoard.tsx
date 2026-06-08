@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchRestaurant, fetchActivePlans, fetchRestaurantOffers, defaultPlanOrder } from "@/services/db";
 import { restaurantName, offerTitle, offerDescription, offerGroupBadge, dealOffers, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
-import { t, localizedCuisine as cuisineLabel } from "@/i18n";
+import { t, localizedCuisine as cuisineLabel , formatDateTime } from "@/i18n";
 import { trackCreatePlanClick } from "@/lib/analytics";
 import { offerShortLabel, splitTerms } from "@/lib/dealDisplay";
 import { Chip, EmptyState, RestaurantImage, Spinner } from "@/components/ui";
@@ -13,7 +13,7 @@ function timeLabel(p: Plan) {
   if (p.time_type === "asap") return t("ASAP");
   if (p.time_type === "flexible")
     return `${t(p.flex_day === "weekend" ? "Weekend" : "Weekday")} ${t(p.flex_meal === "dinner" ? "Dinner" : "Lunch")}`;
-  return new Date(p.scheduled_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  return formatDateTime(p.scheduled_at);
 }
 
 export function RestaurantBoard() {
