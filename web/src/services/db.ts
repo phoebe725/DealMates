@@ -251,6 +251,32 @@ export async function createPlan(plan: Plan): Promise<void> {
   if (error) throw error;
 }
 
+/** Organiser edit — update the plan's editable fields (id/creator/members kept). */
+export async function updatePlan(plan: Plan): Promise<void> {
+  const { error } = await supabase
+    .from("plans")
+    .update({
+      is_asap: plan.is_asap,
+      scheduled_at: plan.scheduled_at,
+      time_type: plan.time_type,
+      flex_day: plan.flex_day,
+      flex_meal: plan.flex_meal,
+      needed_people: plan.needed_people,
+      current_people: plan.current_people,
+      gender_preference: plan.gender_preference,
+      notes: plan.notes,
+      expires_at: plan.expires_at,
+    })
+    .eq("id", plan.id);
+  if (error) throw error;
+}
+
+/** Organiser cancel — delete the plan. */
+export async function deletePlan(id: string): Promise<void> {
+  const { error } = await supabase.from("plans").delete().eq("id", id);
+  if (error) throw error;
+}
+
 /** Look up a plan by its short event code (e.g. PT482). Case-insensitive. */
 export async function fetchPlanByCode(code: string): Promise<Plan | null> {
   const { data, error } = await supabase

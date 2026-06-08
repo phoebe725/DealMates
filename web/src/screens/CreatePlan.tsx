@@ -1,10 +1,10 @@
 // Mirrors CreatePlanView.swift: When (ASAP / scheduled / flexible) · Group size
 // · Open to · Notes. Builds the same Plan row (same expires_at rules) and
 // inserts it, then opens the new plan.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchRestaurant, createPlan } from "@/services/db";
+import { fetchRestaurant, createPlan, fetchPlan, updatePlan } from "@/services/db";
 import { restaurantName, type GenderPreference, type Plan, type TimeType } from "@/types";
 import { generateEventCode } from "@/lib/eventCode";
 import { t } from "@/i18n";
@@ -19,9 +19,13 @@ export function CreatePlan() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const restaurantId = params.get("restaurant") ?? "";
+  const editPlanId = params.get("plan") ?? "";
+  const isEditing = !!editPlanId;
   const { user } = useAuth();
 
-  const r = useQuery({ queryKey: ["restaurant", restaurantId], queryFn: () => fetchRestaurant(restaurantId), enabled: !!restaurantId });
+  const editQ = useQuery({ queryKey: ["editPlan", editPlanId], queryFn: () => fetchPlan(editPlanId), enabled: isEditing });
+  const planRestaurantId = editQ.data?.restaurant_id ?? restaurantId;
+  const r = useQuery({ queryKey: ["restaurant", planRestaurantId], queryFn: () => fetchRestaurant(planRestaurantId), enabled: !!planRestaurantId });
 
   const [timeType, setTimeType] = useState<TimeType>("asap");
   const [scheduledAt, setScheduledAt] = useState(() => {
@@ -37,6 +41,23 @@ export function CreatePlan() {
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Prefill the form when editing an existing plan.
+  useEffect(() => {
+    const p = editQ.data;
+    if (!p) return;
+    setTimeType(p.time_type);
+    if (p.scheduled_at) {
+      const d = new Date(p.scheduled_at);
+      setScheduledAt(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+    }
+    setFlexDay(p.flex_day ?? "weekday");
+    setFlexMeal(p.flex_meal ?? "lunch");
+    setNeeded(p.needed_people);
+    setJoined(p.current_people);
+    setPref(p.gender_preference);
+    setNotes(p.notes ?? "");
+  }, [editQ.data]);
 
   // Guest / anonymous user — prompt sign-up before creating a plan
   if (user?.is_anonymous) {
@@ -59,7 +80,7 @@ export function CreatePlan() {
     );
   }
 
-  if (r.isLoading) return <Spinner />;
+  if (r.isLoading || (isEditing && editQ.isLoading)) return <Spinner />;
   const rest = r.data;
   if (!rest || !user) return <div className="p-6 text-inkMuted">Pick a restaurant from Discover first.</div>;
 
@@ -80,6 +101,27 @@ export function CreatePlan() {
         schedDate = now;
         expiry = new Date(now.getTime() + 7 * 24 * 3600_000);
       }
+
+      // Editing an existing plan — preserve id/creator/members/code, update the rest.
+      if (isEditing && editQ.data) {
+        const updated: Plan = {
+          ...editQ.data,
+          is_asap: timeType === "asap",
+          scheduled_at: schedDate.toISOString(),
+          needed_people: needed,
+          current_people: Math.min(joined, needed),
+          notes: notes.trim(),
+          expires_at: expiry.toISOString(),
+          time_type: timeType,
+          flex_day: timeType === "flexible" ? flexDay : null,
+          flex_meal: timeType === "flexible" ? flexMeal : null,
+          gender_preference: pref,
+        };
+        await updatePlan(updated);
+        nav(`/plan/${editQ.data.id}`, { replace: true });
+        return;
+      }
+
       const plan: Plan = {
         id: uuid(),
         restaurant_id: rest!.id,
@@ -116,7 +158,7 @@ export function CreatePlan() {
     <div className="px-5 pb-10 pt-3">
       <button onClick={() => nav(-1)} className="mb-2 text-[22px] text-ink">‹</button>
       <h1 className="leading-tight">
-        <span className="font-accent text-[36px] italic text-clayDeep">{t("Create a table")}</span>
+        <span className="font-accent text-[36px] italic text-clayDeep">{isEditing ? t("Edit") : t("Create a table")}</span>
       </h1>
       <p className="font-subtitle text-[14px] text-inkMuted">{t("At %@.", restaurantName(rest))}</p>
 
@@ -131,12 +173,16 @@ export function CreatePlan() {
           ]}
         />
         {timeType === "scheduled" && (
-          <input
-            type="datetime-local"
-            className="pin-field mt-3"
-            value={scheduledAt}
-            onChange={(e) => setScheduledAt(e.target.value)}
-          />
+          // Wrap the native input so the box stays full-width — iOS Safari sizes
+          // datetime-local to its content, which made the field jump width.
+          <div className="pin-field mt-3 w-full">
+            <input
+              type="datetime-local"
+              className="w-full bg-transparent text-[16px] text-ink outline-none"
+              value={scheduledAt}
+              onChange={(e) => setScheduledAt(e.target.value)}
+            />
+          </div>
         )}
         {timeType === "flexible" && (
           <div className="mt-3 space-y-3">
@@ -174,7 +220,7 @@ export function CreatePlan() {
 
       {error && <p className="mt-2 rounded-pin bg-clay/12 p-3 text-[13px] text-ink">{error}</p>}
       <button className="pin-btn-primary mt-6" disabled={busy} onClick={submit}>
-        {busy ? "…" : t("Create a table")}
+        {busy ? "…" : isEditing ? t("Save") : t("Create a table")}
       </button>
     </div>
   );
