@@ -317,10 +317,11 @@ struct RestaurantBoardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Apple Maps link for the restaurant's address.
+    /// Apple Maps link that searches for the actual restaurant (name + address),
+    /// so it lands on the venue rather than a generic point on the street.
     private var mapsURL: URL? {
-        let q = restaurant.address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        guard !q.isEmpty else { return nil }
+        let query = "\(restaurant.displayName) \(restaurant.address)".trimmingCharacters(in: .whitespaces)
+        guard let q = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed), !q.isEmpty else { return nil }
         return URL(string: "http://maps.apple.com/?q=\(q)")
     }
 

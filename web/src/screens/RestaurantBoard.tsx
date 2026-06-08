@@ -111,7 +111,7 @@ export function RestaurantBoard() {
             <>
               {" · "}
               <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rest.address)}`}
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${restaurantName(rest)} ${rest.address}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-clay underline"
