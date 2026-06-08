@@ -3,7 +3,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchRestaurant, fetchActivePlans, fetchRestaurantOffers, defaultPlanOrder } from "@/services/db";
-import { restaurantName, offerTitle, offerDescription, offerGroupBadge, dealOffers, needsMorePeople, type Plan, type RestaurantOffer } from "@/types";
+import { restaurantName, offerTitle, offerDescription, offerGroupBadge, dealOffers, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
 import { t, localizedCuisine as cuisineLabel } from "@/i18n";
 import { trackCreatePlanClick } from "@/lib/analytics";
 import { offerShortLabel, splitTerms } from "@/lib/dealDisplay";
@@ -111,7 +111,7 @@ export function RestaurantBoard() {
             <>
               {" · "}
               <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${restaurantName(rest)} ${rest.address}`)}`}
+                href={mapsHref(rest)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-clay underline"
@@ -132,6 +132,15 @@ export function RestaurantBoard() {
       </button>
     </div>
   );
+}
+
+// Search Maps by every known name (English + 简体 + 繁體) plus the address, so it
+// locates the actual venue regardless of which name the map has indexed.
+function mapsHref(r: Restaurant): string {
+  const names = [r.name, r.name_zh_hans, r.name_zh_hant].filter((s): s is string => !!s);
+  const unique = names.filter((s, i) => names.indexOf(s) === i);
+  const query = [...unique, r.address].filter(Boolean).join(" ");
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
 function SectionHeader({ title }: { title: string }) {

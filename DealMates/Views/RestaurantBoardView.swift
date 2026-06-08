@@ -317,10 +317,16 @@ struct RestaurantBoardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Apple Maps link that searches for the actual restaurant (name + address),
-    /// so it lands on the venue rather than a generic point on the street.
+    /// Apple Maps link that searches by every known name (English + 简体 + 繁體)
+    /// plus the address, so it lands on the actual venue regardless of which name
+    /// the map has indexed.
     private var mapsURL: URL? {
-        let query = "\(restaurant.displayName) \(restaurant.address)".trimmingCharacters(in: .whitespaces)
+        let names = [restaurant.name, restaurant.nameZhHans, restaurant.nameZhHant]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+        var seen = Set<String>()
+        let uniqueNames = names.filter { seen.insert($0).inserted }
+        let query = (uniqueNames + [restaurant.address]).joined(separator: " ").trimmingCharacters(in: .whitespaces)
         guard let q = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed), !q.isEmpty else { return nil }
         return URL(string: "http://maps.apple.com/?q=\(q)")
     }
