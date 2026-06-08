@@ -126,7 +126,7 @@ export function PlanDetail() {
   }
 
   function share() {
-    const url = `https://phoebe725.github.io/DealMates/plan.html?plan=${plan!.id}`;
+    const url = `https://pintable-london.web.app/plan/${plan!.id}`;
     if (navigator.share) navigator.share({ title: "Join my plan on PinTable", url }).catch(() => {});
     else { navigator.clipboard?.writeText(url); alert("Link copied"); }
   }
@@ -139,7 +139,13 @@ export function PlanDetail() {
         <span className="flex-1 truncate text-center font-medium text-ink">
           {cachedRestaurant ? restaurantName(cachedRestaurant) : plan.restaurant_name}
         </span>
-        <button onClick={share} className="text-[18px] text-clay" aria-label={t("Share")}>⤴</button>
+        <button onClick={share} className="text-clay" aria-label={t("Share")}>
+          <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 16V4" />
+            <path d="m8 8 4-4 4 4" />
+            <path d="M20 14v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5" />
+          </svg>
+        </button>
       </div>
 
       {/* Scrollable content */}

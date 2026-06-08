@@ -13,13 +13,13 @@ final class DeepLinkRouter: ObservableObject {
     /// When set, the app presents PlanDetailView for this plan.
     @Published var plan: Plan?
 
-    /// GitHub Pages base for shareable web links.
-    private static let webBase = "https://phoebe725.github.io/DealMates"
+    /// Deployed web app base for shareable links.
+    private static let webBase = "https://pintable-london.web.app"
 
-    /// The https invite link to share for a plan (opens the web invite page,
-    /// which can then deep-link into the app or send the user to download it).
+    /// The https invite link to share for a plan — opens the plan directly in
+    /// the web app (which falls back to Discover if the plan can't load).
     static func shareURL(for plan: Plan) -> URL {
-        URL(string: "\(webBase)/plan.html?plan=\(plan.id)")!
+        URL(string: "\(webBase)/plan/\(plan.id)")!
     }
 
     func handle(_ url: URL) {

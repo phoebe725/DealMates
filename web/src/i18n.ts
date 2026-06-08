@@ -21,16 +21,29 @@ function normaliseLang(raw: string): Lang | null {
 // (e.g. a visitor arriving from the localized waitlist), honour it, remember it,
 // then strip it from the URL so the in-app switcher still takes precedence later.
 // Completely inert when there is no ?lang= param, so existing behaviour is unchanged.
-(function applyLangFromUrl() {
+(function cleanUrlOnLoad() {
   if (typeof window === "undefined") return;
   try {
     const params = new URLSearchParams(window.location.search);
-    const param = params.get("lang");
-    if (!param) return;
-    const norm = normaliseLang(param);
-    if (!norm) return;
-    localStorage.setItem(KEY, norm);
-    params.delete("lang");
+    let changed = false;
+
+    // Honour ?lang= then strip it.
+    const langParam = params.get("lang");
+    if (langParam) {
+      const norm = normaliseLang(langParam);
+      if (norm) localStorage.setItem(KEY, norm);
+      params.delete("lang");
+      changed = true;
+    }
+
+    // Strip the tracking junk Messenger / Facebook / Instagram append to shared
+    // links (e.g. ?fbclid=…), which otherwise litters the URL and can confuse
+    // the in-app browser after navigation.
+    for (const junk of ["fbclid", "mibextid", "igshid", "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"]) {
+      if (params.has(junk)) { params.delete(junk); changed = true; }
+    }
+
+    if (!changed) return;
     const qs = params.toString();
     window.history.replaceState(
       {},

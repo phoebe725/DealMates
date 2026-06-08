@@ -106,7 +106,20 @@ export function RestaurantBoard() {
         <div className="mt-7"><SectionHeader title={t("Restaurant info")} /></div>
         <RestaurantImage r={rest} className="mt-3 h-44 w-full rounded-card" />
         <div className="mt-2 text-[14px] text-inkMuted">
-          {cuisineLabel(rest.cuisine)}{rest.address ? ` · ${rest.address}` : ""}
+          {cuisineLabel(rest.cuisine)}
+          {rest.address && (
+            <>
+              {" · "}
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rest.address)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-clay underline"
+              >
+                {rest.address}
+              </a>
+            </>
+          )}
         </div>
       </div>
 

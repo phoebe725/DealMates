@@ -301,11 +301,27 @@ struct RestaurantBoardView: View {
             Text(restaurant.displayName)
                 .font(.pinBody(18, weight: .medium))
                 .foregroundStyle(Color.pinInk)
-            Text(restaurant.displayCuisine + " · " + restaurant.address)
-                .font(.pinSubtitle(13))
-                .foregroundStyle(Color.pinInkMuted)
+            // Tap the address to open it in Maps.
+            if let mapURL = mapsURL {
+                Link(destination: mapURL) {
+                    (Text(restaurant.displayCuisine + " · ").foregroundStyle(Color.pinInkMuted)
+                     + Text(restaurant.address).foregroundStyle(Color.pinClayDeep).underline())
+                        .font(.pinSubtitle(13))
+                }
+            } else {
+                Text(restaurant.displayCuisine + " · " + restaurant.address)
+                    .font(.pinSubtitle(13))
+                    .foregroundStyle(Color.pinInkMuted)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Apple Maps link for the restaurant's address.
+    private var mapsURL: URL? {
+        let q = restaurant.address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        guard !q.isEmpty else { return nil }
+        return URL(string: "http://maps.apple.com/?q=\(q)")
     }
 
     /// Restaurant photo for the info section — mirrors web's RestaurantImage:
