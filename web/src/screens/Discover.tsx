@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { fetchRestaurants, fetchAllActivePlans, fetchOffersMap, defaultPlanOrder } from "@/services/db";
-import { restaurantName, dealOffers, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
+import { restaurantName, dealOffers, priceTier, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
 import { t, localizedCuisine , formatDateTime } from "@/i18n";
 import { useAuth } from "@/auth/AuthContext";
 import { fetchPlanByCode } from "@/services/db";
@@ -12,7 +12,7 @@ import { Chip, EmptyState, RestaurantImage, Segmented, Spinner } from "@/compone
 import { useDragScroll } from "@/hooks/useDragScroll";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { trackDealClick, trackRestaurantClick } from "@/lib/analytics";
-import { bestOffer, offerShortLabel, dealKind, priceTier, restaurantPrice, DEAL_FILTERS, matchesDealFilter, type DealFilter } from "@/lib/dealDisplay";
+import { bestOffer, offerShortLabel, dealKind, DEAL_FILTERS, matchesDealFilter, type DealFilter } from "@/lib/dealDisplay";
 
 const BUFFET_CATEGORY = "AYCE / Buffet";
 const DEAL_KEYWORDS = ["優惠", "优惠", "买", "買", "送", "deal", "offer", "discount", "ayce", "buffet"];
@@ -58,6 +58,7 @@ export function Discover() {
   const [search, setSearch] = useState("");
   const [dealFilter, setDealFilter] = useState<DealFilter | null>(null);
   const [cuisine, setCuisine] = useState<string | null>(null);
+  const [priceFilter, setPriceFilter] = useState<number | null>(null);
   const [sort, setSort] = useState<"name" | "distance" | "price">("name");
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [sortOpen, setSortOpen] = useState(false);
@@ -107,6 +108,7 @@ export function Discover() {
   const filtered = useMemo(() => {
     let rows = restaurants.data ?? [];
     if (dealFilter) rows = rows.filter((r) => matchesDealFilter(offersFor(r), dealFilter));
+    if (priceFilter) rows = rows.filter((r) => (r.price_level ?? 2) === priceFilter);
     if (cuisine) rows = rows.filter((r) => r.cuisine === cuisine);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -118,7 +120,7 @@ export function Discover() {
       );
     }
     return rows;
-  }, [restaurants.data, dealFilter, cuisine, search, offersMap]);
+  }, [restaurants.data, dealFilter, priceFilter, cuisine, search, offersMap]);
 
   const showFeatured = !search.trim();
   const featured = showFeatured ? filtered.filter((r) => featuredEligible(r, offersFor(r))) : [];
@@ -142,9 +144,7 @@ export function Discover() {
       return [...filtered].sort((a, b) => distanceMeters(userLoc, a) - distanceMeters(userLoc, b));
     }
     if (sort === "price") {
-      return [...filtered].sort(
-        (a, b) => (restaurantPrice(offersFor(a)) ?? Infinity) - (restaurantPrice(offersFor(b)) ?? Infinity),
-      );
+      return [...filtered].sort((a, b) => (a.price_level ?? 2) - (b.price_level ?? 2));
     }
     return showFeatured ? [...featured, ...general] : general;
   }, [sort, userLoc, filtered, featured, general, showFeatured, offersMap]);
@@ -287,6 +287,18 @@ export function Discover() {
                 />
               ))}
             </div>
+
+            {/* Price filter — £ / ££ / £££ */}
+            <div className="mt-2 flex gap-2">
+              {([1, 2, 3] as const).map((lvl) => (
+                <CuisineChip
+                  key={lvl}
+                  label={"£".repeat(lvl)}
+                  active={priceFilter === lvl}
+                  onClick={() => setPriceFilter(priceFilter === lvl ? null : lvl)}
+                />
+              ))}
+            </div>
           </>
         )}
       </div>
@@ -361,7 +373,7 @@ function RestaurantCard({ r, offers, onClick }: { r: Restaurant; offers: Restaur
         <span className="font-sans text-[16px] font-medium text-ink">{restaurantName(r)}</span>
         <div className="text-[13px] text-inkMuted">
           {localizedCuisine(r.cuisine)}
-          {priceTier(offers) && <span className="text-clayDeep"> · {priceTier(offers)}</span>}
+          <span className="text-clayDeep"> · {priceTier(r)}</span>
         </div>
         {deals.length > 0 && (
           // All deals on one row, each in a tinted pill; swipe horizontally if they overflow.

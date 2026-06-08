@@ -19,6 +19,7 @@ export interface Restaurant {
   image_bg: string | null;
   last_deals_verified_at: string | null;
   plan_count: number | null;
+  price_level: number | null;
 }
 
 export type TimeType = "asap" | "scheduled" | "flexible";
@@ -144,6 +145,15 @@ export function restaurantName(r: Restaurant): string {
   if (l === "zh-Hans") return r.name_zh_hans || r.name;
   if (l === "zh-Hant") return r.name_zh_hant || r.name;
   return r.name;
+}
+
+/** £ / ££ / £££ from the restaurant's price_level (nil → ££). */
+export function priceTier(r: Restaurant): "£" | "££" | "£££" {
+  switch (r.price_level ?? 2) {
+    case 1: return "£";
+    case 3: return "£££";
+    default: return "££";
+  }
 }
 
 export function offerTitle(o: RestaurantOffer): string {

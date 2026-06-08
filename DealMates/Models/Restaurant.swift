@@ -23,6 +23,8 @@ struct Restaurant: Identifiable, Codable, Hashable {
     var imageBg: String?
     var lastDealsVerifiedAt: Date?
     var planCount: Int
+    /// Price tier 1 = £, 2 = ££, 3 = £££. nil/absent is treated as ££.
+    var priceLevel: Int?
 
     init(id: String, name: String, cuisine: String, address: String, imageUrl: String? = nil, latitude: Double? = nil, longitude: Double? = nil, nameZhHans: String? = nil, nameZhHant: String? = nil, cuisineZhHans: String? = nil, cuisineZhHant: String? = nil, isFeatured: Bool = false, isBuffet: Bool = false, imageFit: String = "cover", imageBg: String? = nil, lastDealsVerifiedAt: Date? = nil, planCount: Int = 0) {
         self.id = id
@@ -42,6 +44,7 @@ struct Restaurant: Identifiable, Codable, Hashable {
         self.imageBg = imageBg
         self.lastDealsVerifiedAt = lastDealsVerifiedAt
         self.planCount = planCount
+        self.priceLevel = nil
     }
 
     init(from decoder: Decoder) throws {
@@ -63,6 +66,7 @@ struct Restaurant: Identifiable, Codable, Hashable {
         imageBg             = try? c.decodeIfPresent(String.self, forKey: .imageBg)
         lastDealsVerifiedAt = try? c.decodeIfPresent(Date.self, forKey: .lastDealsVerifiedAt)
         planCount           = (try? c.decodeIfPresent(Int.self, forKey: .planCount)) ?? 0
+        priceLevel          = try? c.decodeIfPresent(Int.self, forKey: .priceLevel)
     }
 
     /// Was the restaurant's deal info verified within the last 14 days? Featured
@@ -93,6 +97,16 @@ extension Restaurant {
         case imageBg = "image_bg"
         case lastDealsVerifiedAt = "last_deals_verified_at"
         case planCount = "plan_count"
+        case priceLevel = "price_level"
+    }
+
+    /// £ / ££ / £££ from the price level (nil → ££).
+    var priceTier: String {
+        switch priceLevel ?? 2 {
+        case 1:  return "£"
+        case 3:  return "£££"
+        default: return "££"
+        }
     }
 
     /// Returns name in the user's preferred app language (zh-Hans / zh-Hant) if available, else original.

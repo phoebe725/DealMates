@@ -147,7 +147,21 @@ struct DiscoverView: View {
                 PinSearchField(text: $vm.searchText, placeholder: "Search restaurants or cuisine")
                 dealChips
                 cuisineChips
+                priceChips
             }
+        }
+    }
+
+    // Price filter — £ / ££ / £££.
+    private var priceChips: some View {
+        HStack(spacing: 8) {
+            ForEach(1...3, id: \.self) { lvl in
+                chip(label: String(repeating: "£", count: lvl),
+                     selected: vm.priceFilter == lvl) {
+                    vm.priceFilter = (vm.priceFilter == lvl) ? nil : lvl
+                }
+            }
+            Spacer(minLength: 0)
         }
     }
 
@@ -347,10 +361,7 @@ struct DiscoverView: View {
                 distance(from: userLoc, to: a) < distance(from: userLoc, to: b)
             }
         case .price:
-            return base.sorted { a, b in
-                (RestaurantOffer.price(vm.offers(for: a)) ?? .greatestFiniteMagnitude)
-                    < (RestaurantOffer.price(vm.offers(for: b)) ?? .greatestFiniteMagnitude)
-            }
+            return base.sorted { ($0.priceLevel ?? 2) < ($1.priceLevel ?? 2) }
         }
     }
 

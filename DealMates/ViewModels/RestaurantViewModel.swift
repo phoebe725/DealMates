@@ -16,6 +16,10 @@ final class RestaurantViewModel: ObservableObject {
     @Published var dealFilter: String? = nil {
         didSet { applyFilter() }
     }
+    /// Price filter — 1 (£), 2 (££) or 3 (£££); nil = all.
+    @Published var priceFilter: Int? = nil {
+        didSet { applyFilter() }
+    }
     @Published var isLoading = false
     @Published var errorMessage: String?
     /// Active offers grouped by restaurant id (restaurant_offers table).
@@ -89,6 +93,9 @@ final class RestaurantViewModel: ObservableObject {
         }
         if let cuisine = cuisineFilter, !cuisine.isEmpty {
             result = result.filter { $0.cuisine == cuisine }
+        }
+        if let lvl = priceFilter {
+            result = result.filter { ($0.priceLevel ?? 2) == lvl }
         }
         if !searchText.isEmpty {
             let q = searchText.lowercased()

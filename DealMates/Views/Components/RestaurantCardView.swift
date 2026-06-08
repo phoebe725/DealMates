@@ -21,7 +21,7 @@ struct RestaurantCardView: View {
                     .foregroundStyle(Color.pinInk)
                     .lineLimit(2)
                 (Text(restaurant.displayCuisine).foregroundStyle(Color.pinInkMuted)
-                 + Text(RestaurantOffer.priceTier(offers).map { " · " + $0 } ?? "").foregroundStyle(Color.pinClayDeep))
+                 + Text(" · " + restaurant.priceTier).foregroundStyle(Color.pinClayDeep))
                     .font(.pinSubtitle(13))
                 if !deals.isEmpty {
                     // Every deal on one row, each in a tinted pill; swipe to see more.

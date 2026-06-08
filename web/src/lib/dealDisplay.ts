@@ -13,21 +13,6 @@ export function splitTerms(desc: string): string[] {
   return desc.split("·").map((s) => s.trim()).filter(Boolean);
 }
 
-/** Representative per-person price for a restaurant — the lowest offer price.
- *  null when no offer carries a price. */
-export function restaurantPrice(offers: RestaurantOffer[]): number | null {
-  const prices = offers.map((o) => o.price_pp).filter((p): p is number => p != null && p > 0);
-  return prices.length ? Math.min(...prices) : null;
-}
-
-/** £ / ££ / £££ price tier from the representative price, or null if unknown. */
-export function priceTier(offers: RestaurantOffer[]): "£" | "££" | "£££" | null {
-  const p = restaurantPrice(offers);
-  if (p == null) return null;
-  if (p <= 15) return "£";
-  if (p <= 30) return "££";
-  return "£££";
-}
 
 function en(o: RestaurantOffer): string {
   return `${o.title_en ?? ""} ${o.description_en ?? ""}`.toLowerCase();
