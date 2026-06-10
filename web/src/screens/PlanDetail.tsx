@@ -139,16 +139,17 @@ export function PlanDetail() {
   async function share() {
     const url = `https://pintable-london.web.app/plan/${plan!.id}`;
     const msg = t("Come share this dining plan with me on PinTable.");
-    // Native share sheet when available (mobile + RedNote/WeChat etc.). Many
-    // Chinese apps read the `text` field and ignore `url`, so include the link
-    // in both. Falling through to copy covers desktop and in-app browsers that
-    // don't implement navigator.share.
+    // Native share sheet when available. The link goes ONLY in `url` (putting it
+    // in `text` too makes targets that read both show it twice). If the sheet
+    // fails for any reason other than the user cancelling (AbortError) — e.g.
+    // desktop browsers that expose but reject navigator.share — fall through to
+    // copy so the button always does something.
     if (navigator.share) {
       try {
-        await navigator.share({ title: "PinTable", text: `${msg} ${url}`, url });
+        await navigator.share({ title: "PinTable", text: msg, url });
         return;
-      } catch {
-        return; // user dismissed the sheet — don't also copy
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
       }
     }
     try {
