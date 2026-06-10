@@ -1,7 +1,7 @@
 // Mirrors PlanDetailView.swift (core): summary, members, realtime chat,
 // join/leave, share. Polls / attendance / lock-time / calendar come next.
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchPlan,
@@ -32,7 +32,18 @@ function timeLabel(p: Plan) {
 export function PlanDetail() {
   const { id = "" } = useParams();
   const nav = useNavigate();
+  const loc = useLocation();
   const qc = useQueryClient();
+  // A stranger who opened a shared link has no in-app history to go "back" to —
+  // react-router stamps history.state.idx (0 = first entry) and marks the first
+  // location key "default". In that case "back" would leave the site entirely,
+  // stranding them on the plan with no tab bar, so send them into Discover where
+  // they can browse the app as a guest.
+  const goBack = () => {
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0 && loc.key !== "default") nav(-1);
+    else nav("/discover");
+  };
   const { user } = useAuth();
   const { markRead } = useUnread();
 
@@ -125,17 +136,34 @@ export function PlanDetail() {
     await sendMessage(id, user, text);
   }
 
-  function share() {
+  async function share() {
     const url = `https://pintable-london.web.app/plan/${plan!.id}`;
-    if (navigator.share) navigator.share({ title: "Join my plan on PinTable", url }).catch(() => {});
-    else { navigator.clipboard?.writeText(url); alert("Link copied"); }
+    const msg = t("Come share this dining plan with me on PinTable.");
+    // Native share sheet when available (mobile + RedNote/WeChat etc.). Many
+    // Chinese apps read the `text` field and ignore `url`, so include the link
+    // in both. Falling through to copy covers desktop and in-app browsers that
+    // don't implement navigator.share.
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "PinTable", text: `${msg} ${url}`, url });
+        return;
+      } catch {
+        return; // user dismissed the sheet — don't also copy
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      alert(t("Link copied"));
+    } catch {
+      window.prompt(t("Copy this link"), url); // last resort for restricted webviews
+    }
   }
 
   return (
     <div className="flex h-full flex-col">
       {/* Top bar */}
       <div className="flex items-center gap-2 border-b border-fog bg-shell px-4 py-3">
-        <button onClick={() => nav(-1)} className="text-[22px] text-ink">‹</button>
+        <button onClick={goBack} className="text-[22px] text-ink">‹</button>
         <span className="flex-1 truncate text-center font-medium text-ink">
           {cachedRestaurant ? restaurantName(cachedRestaurant) : plan.restaurant_name}
         </span>
