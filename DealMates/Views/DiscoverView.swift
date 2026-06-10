@@ -373,7 +373,10 @@ struct DiscoverView: View {
     // MARK: - Plans (pins) tab
 
     private var visiblePlans: [Plan] {
-        let active = allPlans.filter { $0.needsMorePeople > 0 && $0.attendanceConfirmedAt == nil }
+        let active = allPlans.filter {
+            $0.needsMorePeople > 0 && $0.attendanceConfirmedAt == nil
+                && !authViewModel.hasBlocked(uid: $0.creatorId)
+        }
         let filtered = subscribedOnly
             ? active.filter { subs.subscribedRestaurantIds.contains($0.restaurantId) }
             : active

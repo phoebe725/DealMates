@@ -395,7 +395,8 @@ struct RestaurantBoardView: View {
     // MARK: - Filtering / sorting
 
     private var visiblePlans: [Plan] {
-        var result = vm.plans
+        // Hide plans organised by anyone the user has blocked.
+        var result = vm.plans.filter { !authViewModel.hasBlocked(uid: $0.creatorId) }
         switch timeFilter {
         case .all:       break
         case .asap:      result = result.filter { $0.isAsap }

@@ -26,6 +26,12 @@ interface AuthState {
   updatePassword: (newPassword: string) => Promise<void>;
   /** True while the user is in the password-recovery flow (arrived via reset link). */
   passwordRecovery: boolean;
+  /** Report a plan (also records reporter on the plan's reported_by). */
+  reportPlan: (planId: string) => Promise<void>;
+  /** Block a user so their content can be hidden. */
+  blockUser: (targetUid: string) => Promise<void>;
+  hasReported: (planId: string) => boolean;
+  hasBlocked: (targetUid: string) => boolean;
 }
 
 const Ctx = createContext<AuthState | null>(null);
@@ -186,6 +192,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await refresh();
   };
 
+  const reportPlan = async (planId: string) => {
+    if (!user) return;
+    const { reportPlan: doReport } = await import("@/services/db");
+    await doReport(user.id, planId);
+    setUser({ ...user, reported_plans: [...(user.reported_plans ?? []), planId] });
+  };
+
+  const blockUser = async (targetUid: string) => {
+    if (!user) return;
+    const { blockUser: doBlock } = await import("@/services/db");
+    await doBlock(user.id, targetUid);
+    setUser({ ...user, blocked_users: [...(user.blocked_users ?? []), targetUid] });
+  };
+
+  const hasReported = (planId: string) => !!user?.reported_plans?.includes(planId);
+  const hasBlocked = (targetUid: string) => !!user?.blocked_users?.includes(targetUid);
+
   const isSignedIn = !!user && user.is_anonymous === false;
 
   return (
@@ -204,6 +227,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resetPassword,
         updatePassword,
         passwordRecovery,
+        reportPlan,
+        blockUser,
+        hasReported,
+        hasBlocked,
       }}
     >
       {children}

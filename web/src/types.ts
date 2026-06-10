@@ -111,6 +111,12 @@ export interface Poll {
   created_at: string | null;
 }
 
+export interface PollVote {
+  poll_id: string;
+  user_id: string;
+  option_index: number;
+}
+
 export type OfferType = "buy_x_get_y" | "group_set_menu" | "min_diners_discount" | "other";
 export type OfferCategory = "group_gated" | "deal" | "highlight";
 

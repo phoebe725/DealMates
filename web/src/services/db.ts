@@ -3,7 +3,7 @@
 // the matching screens are ported.
 
 import { supabase } from "@/lib/supabase";
-import type { AppUser, ChatMessage, DirectMessage, DMConversation, Plan, Restaurant, RestaurantOffer } from "@/types";
+import type { AppUser, ChatMessage, DirectMessage, DMConversation, Plan, Poll, PollVote, Restaurant, RestaurantOffer } from "@/types";
 
 export async function fetchRestaurants(): Promise<Restaurant[]> {
   const { data, error } = await supabase
@@ -304,12 +304,77 @@ export async function joinPlan(plan: Plan, userId: string, userName: string): Pr
 export async function leavePlan(plan: Plan, userId: string, userName: string): Promise<void> {
   if (!plan.member_ids.includes(userId)) return;
   const member_ids = plan.member_ids.filter((id) => id !== userId);
+  // Organiser succession: if the creator leaves and members remain, promote the
+  // next-earliest member (mirrors DatabaseService.leavePlan).
+  if (plan.creator_id === userId && member_ids.length > 0) {
+    const next = (await fetchUsers([member_ids[0]]))[0];
+    if (next) {
+      const { error } = await supabase
+        .from("plans")
+        .update({
+          member_ids,
+          current_people: member_ids.length,
+          creator_id: next.id,
+          creator_name: next.display_name,
+          creator_avatar_url: next.avatar_url ?? null,
+        })
+        .eq("id", plan.id);
+      if (error) throw error;
+      await postSystemMessage(plan.id, "left_promoted", [userName, next.display_name]);
+      return;
+    }
+  }
   const { error } = await supabase
     .from("plans")
     .update({ member_ids, current_people: member_ids.length })
     .eq("id", plan.id);
   if (error) throw error;
   await postSystemMessage(plan.id, "left", [userName]);
+}
+
+/** Organiser kicks a non-organiser member (mirrors DatabaseService.removeMember). */
+export async function removeMember(
+  plan: Plan,
+  targetUid: string,
+  targetName: string,
+  removerName: string,
+): Promise<void> {
+  if (!plan.member_ids.includes(targetUid) || plan.creator_id === targetUid) return;
+  const member_ids = plan.member_ids.filter((id) => id !== targetUid);
+  const { error } = await supabase
+    .from("plans")
+    .update({ member_ids, current_people: member_ids.length })
+    .eq("id", plan.id);
+  if (error) throw error;
+  await postSystemMessage(plan.id, "removed", [removerName, targetName]);
+}
+
+/** Organiser locks an ASAP/flexible plan to a concrete time (mirrors
+ *  DatabaseService.setPlanScheduledTime): becomes scheduled, expiry +2h. */
+export async function setPlanScheduledTime(planId: string, scheduledAt: Date): Promise<void> {
+  const expiry = new Date(scheduledAt.getTime() + 2 * 3600_000);
+  const { error } = await supabase
+    .from("plans")
+    .update({
+      scheduled_at: scheduledAt.toISOString(),
+      time_type: "scheduled",
+      is_asap: false,
+      flex_day: null,
+      flex_meal: null,
+      expires_at: expiry.toISOString(),
+    })
+    .eq("id", planId);
+  if (error) throw error;
+}
+
+/** Records who attended a completed plan (mirrors DatabaseService.confirmAttendance):
+ *  increments attended/hosted counts atomically via the confirm_plan_attendance RPC. */
+export async function confirmAttendance(planId: string, attendedUserIds: string[]): Promise<void> {
+  const { error } = await supabase.rpc("confirm_plan_attendance", {
+    p_plan_id: planId,
+    p_attended: attendedUserIds,
+  });
+  if (error) throw error;
 }
 
 // ----- Plan chat (mirror messages table + listenToMessages) -----
@@ -380,6 +445,74 @@ export function listenToPlan(planId: string, onUpdate: (p: Plan) => void): () =>
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+// ----- Polls (mirror DatabaseService polls section) -----
+
+export async function fetchPolls(planId: string): Promise<Poll[]> {
+  const { data, error } = await supabase
+    .from("polls")
+    .select("*")
+    .eq("plan_id", planId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Poll[];
+}
+
+export async function fetchVotes(planId: string): Promise<PollVote[]> {
+  const { data: polls } = await supabase.from("polls").select("id").eq("plan_id", planId);
+  const ids = (polls ?? []).map((p) => (p as { id: string }).id);
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from("poll_votes").select("*").in("poll_id", ids);
+  if (error) throw error;
+  return (data ?? []) as PollVote[];
+}
+
+export async function createPoll(poll: Poll): Promise<void> {
+  const { error } = await supabase.from("polls").insert(poll);
+  if (error) throw error;
+}
+
+/** Cast/replace a vote. Delete-then-insert avoids composite-key upsert syntax
+ *  (mirrors DatabaseService.castVote). */
+export async function castVote(vote: PollVote): Promise<void> {
+  await supabase.from("poll_votes").delete().eq("poll_id", vote.poll_id).eq("user_id", vote.user_id);
+  const { error } = await supabase.from("poll_votes").insert(vote);
+  if (error) throw error;
+}
+
+/** Realtime for a plan's polls + votes. Returns an unsubscribe fn. */
+export function listenToPolls(planId: string, onChange: () => void): () => void {
+  const channel = supabase
+    .channel(`polls:${planId}:${crypto.randomUUID()}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "polls", filter: `plan_id=eq.${planId}` }, () => onChange())
+    .on("postgres_changes", { event: "*", schema: "public", table: "poll_votes" }, () => onChange())
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+// ----- Report / block (mirror AuthService.reportPlan / blockUser) -----
+
+export async function reportPlan(reporterUid: string, planId: string): Promise<void> {
+  const { data: u } = await supabase.from("users").select("reported_plans").eq("id", reporterUid).single();
+  const reported = ((u?.reported_plans as string[] | null) ?? []);
+  if (!reported.includes(planId)) {
+    await supabase.from("users").update({ reported_plans: [...reported, planId] }).eq("id", reporterUid);
+  }
+  const { data: p } = await supabase.from("plans").select("reported_by").eq("id", planId).single();
+  const by = ((p?.reported_by as string[] | null) ?? []);
+  if (!by.includes(reporterUid)) {
+    await supabase.from("plans").update({ reported_by: [...by, reporterUid] }).eq("id", planId);
+  }
+}
+
+export async function blockUser(blockerUid: string, targetUid: string): Promise<void> {
+  const { data: u } = await supabase.from("users").select("blocked_users").eq("id", blockerUid).single();
+  const blocked = ((u?.blocked_users as string[] | null) ?? []);
+  if (blocked.includes(targetUid)) return;
+  await supabase.from("users").update({ blocked_users: [...blocked, targetUid] }).eq("id", blockerUid);
 }
 
 // ----- Account-wide realtime (mirror listenToAll* — drive unread badges) -----

@@ -53,7 +53,7 @@ function planTimeLabel(p: Plan): string {
 
 export function Discover() {
   const nav = useNavigate();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, hasBlocked } = useAuth();
   const [mode, setMode] = useState<"restaurants" | "plans">("restaurants");
   const [search, setSearch] = useState("");
   const [dealFilter, setDealFilter] = useState<DealFilter | null>(null);
@@ -150,8 +150,11 @@ export function Discover() {
   }, [sort, userLoc, filtered, featured, general, showFeatured, offersMap]);
 
   const visiblePlans = useMemo(
-    () => (plans.data ?? []).filter((p) => needsMorePeople(p) > 0 && !p.attendance_confirmed_at).sort(defaultPlanOrder),
-    [plans.data],
+    () =>
+      (plans.data ?? [])
+        .filter((p) => needsMorePeople(p) > 0 && !p.attendance_confirmed_at && !hasBlocked(p.creator_id))
+        .sort(defaultPlanOrder),
+    [plans.data, hasBlocked],
   );
 
   return (

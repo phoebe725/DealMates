@@ -7,6 +7,7 @@ import { restaurantName, offerTitle, offerDescription, offerGroupBadge, dealOffe
 import { t, localizedCuisine as cuisineLabel , formatDateTime } from "@/i18n";
 import { trackCreatePlanClick } from "@/lib/analytics";
 import { offerShortLabel, splitTerms } from "@/lib/dealDisplay";
+import { useAuth } from "@/auth/AuthContext";
 import { Chip, EmptyState, RestaurantImage, Spinner } from "@/components/ui";
 
 function timeLabel(p: Plan) {
@@ -19,6 +20,7 @@ function timeLabel(p: Plan) {
 export function RestaurantBoard() {
   const { id = "" } = useParams();
   const nav = useNavigate();
+  const { hasBlocked } = useAuth();
   const r = useQuery({ queryKey: ["restaurant", id], queryFn: () => fetchRestaurant(id), enabled: !!id });
   const plansQ = useQuery({ queryKey: ["plans", id], queryFn: () => fetchActivePlans(id), enabled: !!id });
   const offersQ = useQuery({ queryKey: ["offers", id], queryFn: () => fetchRestaurantOffers(id), enabled: !!id });
@@ -30,7 +32,7 @@ export function RestaurantBoard() {
   const allOffers = offersQ.data ?? [];
   const deals = dealOffers(allOffers);                                  // group_gated + deal
   const highlights = allOffers.filter((o) => o.category === "highlight"); // info only
-  const plans = (plansQ.data ?? []).slice().sort(defaultPlanOrder);
+  const plans = (plansQ.data ?? []).filter((p) => !hasBlocked(p.creator_id)).sort(defaultPlanOrder);
 
   const startTable = () => { trackCreatePlanClick(rest.id); nav(`/create?restaurant=${rest.id}`); };
 
