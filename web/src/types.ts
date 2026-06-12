@@ -119,6 +119,7 @@ export interface PollVote {
 
 export type OfferType = "buy_x_get_y" | "group_set_menu" | "min_diners_discount" | "other";
 export type OfferCategory = "group_gated" | "deal" | "highlight";
+export type PriceConfidence = "official" | "user_verified" | "review_only" | "unverified";
 
 // Normalized offer (restaurant_offers table) — the source of truth for promos.
 export interface RestaurantOffer {
@@ -140,6 +141,38 @@ export interface RestaurantOffer {
   price_pp: number | null;
   currency: string | null;
   is_active: boolean;
+  verified: boolean | null;
+  price_confidence: PriceConfidence | null;
+  last_verified_at: string | null;
+  source_note: string | null;
+}
+
+// User-submitted price/deal correction (deal_reports table). Never overwrites an
+// offer directly — it's reviewed (approved/rejected) out of band.
+export interface DealReport {
+  id: string;
+  restaurant_id: string;
+  offer_id: string | null;
+  reporter_id: string | null;
+  reporter_name: string | null;
+  reported_price: number | null;
+  note: string | null;
+  status: "pending" | "approved" | "rejected";
+  created_at: string | null;
+}
+
+/** Price-confidence badge for a deal: English key (localize via t) + Chip tint.
+ *  official/user_verified → 已確認, review_only → 參考價格, else → 待確認. */
+export function priceConfidenceBadge(o: RestaurantOffer): { key: string; tint: "sage" | "sun" | "ink" } {
+  switch (o.price_confidence ?? "unverified") {
+    case "official":
+    case "user_verified":
+      return { key: "Verified", tint: "sage" };
+    case "review_only":
+      return { key: "Reference price", tint: "sun" };
+    default:
+      return { key: "Unconfirmed", tint: "ink" };
+  }
 }
 
 // --- locale-aware accessors (mirror Restaurant.swift display* / AppLocale) ---

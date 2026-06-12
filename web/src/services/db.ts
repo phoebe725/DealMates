@@ -3,7 +3,7 @@
 // the matching screens are ported.
 
 import { supabase } from "@/lib/supabase";
-import type { AppUser, ChatMessage, DirectMessage, DMConversation, Plan, Poll, PollVote, Restaurant, RestaurantOffer } from "@/types";
+import type { AppUser, ChatMessage, DealReport, DirectMessage, DMConversation, Plan, Poll, PollVote, Restaurant, RestaurantOffer } from "@/types";
 
 export async function fetchRestaurants(): Promise<Restaurant[]> {
   const { data, error } = await supabase
@@ -491,6 +491,40 @@ export function listenToPolls(planId: string, onChange: () => void): () => void 
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+// ----- Price/deal reports (user-submitted corrections, never overwrite official) -----
+
+export async function submitDealReport(report: {
+  restaurant_id: string;
+  offer_id?: string | null;
+  reporter_id?: string | null;
+  reporter_name?: string | null;
+  reported_price?: number | null;
+  note?: string | null;
+}): Promise<void> {
+  const { error } = await supabase.from("deal_reports").insert({
+    restaurant_id: report.restaurant_id,
+    offer_id: report.offer_id ?? null,
+    reporter_id: report.reporter_id ?? null,
+    reporter_name: report.reporter_name ?? null,
+    reported_price: report.reported_price ?? null,
+    note: report.note ?? null,
+    status: "pending",
+  });
+  if (error) throw error;
+}
+
+/** Pending reports for a restaurant (RLS only returns status='pending'). Drives
+ *  the "a user reported the price may have changed" note. */
+export async function fetchPendingReports(restaurantId: string): Promise<DealReport[]> {
+  const { data, error } = await supabase
+    .from("deal_reports")
+    .select("*")
+    .eq("restaurant_id", restaurantId)
+    .eq("status", "pending");
+  if (error) return [];
+  return (data ?? []) as DealReport[];
 }
 
 // ----- Report / block (mirror AuthService.reportPlan / blockUser) -----

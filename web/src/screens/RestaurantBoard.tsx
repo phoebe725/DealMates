@@ -1,9 +1,10 @@
 // Mirrors RestaurantBoardView.swift: venue header + deals, active plans list,
 // empty state, and the create-a-table CTA.
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { fetchRestaurant, fetchActivePlans, fetchRestaurantOffers, defaultPlanOrder } from "@/services/db";
-import { restaurantName, offerTitle, offerDescription, offerGroupBadge, dealOffers, needsMorePeople, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchRestaurant, fetchActivePlans, fetchRestaurantOffers, defaultPlanOrder, fetchPendingReports, submitDealReport } from "@/services/db";
+import { restaurantName, offerTitle, offerDescription, offerGroupBadge, dealOffers, needsMorePeople, priceConfidenceBadge, type Plan, type Restaurant, type RestaurantOffer } from "@/types";
 import { t, localizedCuisine as cuisineLabel , formatDateTime } from "@/i18n";
 import { trackCreatePlanClick } from "@/lib/analytics";
 import { offerShortLabel, splitTerms } from "@/lib/dealDisplay";
@@ -20,10 +21,13 @@ function timeLabel(p: Plan) {
 export function RestaurantBoard() {
   const { id = "" } = useParams();
   const nav = useNavigate();
-  const { hasBlocked } = useAuth();
+  const qc = useQueryClient();
+  const { hasBlocked, user } = useAuth();
+  const [showReport, setShowReport] = useState(false);
   const r = useQuery({ queryKey: ["restaurant", id], queryFn: () => fetchRestaurant(id), enabled: !!id });
   const plansQ = useQuery({ queryKey: ["plans", id], queryFn: () => fetchActivePlans(id), enabled: !!id });
   const offersQ = useQuery({ queryKey: ["offers", id], queryFn: () => fetchRestaurantOffers(id), enabled: !!id });
+  const reportsQ = useQuery({ queryKey: ["pendingReports", id], queryFn: () => fetchPendingReports(id), enabled: !!id });
 
   if (r.isLoading) return <Spinner />;
   const rest = r.data;
@@ -33,6 +37,7 @@ export function RestaurantBoard() {
   const deals = dealOffers(allOffers);                                  // group_gated + deal
   const highlights = allOffers.filter((o) => o.category === "highlight"); // info only
   const plans = (plansQ.data ?? []).filter((p) => !hasBlocked(p.creator_id)).sort(defaultPlanOrder);
+  const hasPending = (reportsQ.data ?? []).length > 0;
 
   const startTable = () => { trackCreatePlanClick(rest.id); nav(`/create?restaurant=${rest.id}`); };
 
@@ -57,6 +62,19 @@ export function RestaurantBoard() {
             </div>
           </>
         )}
+
+        {/* Price accuracy: pending-report note + user report entry */}
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <div className="text-[12px] text-inkMuted">
+            {hasPending ? `⚠️ ${t("A user reported the price may have changed.")}` : t("Prices can change — flag it if it's wrong.")}
+          </div>
+          <button
+            onClick={() => setShowReport(true)}
+            className="shrink-0 rounded-full bg-shell px-3 py-1.5 text-[12px] font-semibold text-clay"
+          >
+            {t("Report price")}
+          </button>
+        </div>
 
         {/* 2. ACTIVE TABLES / PLANS */}
         <div className="mt-7"><SectionHeader title={t("Active plans")} /></div>
@@ -132,6 +150,16 @@ export function RestaurantBoard() {
       >
         + {t("Create a table")}
       </button>
+
+      {showReport && (
+        <ReportPriceModal
+          restaurantId={rest.id}
+          deals={deals}
+          reporter={user}
+          onClose={() => setShowReport(false)}
+          onDone={() => { setShowReport(false); qc.invalidateQueries({ queryKey: ["pendingReports", id] }); }}
+        />
+      )}
     </div>
   );
 }
@@ -165,6 +193,11 @@ function TermList({ desc }: { desc: string }) {
   );
 }
 
+function ConfidenceBadge({ o }: { o: RestaurantOffer }) {
+  const b = priceConfidenceBadge(o);
+  return <Chip text={t(b.key)} tint={b.tint} />;
+}
+
 function DealCard({ o }: { o: RestaurantOffer }) {
   // Headline is the authored title; the short-label emoji is kept as a category cue.
   const title = offerTitle(o) || offerShortLabel(o).text;
@@ -178,6 +211,7 @@ function DealCard({ o }: { o: RestaurantOffer }) {
         )}
       </div>
       <TermList desc={offerDescription(o)} />
+      <div className="mt-2"><ConfidenceBadge o={o} /></div>
     </div>
   );
 }
@@ -201,9 +235,86 @@ function GroupDealCard({ o, onCreate }: { o: RestaurantOffer; onCreate: () => vo
       )}
       <div className="mt-1 text-[15px] font-semibold text-ink">{title}</div>
       <TermList desc={offerDescription(o)} />
+      <div className="mt-2"><ConfidenceBadge o={o} /></div>
       <button onClick={onCreate} className="mt-3 w-full rounded-full bg-clay py-2.5 text-[14px] font-semibold text-cream">
         {t("Create table for this deal")}
       </button>
+    </div>
+  );
+}
+
+function ReportPriceModal({
+  restaurantId, deals, reporter, onClose, onDone,
+}: {
+  restaurantId: string;
+  deals: RestaurantOffer[];
+  reporter: { id: string; display_name: string } | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [offerId, setOfferId] = useState<string>(deals[0]?.id ?? "");
+  const [price, setPrice] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const canSubmit = price.trim() !== "" || note.trim() !== "";
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30" onClick={onClose}>
+      <div className="w-full max-w-[480px] rounded-t-3xl bg-cream p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-center">
+          <button onClick={onClose} className="text-[14px] font-semibold text-ink">{t("Cancel")}</button>
+          <span className="flex-1 text-center text-[15px] font-medium text-ink">{t("Report price")}</span>
+          <span className="w-10" />
+        </div>
+        <p className="mb-3 text-[12px] text-inkMuted">{t("Spotted a different price? Let us know — we'll review it.")}</p>
+
+        {deals.length > 0 && (
+          <select
+            className="pin-field mb-2 w-full"
+            value={offerId}
+            onChange={(e) => setOfferId(e.target.value)}
+          >
+            {deals.map((d) => (
+              <option key={d.id} value={d.id}>{offerTitle(d) || offerShortLabel(d).text}</option>
+            ))}
+          </select>
+        )}
+        <input
+          className="pin-field mb-2"
+          inputMode="decimal"
+          placeholder={t("Correct price per person (£)")}
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+        />
+        <textarea
+          className="pin-field mb-3 min-h-[72px]"
+          placeholder={t("Anything else? (optional)")}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+        <button
+          className="pin-btn-primary disabled:opacity-40"
+          disabled={!canSubmit || busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const parsed = Number(price.replace(/[^0-9.]/g, ""));
+              await submitDealReport({
+                restaurant_id: restaurantId,
+                offer_id: offerId || null,
+                reporter_id: reporter?.id ?? null,
+                reporter_name: reporter?.display_name ?? null,
+                reported_price: Number.isFinite(parsed) && price.trim() !== "" ? parsed : null,
+                note: note.trim() || null,
+              });
+              onDone();
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {t("Submit report")}
+        </button>
+      </div>
     </div>
   );
 }
