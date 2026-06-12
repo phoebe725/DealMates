@@ -51,6 +51,8 @@ struct RestaurantBoardView: View {
     @State private var statusFilter: PlanStatusFilter = .all
     @State private var sortMode: PlanSortMode = .timeAsc
     @State private var offers: [RestaurantOffer] = []
+    @State private var pendingReports: [DealReport] = []
+    @State private var showReportSheet = false
     @ObservedObject private var subs = SubscriptionsViewModel.shared
 
     /// Active offers (restaurant_offers is the source of truth for promos).
@@ -90,6 +92,18 @@ struct RestaurantBoardView: View {
         .sheet(item: $profileTarget) { target in
             UserProfileView(userId: target.id)
         }
+        .sheet(isPresented: $showReportSheet) {
+            DealReportSheet(
+                restaurantId: restaurant.id,
+                deals: RestaurantOffer.deals(displayOffers),
+                reporterId: authViewModel.uid,
+                reporterName: authViewModel.displayName,
+                isPresented: $showReportSheet,
+                onSubmitted: {
+                    Task { pendingReports = await DatabaseService.shared.fetchPendingReports(restaurantId: restaurant.id) }
+                }
+            )
+        }
         .navigationDestination(isPresented: Binding(
             get: { selectedPlan != nil },
             set: { if !$0 { selectedPlan = nil } }
@@ -103,7 +117,10 @@ struct RestaurantBoardView: View {
             DMChatView(currentUid: authViewModel.uid, otherUid: target.uid)
         }
         .onAppear  { vm.startListening() }
-        .task { offers = await DatabaseService.shared.fetchOffers(restaurantId: restaurant.id) }
+        .task {
+            offers = await DatabaseService.shared.fetchOffers(restaurantId: restaurant.id)
+            pendingReports = await DatabaseService.shared.fetchPendingReports(restaurantId: restaurant.id)
+        }
         .onDisappear { vm.stopListening() }
         .alert("Heads up", isPresented: Binding(
             get:  { vm.errorMessage != nil },
@@ -157,8 +174,8 @@ struct RestaurantBoardView: View {
     @ViewBuilder
     private var dealsSection: some View {
         let deals = RestaurantOffer.deals(displayOffers)   // group_gated + deal
-        if !deals.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
+            if !deals.isEmpty {
                 PinSectionHeader(title: "Current deals")
                 ForEach(deals) { offer in
                     if offer.category == "group_gated" {
@@ -168,6 +185,45 @@ struct RestaurantBoardView: View {
                     }
                 }
             }
+            priceAccuracyRow
+        }
+    }
+
+    /// Price-confidence chip: 已確認 / 參考價格 / 待確認 (mirrors web).
+    @ViewBuilder
+    private func confidenceBadge(_ offer: RestaurantOffer) -> some View {
+        let badge = offer.priceConfidenceBadge
+        let color: Color = {
+            switch badge.tone {
+            case .verified:    return .pinSageDeep
+            case .reference:   return .pinSunDeep
+            case .unconfirmed: return .pinInkMuted
+            }
+        }()
+        Text(AppLocalization.string(badge.key))
+            .font(.pinSubtitle(11).weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .background(color.opacity(0.15), in: Capsule())
+    }
+
+    /// "Prices can change" / pending-report note + a Report-price entry point.
+    private var priceAccuracyRow: some View {
+        HStack(spacing: 8) {
+            Text(pendingReports.isEmpty
+                 ? AppLocalization.string("Prices can change — flag it if it's wrong.")
+                 : "⚠️ " + AppLocalization.string("A user reported the price may have changed."))
+                .font(.pinSubtitle(11))
+                .foregroundStyle(Color.pinInkMuted)
+            Spacer(minLength: 8)
+            Button { showReportSheet = true } label: {
+                Text("Report price")
+                    .font(.pinButton(12))
+                    .foregroundStyle(Color.pinClay)
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(Color.pinShell, in: Capsule())
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -208,6 +264,7 @@ struct RestaurantBoardView: View {
                 }
             }
             termList(offer)
+            confidenceBadge(offer)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -244,6 +301,7 @@ struct RestaurantBoardView: View {
                 .font(.pinBody(15, weight: .medium))
                 .foregroundStyle(Color.pinInk)
             termList(offer)
+            confidenceBadge(offer)
             Button {
                 AnalyticsService.shared.track("create_plan_click", restaurantId: restaurant.id)
                 showCreatePlan = true

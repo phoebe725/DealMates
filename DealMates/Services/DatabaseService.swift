@@ -53,6 +53,49 @@ final class DatabaseService {
         }
     }
 
+    // MARK: - Price/deal reports (user-submitted corrections, never overwrite official)
+
+    /// Submit a price/deal correction. Stored separately as status='pending'.
+    func submitDealReport(restaurantId: String, offerId: String?, reporterId: String?,
+                          reporterName: String?, reportedPrice: Double?, note: String?) async throws {
+        struct NewReport: Encodable {
+            let restaurantId: String
+            let offerId: String?
+            let reporterId: String?
+            let reporterName: String?
+            let reportedPrice: Double?
+            let note: String?
+            let status: String
+            enum CodingKeys: String, CodingKey {
+                case restaurantId  = "restaurant_id"
+                case offerId        = "offer_id"
+                case reporterId     = "reporter_id"
+                case reporterName   = "reporter_name"
+                case reportedPrice  = "reported_price"
+                case note
+                case status
+            }
+        }
+        try await client.from("deal_reports")
+            .insert(NewReport(restaurantId: restaurantId, offerId: offerId, reporterId: reporterId,
+                              reporterName: reporterName, reportedPrice: reportedPrice, note: note,
+                              status: "pending"))
+            .execute()
+    }
+
+    /// Pending reports for a restaurant (RLS only returns status='pending').
+    func fetchPendingReports(restaurantId: String) async -> [DealReport] {
+        do {
+            return try await client
+                .from("deal_reports").select()
+                .eq("restaurant_id", value: restaurantId)
+                .eq("status", value: "pending")
+                .execute().value
+        } catch {
+            return []
+        }
+    }
+
     /// Upserts a restaurant by `id` and returns the canonical row. Used when a
     /// user pins a plan at a MapKit search result that isn't in the curated set,
     /// and by the admin "add restaurant" flow. Conflicts update in place so a

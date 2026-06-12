@@ -20,6 +20,23 @@ struct RestaurantOffer: Identifiable, Codable, Hashable {
     var pricePp: Double?
     var currency: String?
     var isActive: Bool
+    /// Price verification (mirrors web). Read-only — set via curation / admin.
+    var verified: Bool
+    var priceConfidence: String     // official | user_verified | review_only | unverified
+    var lastVerifiedAt: Date?
+    var sourceNote: String?
+
+    enum PriceConfidenceTone { case verified, reference, unconfirmed }
+
+    /// Localized badge key + tone for the price-confidence chip.
+    /// official/user_verified → 已確認, review_only → 參考價格, else → 待確認.
+    var priceConfidenceBadge: (key: String, tone: PriceConfidenceTone) {
+        switch priceConfidence {
+        case "official", "user_verified": return ("Verified", .verified)
+        case "review_only":               return ("Reference price", .reference)
+        default:                          return ("Unconfirmed", .unconfirmed)
+        }
+    }
 
     var displayTitle: String {
         switch AppLocale.current {
@@ -146,6 +163,10 @@ extension RestaurantOffer {
         case pricePp = "price_pp"
         case currency
         case isActive = "is_active"
+        case verified
+        case priceConfidence = "price_confidence"
+        case lastVerifiedAt = "last_verified_at"
+        case sourceNote = "source_note"
     }
 
     init(from decoder: Decoder) throws {
@@ -168,5 +189,9 @@ extension RestaurantOffer {
         pricePp          = try? c.decodeIfPresent(Double.self, forKey: .pricePp)
         currency         = try? c.decodeIfPresent(String.self, forKey: .currency)
         isActive         = (try? c.decodeIfPresent(Bool.self, forKey: .isActive)) ?? true
+        verified         = (try? c.decodeIfPresent(Bool.self, forKey: .verified)) ?? false
+        priceConfidence  = (try? c.decodeIfPresent(String.self, forKey: .priceConfidence)) ?? "unverified"
+        lastVerifiedAt   = try? c.decodeIfPresent(Date.self, forKey: .lastVerifiedAt)
+        sourceNote       = try? c.decodeIfPresent(String.self, forKey: .sourceNote)
     }
 }
