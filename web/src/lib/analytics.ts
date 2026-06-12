@@ -4,6 +4,37 @@ import { supabase } from "@/lib/supabase";
 
 const GUEST_KEY = "pintable_guest_id";
 const SESSION_KEY = "pintable_session_id";
+const OWNER_KEY = "pintable_owner";
+
+// Founder self-tagging: visiting the site with ?owner=1 marks THIS browser as the
+// owner's, so every event it sends carries is_owner=true and can be filtered out
+// of "real visitor" counts (?owner=0 clears it). Read once at load, then stripped
+// from the URL so it isn't shared. Persists in localStorage — incognito windows
+// keep no localStorage, so those still rely on IP exclusion.
+(function initOwnerFlag() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const flag = params.get("owner");
+    if (flag === "1") localStorage.setItem(OWNER_KEY, "1");
+    else if (flag === "0") localStorage.removeItem(OWNER_KEY);
+    if (flag !== null) {
+      params.delete("owner");
+      const qs = params.toString();
+      window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash);
+    }
+  } catch {
+    /* localStorage/history unavailable — ignore */
+  }
+})();
+
+/** True when this browser has been tagged as the owner's (via ?owner=1). */
+export function isOwner(): boolean {
+  try {
+    return localStorage.getItem(OWNER_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 /** Stable per-browser anonymous id, created on first use (localStorage). */
 export function guestId(): string {
@@ -53,6 +84,7 @@ function track(event_name: string, opts: TrackOpts = {}): void {
       offer_id: opts.offer_id ?? null,
       plan_id: opts.plan_id ?? null,
       metadata: opts.metadata ?? null,
+      is_owner: isOwner(),
     })
     .then(({ error }) => {
       if (error) console.debug("[analytics] insert failed:", error.message);
